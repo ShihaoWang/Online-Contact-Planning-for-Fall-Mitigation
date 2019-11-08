@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<world>
+  <robot name="HRP2" file="../../Klampt-examples/data/robots/hrp2.rob" config="36	0.144053 0.124296 -0.159682 0.189791 0.077538 -0.044873 0.015354 0.058618 0.200448 0.698072 -0.968078 -0.014906 0.026981 0.000560 -1.116670 1.149117 -0.100857 0.042095 0.083400 -0.087266 -0.000100 -0.001800 -0.796900 0.012800 0.001600 -0.746800 1.605703 -0.000600 -0.000000 0.850047 -0.007400 -0.000000 -0.316100 -1.605703 -0.000200 -0.000000 "/>
+  <terrain file="../../Klampt-examples/data/terrains/block.off" scale="1 1 1" translation= "0.0 0.0 0.0">
+     <display color="0.4 0.3 0.2"/>
+  </terrain>
+  <simulation>
+    <globals adaptiveTimeStepping="1" />
+    <robot index="0" body="11">  <!-- right foot -->
+       <geometry kFriction="1.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
+    </robot>
+    <robot index="0" body="17">  <!-- left foot -->
+       <geometry kFriction="1.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
+    </robot>
+  </simulation>
+</world>
