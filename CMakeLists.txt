@@ -71,6 +71,7 @@ add_executable(MyApp
                src/CommonHeader.h
                src/ContactInfoLoader.cpp
 	       src/ContactPlanning.cpp
+	       src/ContactPlanningInner.cpp
                src/SignedDistanceField.cpp
                src/RobotStateFiler.cpp
                src/RobotUtils.cpp

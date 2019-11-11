@@ -76,7 +76,7 @@ int main()
 
   /* 4. Robot State Loader */
   Robot SimRobot = *world.robots[0];
-  RobotConfigLoader(SimRobot, UserFilePath, "DefaultTest.config");
+  RobotConfigLoader(SimRobot, UserFilePath, "SampleTest.config");
 
   std::vector<double> InitRobotConfig(SimRobot.q.size()), InitRobotVelocity(SimRobot.q.size()), ZeroRobotVelocity(SimRobot.q.size());
   std::vector<double> RobotConfigRef(SimRobot.q.size());

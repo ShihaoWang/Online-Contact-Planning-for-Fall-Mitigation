@@ -32,7 +32,7 @@ std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActConta
   return ProjActContactPositions;
 }
 
-static PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vector3& COM, const Vector3& COMVel)
+PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vector3& COM, const Vector3& COMVel)
 {
   // Here the inputs are EdgeA and EdgeB, which should be chosen to be on the positive dirction of certain edge.
   // Now it is the CoM projection and basically the job is to find the orthogonal intersection point

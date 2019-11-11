@@ -100,7 +100,7 @@ double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink
   return CPObjective;
 }
 
-int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo)
+int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo)
 {
   // This function is used to fix the end effector whose contact should not be modified.
   // First the job is to figure out whether this edge belongs to a certain end effector
@@ -123,33 +123,33 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector
   {
     // This indicates the current end is owned by two end effectors so we should be more careful about the selection of which end effector to be modified.
     // Basically the main idea is to alter the link where the rest of the link has a lower failure metric.
-    Vector3 RotEdgeAOri, RotEdgeAGoal;
-    double EdgeAIndexCost = FailureMetricwithContactChange(SimRobot, EdgeAEndInfoIndex, RobotLinkInfo, RobotContactInfo, RotEdgeAOri, RotEdgeAGoal);
-    Vector3 RotEdgeBOri, RotEdgeBGoal;
-    double EdgeBIndexCost = FailureMetricwithContactChange(SimRobot, EdgeBEndInfoIndex, RobotLinkInfo, RobotContactInfo, RotEdgeBOri, RotEdgeBGoal);
+    Vector3 RotKeepBOri, RotKeepBGoal;
+    double KeepBFixedCost = FailureMetricwithContactChange(SimRobot, EdgeAEndInfoIndex, RobotLinkInfo, RobotContactInfo, RotKeepBOri, RotKeepBGoal);
+    Vector3 RotKeepAOri, RotKeepAGoal;
+    double KeepAFixedCost = FailureMetricwithContactChange(SimRobot, EdgeBEndInfoIndex, RobotLinkInfo, RobotContactInfo, RotKeepAOri, RotKeepAGoal);
 
-    if(EdgeAIndexCost>EdgeBIndexCost)
+    if(KeepBFixedCost>KeepAFixedCost)
     {
-      // Here EdgeBEndInfoIndex should be kept fixed.
-      FixerInfoIndex = EdgeBEndInfoIndex;
-      RotEdgeOri = RotEdgeBOri;
-      RotEdgeGoal = RotEdgeBGoal;
+      // Here A should be kept fixed.
+      FixerInfoIndex = EdgeAEndInfoIndex;
+      RotEdgeOri = RotKeepAOri;
+      RotEdgeGoal = RotKeepAGoal;
     }
     else
     {
-      // Here EdgeAEndInfoIndex should be kept fixed.
-      FixerInfoIndex = EdgeAEndInfoIndex;
-      RotEdgeOri = RotEdgeAOri;
-      RotEdgeGoal = RotEdgeAGoal;
+      // Here B should be kept fixed.
+      FixerInfoIndex = EdgeBEndInfoIndex;
+      RotEdgeOri = RotKeepBOri;
+      RotEdgeGoal = RotKeepBGoal;
     }
   }
+  int a = 1;
+  /* Robot's COMPos and COMVel */
+  Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+  CentroidalState(SimRobot, COMPos, COMVel);
+  double atime = CollisionTimeEstimator(RotEdgeOri, RotEdgeGoal, COMPos, COMVel, SDFInfo);
 
-  // Now the job is to plan the
-
-
-
-
-
+  // Now the job is to plan the contact with the available contact
 
 
 }
