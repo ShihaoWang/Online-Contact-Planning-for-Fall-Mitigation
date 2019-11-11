@@ -62,27 +62,6 @@ static Vector3 ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   return F_t;
 }
 
-static std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActContactPositions)
-{
-  // Projection to ground
-  std::vector<Vector3> ProjActContactPositions;
-  ProjActContactPositions.reserve(ActContactPositions.size());
-  double LowestHeight = 1000.0;
-  for (int j = 0; j < ActContactPositions.size(); j++)
-  {
-    if(LowestHeight>ActContactPositions[j].z)
-    {
-      LowestHeight = ActContactPositions[j].z;
-    }
-  }
-  for (int j = 0; j < ActContactPositions.size(); j++)
-  {
-    Vector3 ProjActContact(ActContactPositions[j].x, ActContactPositions[j].y, LowestHeight);
-    ProjActContactPositions.push_back(ProjActContact);
-  }
-  return ProjActContactPositions;
-}
-
 static void SimSmoother(const int & ControllerType, WorldSimulation & Sim, const std::vector<Config> & qdotDesTraj, const int & DOF)
 {
   // This function is used to smoothen the weird oscillatory motion at certain robot actuators.
@@ -280,14 +259,14 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, SDFInfo);
     std::vector<Vector3> ConeShiftedUnits, ConeUnits;
     ConeUnitGenerator(ActContactPositions, SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
-    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPositions);
-    std::vector<PIPInfo> PIPSPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
-    // int OEPIPIndex, CPPIPIndex;
-    int CPPIPIndex;
-    // double OEObjective = RBGenerator(PIPSPTotal, OEPIPIndex);
-    double CPObjective = CapturePointGenerator(PIPSPTotal, CPPIPIndex);
 
-    ContactPolytopeWriter(PIPSPTotal, EdgeFileNames);
+    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPositions);
+    // std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, COMPos, COMVel);
+    int CPPIPIndex;
+    double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
+
+    ContactPolytopeWriter(PIPTotal, EdgeFileNames);
 
     switch (CPPIPIndex)
     {
@@ -326,6 +305,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         // Here is for robot's contact modification.
         std::printf("Critial PIP Index is %d\n", CPPIPIndex);
+        // Now it is time to plan the contact
+        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], RobotLinkInfo, RobotContactInfo);
 
       }
       break;

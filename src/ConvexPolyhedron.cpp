@@ -11,6 +11,27 @@
 // This function is used to calculate the reactive mass pendulum related functions
 static double eps_dist = 0.001;        // 1 mm
 
+std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActContactPositions)
+{
+  // Projection to ground
+  std::vector<Vector3> ProjActContactPositions;
+  ProjActContactPositions.reserve(ActContactPositions.size());
+  double LowestHeight = 1000.0;
+  for (int j = 0; j < ActContactPositions.size(); j++)
+  {
+    if(LowestHeight>ActContactPositions[j].z)
+    {
+      LowestHeight = ActContactPositions[j].z;
+    }
+  }
+  for (int j = 0; j < ActContactPositions.size(); j++)
+  {
+    Vector3 ProjActContact(ActContactPositions[j].x, ActContactPositions[j].y, LowestHeight);
+    ProjActContactPositions.push_back(ProjActContact);
+  }
+  return ProjActContactPositions;
+}
+
 static PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vector3& COM, const Vector3& COMVel)
 {
   // Here the inputs are EdgeA and EdgeB, which should be chosen to be on the positive dirction of certain edge.
