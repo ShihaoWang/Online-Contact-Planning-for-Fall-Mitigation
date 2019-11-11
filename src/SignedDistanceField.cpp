@@ -25,18 +25,21 @@ static void SignedDistanceFieldWriter(const std::vector<double> & SDFVector, con
 
 SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, const int& GridsNo)
 {
-  // This function is used to generate the sighed distance field with FastMarchingMethod
-  double resolution = 0.1;
+  double resolution = 0.05;
 
   const int NumberOfTerrains = WorldObj.terrains.size();
-  Meshing::TriMesh EnviTriMesh  = WorldObj.terrains[0]->geometry->AsTriangleMesh();
+
+  std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*WorldObj.terrains[0]);
+  Meshing::TriMesh EnviTriMesh  = Terrain_ptr->geometry->AsTriangleMesh();
 
   // This step is used to merge the meshes into a single one.
   for (int i = 0; i < NumberOfTerrains-1; i++)
   {
-    Meshing::TriMesh EnviTriMesh_i  = WorldObj.terrains[i+1]->geometry->AsTriangleMesh();
+    std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*WorldObj.terrains[i+1]);
+    Meshing::TriMesh EnviTriMesh_i  = Terrain_ptr->geometry->AsTriangleMesh();
     EnviTriMesh.MergeWith(EnviTriMesh_i);
   }
+
   Meshing::VolumeGrid SDFGrid;
   CollisionMesh EnviTriMeshTopology(EnviTriMesh);
   EnviTriMeshTopology.InitCollisions();
@@ -47,40 +50,31 @@ SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, cons
 
   // Now it is time to calculate SignedDistanceFieldInfo struct obj from SDFGrid
 
-  // Now a data structure has already been computed to enable the value of signed distance
-  shared_ptr<Terrain> Terrain_i;
-  PQP_Model Terrain_i_PQP;
-  std::vector<double> Envi_x, Envi_y, Envi_z;     // This is used to save the coordiantes of the environment
-  for (int i = 0; i < NumberOfTerrains; i++)
-  {
-    Terrain_i = WorldObj.terrains[i];
-    Terrain_i_PQP = *((*Terrain_i->geometry).TriangleMeshCollisionData()).pqpModel;
-    for (int j = 0; j < Terrain_i_PQP.num_tris; j++)
-    {
-      // There are three points in TriangleMesh
-      Envi_x.push_back(Terrain_i_PQP.tris[j].p1[0]);
-      Envi_x.push_back(Terrain_i_PQP.tris[j].p2[0]);
-      Envi_x.push_back(Terrain_i_PQP.tris[j].p3[0]);
+  // The estimated sizes of the environment
+  double BB_x_min = SDFGrid.bb.bmin[0];
+  double BB_x_max = SDFGrid.bb.bmax[0];
 
-      Envi_y.push_back(Terrain_i_PQP.tris[j].p1[1]);
-      Envi_y.push_back(Terrain_i_PQP.tris[j].p2[1]);
-      Envi_y.push_back(Terrain_i_PQP.tris[j].p3[1]);
+  double BB_y_min = SDFGrid.bb.bmin[1];
+  double BB_y_max = SDFGrid.bb.bmax[1];
 
-      Envi_z.push_back(Terrain_i_PQP.tris[j].p1[2]);
-      Envi_z.push_back(Terrain_i_PQP.tris[j].p2[2]);
-      Envi_z.push_back(Terrain_i_PQP.tris[j].p3[2]);
-    }
-  }
+  double BB_z_min = SDFGrid.bb.bmin[2];
+  double BB_z_max = SDFGrid.bb.bmax[2];
+
+  double BB_x_length = BB_x_max - BB_x_min;
+  double BB_y_length = BB_y_max - BB_y_min;
+  double BB_z_length = BB_z_max - BB_z_min;
+
+  double ExtCoeff = 0.0;
 
   // The estimated sizes of the environment
-  double Envi_x_min = *std::min_element(Envi_x.begin(), Envi_x.end());
-  double Envi_x_max = *std::max_element(Envi_x.begin(), Envi_x.end());
+  double Envi_x_min = BB_x_min - ExtCoeff * BB_x_length;
+  double Envi_x_max = BB_x_max + ExtCoeff * BB_x_length;
 
-  double Envi_y_min = *std::min_element(Envi_y.begin(), Envi_y.end());
-  double Envi_y_max = *std::max_element(Envi_y.begin(), Envi_y.end());
+  double Envi_y_min = BB_y_min - ExtCoeff * BB_y_length;
+  double Envi_y_max = BB_y_max + ExtCoeff * BB_y_length;
 
-  double Envi_z_min = *std::min_element(Envi_z.begin(), Envi_z.end());
-  double Envi_z_max = *std::max_element(Envi_z.begin(), Envi_z.end());
+  double Envi_z_min = BB_z_min - ExtCoeff * BB_z_length;
+  double Envi_z_max = BB_z_max + ExtCoeff * BB_z_length;
 
   double Envi_x_length = Envi_x_max - Envi_x_min;
   double Envi_y_length = Envi_y_max - Envi_y_min;
@@ -133,8 +127,10 @@ SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, cons
   SDFSpecs.push_back(Envi_x_unit);            SDFSpecs.push_back(Envi_y_unit);            SDFSpecs.push_back(Envi_z_unit);
   SDFSpecs.push_back(Envi_x_length);          SDFSpecs.push_back(Envi_y_length);          SDFSpecs.push_back(Envi_z_length);
   SDFSpecs.push_back(GridsNo);
+
   SignedDistanceFieldWriter(SDFVector, SDFSpecs);
   SignedDistanceFieldInfo SDFInfo(SDFTensor, SDFSpecs);
+
   return SDFInfo;
 }
 

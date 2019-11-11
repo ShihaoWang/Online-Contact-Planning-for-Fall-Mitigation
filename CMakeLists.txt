@@ -8,8 +8,8 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -flto")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g")
 
-set(CMAKE_BUILD_TYPE "Release")
-#set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/local/include" )
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/lib")
@@ -76,14 +76,8 @@ add_executable(MyApp
 	       src/InitialStateOptimization.cpp
                src/NonlinearOptimizerInfo.h
                src/SimulationTest.cpp
-               src/CapturePointSupportPolygon.cpp
-               src/ZeroStepCapturability.cpp
 	       src/ViabilityKernelLoader.cpp
-               src/HJBController.cpp
-	       src/HJBControllerVelo.cpp
 	       src/ConvexPolyhedron.cpp
-	       src/QPStabilizer.cpp
-	       src/StabilizingControllerGRB.cpp
 	       src/StabilizingControllerContact.cpp)
 
 target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY})

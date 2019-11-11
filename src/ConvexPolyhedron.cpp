@@ -10,71 +10,8 @@
 
 // This function is used to calculate the reactive mass pendulum related functions
 static double eps_dist = 0.001;        // 1 mm
-static double CP_dist_eps = 0.01;      // 1cm
 
-static PIPInfo PIPMProj(const Vector3& EdgeAPos, const Vector3& EdgeBPos, const Vector3 & EdgeAVel, const Vector3 & EdgeBVel, const Vector3& COM, const Vector3& _COMVel)
-{
-  // Here the inputs are EdgeAPos and EdgeBPos, which should be chosen to be on the positive dirction of certain edge.
-  // Now it is the CoM projection and basically the job is to find the orthogonal intersection point
-
-  Vector3 COMVel = _COMVel;                             // However, the edge velocity needs to be considered!
-
-  Matrix3 CrossrAminusrB, CrossrAminusrBInv;
-  CrossrAminusrB.setCrossProduct(EdgeAPos - EdgeBPos);
-  CrossrAminusrB.getInverse(CrossrAminusrBInv);
-
-  Vector3 Omega;
-  CrossrAminusrBInv.mul(EdgeBVel-EdgeAVel, Omega);      // Here we have Omega!
-  Vector3 EdgeA2COM = COM - EdgeAPos;
-  Vector3 EdgeA2B = EdgeBPos - EdgeAPos;                      // x
-  Vector3 x_unit, y_unit, z_unit;
-  EdgeA2B.getNormalized(x_unit);
-  double t = EdgeA2COM.dot(x_unit);
-  Vector3 COMOnEdge = EdgeAPos + t * x_unit;
-  Vector3 COMOnEdge2COM = COM - COMOnEdge;              // y
-  COMOnEdge2COM.getNormalized(y_unit);
-  z_unit = -1.0*cross(x_unit, y_unit);                  // z
-
-  Vector3 OriginVelocity;
-  Vector3 OrignalVelocityOffset;
-  OrignalVelocityOffset.setCross(Omega, t * x_unit);
-  OriginVelocity = EdgeAVel + OrignalVelocityOffset;
-  COMVel = COMVel - OriginVelocity;
-  double L = COMOnEdge2COM.norm();
-  double Ldot = COMVel.dot(y_unit);
-  double thetadot = COMVel.dot(z_unit)/L;
-
-  Vector3 g(0.0, 0.0, -9.81);
-  Vector3 EdgeA2BProj(EdgeBPos.x - EdgeAPos.x, EdgeBPos.y - EdgeAPos.y, 0.0);
-  Vector3 z_prime_unit = cross(EdgeA2BProj, -1.0 * g);
-  z_prime_unit = z_prime_unit/z_prime_unit.norm();
-  Vector3 y_prime_unit = cross(z_prime_unit, x_unit);
-  double theta = atan2(-1.0 * COMOnEdge2COM.dot(z_prime_unit), COMOnEdge2COM.dot(y_prime_unit));
-  double g_proj = -g.dot(y_prime_unit);
-
-  double VertY = EdgeBPos.z - EdgeAPos.z;
-  double VertX = (EdgeBPos.x - EdgeAPos.x)*(EdgeBPos.x - EdgeAPos.x) + (EdgeBPos.y - EdgeAPos.y) * (EdgeBPos.y - EdgeAPos.y);
-  VertX = sqrt(VertX);
-  double g_angle = abs(atan2(VertY, VertX))/3.1415926535 * 180.0;       // Expressed in degrees
-
-  PIPInfo IPM_i(L, Ldot, theta, thetadot, g_proj, g_angle);
-
-  IPM_i.x_unit = x_unit;
-  IPM_i.y_unit = y_unit;
-  IPM_i.z_unit = z_unit;     // Here x-y-z do not obey right hand rule.
-
-  IPM_i.x_prime_unit = x_unit;
-  IPM_i.y_prime_unit = y_prime_unit;
-  IPM_i.z_prime_unit = z_prime_unit;
-
-  IPM_i.EdgeA = EdgeAPos;
-  IPM_i.EdgeB = EdgeBPos;
-  IPM_i.Intersection = COMOnEdge;
-
-  return IPM_i;
-}
-
-static PIPInfo PIPMProj(const Vector3& EdgeA, const Vector3& EdgeB, const Vector3& COM, const Vector3& COMVel)
+static PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vector3& COM, const Vector3& COMVel)
 {
   // Here the inputs are EdgeA and EdgeB, which should be chosen to be on the positive dirction of certain edge.
   // Now it is the CoM projection and basically the job is to find the orthogonal intersection point
@@ -138,26 +75,6 @@ static Vector3 NormalFromThreePoints(const Vector3& Pt1, const Vector3& Pt2, con
   TriNormal.z = TriNormal.z/TriNormalMagnitude;
 
   return TriNormal;
-}
-
-std::vector<Vector3> ContactPolyhedronVertices(const Robot & SimRobot,const std::vector<LinkInfo> &RobotLinkInfo, const SignedDistanceFieldInfo& SDFInfo)
-{
-  // This function is used to get out the Spatial vertices for the 3D support polygon
-  // Here the SimRobot must have been updated
-
-  std::vector<Vector3> CPVertices;
-  std::vector<LinkInfo> EndEffectorInfo = EndEffectorPND(SimRobot, RobotLinkInfo, SDFInfo);
-  for (int i = 0; i < RobotLinkInfo.size(); i++)
-  {
-    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
-    {
-      if (EndEffectorInfo[i].ContactDists[j]<=CP_dist_eps)
-      {
-        CPVertices.push_back(EndEffectorInfo[i].ContactPositions[j]);
-      }
-    }
-  }
-  return CPVertices;
 }
 
 static int PointsCoplanarEval(const std::vector<Vector3> & _CPVertices)
@@ -393,7 +310,6 @@ static void ReplicationReduction(std::vector<Vector3> & _EdgeAVec, std::vector<V
   _EdgeBVec.push_back(_B);
 }
 
-// std::vector<FacetInfo> NonflatContactHullGeneration(const std::vector<Vector3> & _CPVertices)
 std::vector<FacetInfo> NonflatContactHullGeneration(const std::vector<Vector3> & _CPVertices, std::vector<Vector3> & _CPVertex ,std::vector<Vector3> & _CPEdgeA, std::vector<Vector3> & _CPEdgeB)
 {
   std::vector<Eigen::Vector3f> Vertices;
@@ -510,144 +426,25 @@ std::vector<FacetInfo> ContactHullGeneration(const std::vector<Vector3>& _CPVert
   }
 }
 
-static double ZCoordinate(const double& _X, const double &_Y, const std::vector<Vector3>& CPVertices, int & PtIndex)
+static double ZCoordinate(const double & _X, const double & _Y, const std::vector<Vector3> & CPVertices, int & PtIndex)
 {
   // This function is used to select out the ZCoodrinate given _X and _Y.
-  double Eps_Tol = 1e-10;
-
-  for (int i = 0; i < CPVertices.size(); i++)
+  int CPNumber = CPVertices.size();
+  std::vector<double> CPDiff(CPNumber);
+  for (int i = 0; i < CPNumber; i++)
   {
     double Difference_i = (CPVertices[i].x - _X) * (CPVertices[i].x - _X) + (CPVertices[i].y - _Y) * (CPVertices[i].y - _Y);
-    if(Difference_i<Eps_Tol)
-    {
-      PtIndex = i;
-      return CPVertices[i].z;
-    }
+    CPDiff[i] = Difference_i;
   }
-  return 0.0;
+
+  // The CPDiff
+  int CPDiffIndex = std::distance(CPDiff.begin(), std::min_element(CPDiff.begin(), CPDiff.end()));
+  return CPVertices[CPDiffIndex].z;
 }
 
-std::vector<PIPInfo> ContactEdgesGeneration(const std::vector<Vector3> & CPVertex, const std::vector<Vector3> & CPEdgeA, const std::vector<Vector3> & CPEdgeB, const Vector3& COM, const Vector3& COMVel, const SignedDistanceFieldInfo & SDFInfo)
-{
-  // This function is used to calculate PIP model.
-  // The first job is to figure out the feasible edges.
-  std::vector<Vector3> CPNorm;
-  CPNorm.reserve(CPVertex.size());
-  for (int i = 0; i < CPVertex.size(); i++)
-  {
-    Vector3 CPNorm_i = SDFInfo.SignedDistanceNormal(CPVertex[i]);
-    CPNorm.push_back(CPNorm_i);
-  }
-  std::vector<Vector3> RotationEdgeA, RotationEdgeB;
-  // Given a number of potential directions, only some of them are feasible.
-  Vector3 CPEdgeA_i, CPEdgeB_i, CPEdgeA2B;
-  for (int i = 0; i < CPEdgeA.size(); i++)
-  {
-    CPEdgeA_i = CPEdgeA[i];
-    CPEdgeB_i = CPEdgeB[i];
-    CPEdgeA2B = CPEdgeB_i - CPEdgeA_i;
-    int FeasiblePoint = 0;
-    for (int j = 0; j < CPVertex.size(); j++)
-    {
-      Vector3 CPEdgeA2Vertex = CPVertex[j] - CPEdgeA_i;
-      Vector3 VertexVelocity = cross(CPEdgeA2B, CPEdgeA2Vertex);
-      double FeasiProj = VertexVelocity.dot(CPNorm[j]);
-      if(FeasiProj>=0)
-      {
-        FeasiblePoint = FeasiblePoint + 1;
-      }
-    }
-    if(FeasiblePoint == CPVertex.size())
-    {
-      // This means that all points are feasible so this edge is a rotation edge.
-      RotationEdgeA.push_back(CPEdgeA_i);
-      RotationEdgeB.push_back(CPEdgeB_i);
-      continue;
-    }
-
-    CPEdgeA_i = CPEdgeB[i];
-    CPEdgeB_i = CPEdgeA[i];
-    CPEdgeA2B = CPEdgeB_i - CPEdgeA_i;
-    FeasiblePoint = 0;
-    for (int j = 0; j < CPVertex.size(); j++)
-    {
-      Vector3 CPEdgeA2Vertex = CPVertex[j] - CPEdgeA_i;
-      Vector3 VertexVelocity = cross(CPEdgeA2B, CPEdgeA2Vertex);
-      double FeasiProj = VertexVelocity.dot(CPNorm[j]);
-      if(FeasiProj>=0)
-      {
-        FeasiblePoint = FeasiblePoint + 1;
-      }
-    }
-    if(FeasiblePoint == CPVertex.size())
-    {
-      // This means that all points are feasible so this edge is a rotation edge.
-      RotationEdgeA.push_back(CPEdgeA_i);
-      RotationEdgeB.push_back(CPEdgeB_i);
-      continue;
-    }
-  }
-  std::vector<PIPInfo> PIPTotal;
-  PIPTotal.reserve(RotationEdgeA.size());
-  for (int i = 0; i < RotationEdgeA.size(); i++)
-  {
-    PIPInfo PIPInfo_i = PIPMProj(RotationEdgeA[i], RotationEdgeB[i], COM, COMVel);
-    PIPTotal.push_back(PIPInfo_i);
-  }
-  return PIPTotal;
-}
-
-static Vector3 FindCorrespondingVelocity(const Vector3 & Point, const std::vector<Vector3> & ActPositions, const std::vector<Vector3> & ActVelocities)
-{
-  // This function is used to find the velocity corresponding to that position.
-  double eps = 1e-10;
-  Vector3 ActVelocity(0.0, 0.0, 0.0);
-  for (int i = 0; i < ActPositions.size(); i++)
-  {
-    Vector3 ActPoint = ActPositions[i];
-    Vector3 CmpVec = ActPoint - Point;
-    double CmpVecVal = (CmpVec.x * CmpVec.x) + (CmpVec.y * CmpVec.y) + (CmpVec.z * CmpVec.z);
-    if(CmpVecVal<eps)
-    {
-      ActVelocity = ActVelocities[i];
-      return ActVelocity;
-    }
-  }
-  return ActVelocity;
-}
-
-std::vector<PIPInfo> ContactEdgesGenerationSP(const std::vector<Vector3> &CPVertices, const std::vector<Vector3> &ActVelocities, const std::vector<int> & ActStatus, const Vector3& COM, const Vector3& COMVel, int & FailureFlag)
+std::vector<PIPInfo> PIPGenerator(const std::vector<Vector3> & CPVertices, const Vector3 & COMPos, const Vector3 & COMVel)
 {
   std::vector<PIPInfo> PIPTotal;
-  FailureFlag = 0;
-  int ActPointNumber = 0;
-  for (int i = 0; i < ActStatus.size(); i++)
-  {
-    ActPointNumber+= ActStatus[i];
-  }
-  switch (ActPointNumber)
-  {
-    case 0:
-    {
-      FailureFlag = 1;
-    }
-    break;
-    case 1:
-    {
-      FailureFlag = 1;
-    }
-    break;
-    case 2:
-    {
-      FailureFlag = 1;
-    }
-    break;
-    default:
-    {
-    }
-    break;
-  }
-
   std::vector<Vector3> SPVertices;
   SPVertices.reserve(CPVertices.size());
   for (int i = 0; i < CPVertices.size(); i++)
@@ -658,27 +455,16 @@ std::vector<PIPInfo> ContactEdgesGenerationSP(const std::vector<Vector3> &CPVert
   // Now all the points have already been projected into a 2D plane
   int FacetFlag = 0;
   FacetInfo FlatConvexHullObj= FlatContactHullGeneration(SPVertices, FacetFlag);
-
-  // Only these edges will be considered.
-  // PIPTotal.reserve(FlatConvexHullObj.FacetEdges.size());
-
   for (int i = 0; i < FlatConvexHullObj.FacetEdges.size(); i++)
   {
     int FirstPtIndex, SecondPtIndex;
     double Edge_i_First_z =   ZCoordinate(FlatConvexHullObj.FacetEdges[i].first.x,  FlatConvexHullObj.FacetEdges[i].first.y,    CPVertices, FirstPtIndex);
     double Edge_i_Second_z =  ZCoordinate(FlatConvexHullObj.FacetEdges[i].second.x, FlatConvexHullObj.FacetEdges[i].second.y,   CPVertices, SecondPtIndex);
-
-    Vector3 FirstEdge(FlatConvexHullObj.FacetEdges[i].first.x, FlatConvexHullObj.FacetEdges[i].first.y, Edge_i_First_z);
-    Vector3 SecondEdge(FlatConvexHullObj.FacetEdges[i].second.x,  FlatConvexHullObj.FacetEdges[i].second.y, Edge_i_Second_z);
-
-    Vector3 FirstEdgeVelocity = ActVelocities[FirstPtIndex];
-    Vector3 SecondEdgeVelocity = ActVelocities[SecondPtIndex];
-
-    PIPInfo PIPInfo_i = PIPMProj(FirstEdge, SecondEdge, FirstEdgeVelocity, SecondEdgeVelocity, COM, COMVel);
-
+    Vector3 FirstEdge(  FlatConvexHullObj.FacetEdges[i].first.x,   FlatConvexHullObj.FacetEdges[i].first.y,  Edge_i_First_z);
+    Vector3 SecondEdge( FlatConvexHullObj.FacetEdges[i].second.x,  FlatConvexHullObj.FacetEdges[i].second.y, Edge_i_Second_z);
+    PIPInfo PIPInfo_i = PIPGeneratorInner(FirstEdge, SecondEdge, COMPos, COMVel);
     if(PIPInfo_i.g_angle<80)
     {
-      // I would say that PIP is a feasible one.
       PIPTotal.push_back(PIPInfo_i);
     }
   }
@@ -718,85 +504,8 @@ void ConeUnitGenerator(const std::vector<Vector3> & ActContacts, SignedDistanceF
   }
 }
 
-std::vector<PIPInfo> PIPGeneratorAnalysis(const std::vector<Vector3> & ActContacts, const std::vector<Vector3> & ActVelocities, const std::vector<int> & ActStatus, Vector3 & COMPosCur, Vector3 & COMVel, ViabilityKernelInfo& VKObj, std::vector<double> & PIPObj, double & FailureMetric, const double & Margin, const double & dt)
+void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<const char*> & EdgeFileNames)
 {
-  int FailureFlag;
-  std::vector<PIPInfo> PIPTotal = ContactEdgesGenerationSP(ActContacts, ActVelocities, ActStatus, COMPosCur, COMVel, FailureFlag);
-  PIPObj.reserve(PIPTotal.size());
-  for (int i = 0; i < PIPTotal.size(); i++)
-  {
-    double PIPObj_i = 0.0;
-    PIPObj_i = VKObj.ObjectiveRetrieve(PIPTotal[i], COMPosCur);
-    if(PIPObj_i>Margin)
-    {
-      PIPObj_i = -1;
-    }
-    PIPObj.push_back(PIPObj_i);
-  }
-  double PIPObjective = *min_element(PIPObj.begin(), PIPObj.end());
-  if(PIPObjective<0)
-  {
-    FailureMetric = 1.0;
-  }
-  else
-  {
-    FailureMetric = 0.0;
-  }
-  switch (FailureFlag)
-  {
-    case 1:
-    {
-      FailureMetric = 1.0;
-    }
-    break;
-    default:
-    {
-    }
-    break;
-  }
-  return PIPTotal;
-}
-
-std::vector<PIPInfo> PIPGeneratorSP(const std::vector<Vector3> & ActContacts, const std::vector<Vector3> & ActVelocities, const std::vector<int> & ActStatus, Vector3 & COMPosCur, Vector3 & COMVel, ViabilityKernelInfo & VKObj, double & FailureMetric, const double & dt)
-{
-  int FailureFlag;
-  std::vector<PIPInfo> PIPTotal = ContactEdgesGenerationSP(ActContacts, ActVelocities, ActStatus, COMPosCur, COMVel, FailureFlag);
-  std::vector<double> PIPObj;
-  PIPObj.reserve(PIPTotal.size());
-  for (int i = 0; i < PIPTotal.size(); i++)
-  {
-    double PIPObj_i = 0.0;
-    PIPObj_i = VKObj.ObjectiveRetrieve(PIPTotal[i], COMPosCur);
-    PIPObj.push_back(PIPObj_i);
-  }
-  double PIPObjective = *min_element(PIPObj.begin(), PIPObj.end());
-  if(PIPObjective<0)
-  {
-    FailureMetric = 1.0;
-  }
-  else
-  {
-    FailureMetric = 0.0;
-  }
-  switch (FailureFlag)
-  {
-    case 1:
-    {
-      FailureMetric = 1.0;
-    }
-    break;
-    default:
-    {
-    }
-    break;
-  }
-  return PIPTotal;
-}
-
-std::vector<PIPInfo> PIPGenerator(const std::vector<Vector3> & ActContacts, const std::vector<Vector3> & ActVelocities, const std::vector<int> & ActStatus, Vector3 & COMPosCur, Vector3 & COMVel, const std::vector<const char*> & EdgeFileNames, ViabilityKernelInfo& VKObj, double & FailureMetric, const double & dt)
-{
-  int FailureFlag;
-  std::vector<PIPInfo> PIPTotal = ContactEdgesGenerationSP(ActContacts, ActVelocities, ActStatus, COMPosCur, COMVel, FailureFlag);
   std::ofstream fEdgeA;         fEdgeA.open(EdgeFileNames[0], std::ios_base::app);
   std::ofstream fEdgeB;         fEdgeB.open(EdgeFileNames[1], std::ios_base::app);
   std::ofstream fEdgeCOM;       fEdgeCOM.open(EdgeFileNames[2], std::ios_base::app);
@@ -804,13 +513,8 @@ std::vector<PIPInfo> PIPGenerator(const std::vector<Vector3> & ActContacts, cons
   std::ofstream fEdgey;         fEdgey.open(EdgeFileNames[4], std::ios_base::app);
   std::ofstream fEdgez;         fEdgez.open(EdgeFileNames[5], std::ios_base::app);
 
-  std::vector<double> PIPObj(PIPTotal.size());
   for (int i = 0; i < PIPTotal.size(); i++)
   {
-    double PIPObj_i = 0.0;
-    PIPObj_i = VKObj.ObjectiveRetrieve(PIPTotal[i], COMPosCur);
-    // std::printf("PIPObj value: %f\n", PIPObj_i);
-    PIPObj[i] = PIPObj_i;
     fEdgeA<<std::to_string(PIPTotal[i].EdgeA.x)<<" "<<std::to_string(PIPTotal[i].EdgeA.y)<<" "<<std::to_string(PIPTotal[i].EdgeA.z)<<" ";
     fEdgeB<<std::to_string(PIPTotal[i].EdgeB.x)<<" "<<std::to_string(PIPTotal[i].EdgeB.y)<<" "<<std::to_string(PIPTotal[i].EdgeB.z)<<" ";
     fEdgeCOM<<std::to_string(PIPTotal[i].Intersection.x)<<" "<<std::to_string(PIPTotal[i].Intersection.y)<<" "<<std::to_string(PIPTotal[i].Intersection.z)<<" ";
@@ -818,84 +522,17 @@ std::vector<PIPInfo> PIPGenerator(const std::vector<Vector3> & ActContacts, cons
     fEdgey<<std::to_string(PIPTotal[i].y_prime_unit.x)<<" "<<std::to_string(PIPTotal[i].y_prime_unit.y)<<" "<<std::to_string(PIPTotal[i].y_prime_unit.z)<<" ";
     fEdgez<<std::to_string(PIPTotal[i].z_prime_unit.x)<<" "<<std::to_string(PIPTotal[i].z_prime_unit.y)<<" "<<std::to_string(PIPTotal[i].z_prime_unit.z)<<" ";
   }
+
   fEdgeA<<"\n";                   fEdgeA.close();
   fEdgeB<<"\n";                   fEdgeB.close();
   fEdgeCOM<<"\n";                 fEdgeCOM.close();
   fEdgex<<"\n";                   fEdgex.close();
   fEdgey<<"\n";                   fEdgey.close();
   fEdgez<<"\n";                   fEdgez.close();
-
-  double PIPObjective = *min_element(PIPObj.begin(), PIPObj.end());
-  if(PIPObjective<0)
-  {
-    FailureMetric = 1.0;
-  }
-  else
-  {
-    FailureMetric = 0.0;
-  }
-  switch (FailureFlag)
-  {
-    case 1:
-    {
-      FailureMetric = 1.0;
-    }
-    break;
-    default:
-    {
-    }
-    break;
-  }
-  return PIPTotal;
+  return;
 }
 
-double RBGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const double & Margin)
-{
-  std::vector<double> RBFailureMetric(PIPTotal.size());
-  for (int i = 0; i < PIPTotal.size(); i++)
-  {
-    // For each edge, the comparison is based on the instantaneus kinetic energy and the maximum potential energy can be accumulated.
-    double theta = PIPTotal[i].theta;
-    double thetadot = PIPTotal[i].thetadot;
-    double L = PIPTotal[i].L;
-    double Ldot = PIPTotal[i].Ldot;
-    double g = PIPTotal[i].g;
-
-    double KE = 0.5 * L * L * thetadot * thetadot;
-    double PE = g * L * (1.0 - cos(theta));
-
-    if(theta>0.0)
-    {
-      if(thetadot>0.0)
-      {
-        RBFailureMetric[i] = 0.0;
-      }
-      else
-      {
-        // This means that the pendulum is tilting to the negative direction.
-
-        RBFailureMetric[i] = KE - PE + Margin;
-      }
-    }
-    else
-    {
-      // This means that the current robot is at the negative side.
-      if(thetadot>0.0)
-      {
-        RBFailureMetric[i] = PE - KE + Margin;
-      }
-      else
-      {
-        RBFailureMetric[i] = KE;
-      }
-    }
-  }
-  double FailureMetricRB = *max_element(RBFailureMetric.begin(), RBFailureMetric.end());
-  FailureMetricRB = max(FailureMetricRB, 0.0);
-  return FailureMetricRB;
-}
-
-double RBGenerator(const std::vector<PIPInfo> & PIPTotal)
+double RBGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex)
 {
   std::vector<double> RBFailureMetric(PIPTotal.size());
   for (int i = 0; i < PIPTotal.size(); i++)
@@ -938,10 +575,19 @@ double RBGenerator(const std::vector<PIPInfo> & PIPTotal)
   }
   double FailureMetricRB = *max_element(RBFailureMetric.begin(), RBFailureMetric.end());
   FailureMetricRB = max(FailureMetricRB, 0.0);
+  if(FailureMetricRB>0)
+  {
+    // This indicates that robot's is going to have failure
+    PIPIndex = std::distance(RBFailureMetric.begin(), std::max_element(RBFailureMetric.begin(), RBFailureMetric.end()));
+  }
+  else
+  {
+    PIPIndex = -1;
+  }
   return FailureMetricRB;
 }
 
-double CPCEGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const double & Margin)
+double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex)
 {
   std::vector<double> CP_Pos(PIPTotal.size());
   for (int i = 0; i < PIPTotal.size(); i++)
@@ -949,46 +595,35 @@ double CPCEGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const double
     double L = PIPTotal[i].L;
     double theta = PIPTotal[i].theta;
     double thetadot = PIPTotal[i].thetadot;
-    double g_angle = PIPTotal[i].g_angle;
+    double g = PIPTotal[i].g;
 
     double CP_x = L * sin(theta);
     double CP_xdot = L * thetadot * cos(theta);
     double CP_L = L * cos(theta);
-    double CP_g = 9.81 * cos(g_angle/180.0 * 3.1415926);
-    double CP_xbar = CP_x + CP_xdot/sqrt(CP_g/CP_L);
-    CP_Pos[i] = CP_xbar - Margin;
-  }
-  double CPCECost = *min_element(CP_Pos.begin(), CP_Pos.end());
-  return max(0.0, -CPCECost);
-}
 
-double CPCEGenerator(const std::vector<PIPInfo> & PIPTotal)
-{
-  std::vector<double> CP_Pos(PIPTotal.size());
-  for (int i = 0; i < PIPTotal.size(); i++)
-  {
-    double L = PIPTotal[i].L;
-    double theta = PIPTotal[i].theta;
-    double thetadot = PIPTotal[i].thetadot;
-    double g_angle = PIPTotal[i].g_angle;
-
-    double CP_x = L * sin(theta);
-    double CP_xdot = L * thetadot * cos(theta);
-    double CP_L = L * cos(theta);
     if(CP_L<=0)
     {
       CP_Pos[i] = 0.0;
     }
     else
     {
-      double CP_g = 9.81 * cos(g_angle/180.0 * 3.1415926);
+      double CP_g = g;
       double CP_xbar = CP_x + CP_xdot/sqrt(CP_g/CP_L);
       CP_Pos[i] = CP_xbar;
-      // std::printf("CP_xbar: %f\n", CP_xbar);
     }
   }
   double CPCECost = *min_element(CP_Pos.begin(), CP_Pos.end());
-  return max(0.0, -CPCECost);
+  CPCECost = max(0.0, -CPCECost);
+  if(CPCECost>0)
+  {
+    // This indicates that robot's is going to have failure
+    PIPIndex = std::distance(CP_Pos.begin(), std::min_element(CP_Pos.begin(), CP_Pos.end()));
+  }
+  else
+  {
+    PIPIndex = -1;
+  }
+  return CPCECost;
 }
 
 double ZMPGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const Vector3 & COMPos, const Vector3 & COMAcc, const double & Margin)
@@ -1060,7 +695,7 @@ std::vector<Vector3> FullPIPInterCal(const std::vector<FacetInfo> & FacetInfoObj
       Vector3 COMVel(0.0, 0.0, 0.0);
       Vector3 EdgeA = FacetInfoObj[i].FacetEdges[j].first;
       Vector3 EdgeB = FacetInfoObj[i].FacetEdges[j].second;
-      PIPInfo PIPMProj_i = PIPMProj(EdgeA, EdgeB, COM, COMVel);
+      PIPInfo PIPMProj_i = PIPGeneratorInner(EdgeA, EdgeB, COM, COMVel);
       Vector3Appender(PIPInters, PIPMProj_i.Intersection);
     }
   }

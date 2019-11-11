@@ -208,28 +208,21 @@ void TrajAppender(const char * qTrajFile_Name, const Config & Traj_i, const int 
   TrajFileWriter.close();
 }
 
-void SpecsWriter(const Robot & SimRobot, const double & t_final, const double & dt, const int & InitContactNo, const int & FileIndex)
+void SpecsWriter(const Robot & SimRobot, const double & t_final, const double & t_last, const Vector3 & F_t, const int & InitContactNo, const int & FileIndex)
 {
   // This function is used to write Specs vector into file.
   std::vector<double> Specs;
   Specs.push_back(t_final);
-  Specs.push_back(dt);
+  Specs.push_back(t_last);
+
+  Specs.push_back(F_t.x);
+  Specs.push_back(F_t.y);
+  Specs.push_back(F_t.z);
+
   for (int i = 0; i < SimRobot.q.size(); i++)
   {
     Specs.push_back(SimRobot.q[i]);
   }
-  for (int i = 0; i < SimRobot.dq.size(); i++)
-  {
-    Specs.push_back(SimRobot.dq[i]);
-  }
-  Vector3 COM(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
-  CentroidalState(SimRobot, COM, COMVel);
-
-  Specs.push_back(COMVel.x);
-  Specs.push_back(COMVel.y);
-  Specs.push_back(COMVel.z);
-  Specs.push_back(SimRobot.GetKineticEnergy());
-
   Specs.push_back(InitContactNo);
 
   // File Name according to string

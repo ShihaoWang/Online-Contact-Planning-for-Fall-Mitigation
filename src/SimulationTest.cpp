@@ -5,29 +5,130 @@
 #include "Control/PathController.h"
 #include "Control/JointTrackingController.h"
 
-void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, SimGUIBackend & Backend, const std::vector<Vector3> & ContactPositionRef, const Vector3 & CentDirection, const double & dt, const int & FileIndex)
-{
-  /* Simulation parameters */
-  int     EdgeNumber      = 4;
-  double  mu              = 0.5;
-  double  t_impul         = Sim.time + 0.25;                      // The impulse lasts for 0.5s.
-  double  t_final         = 3.5;                                  // The simulation lasts for 3.5s.
-  int     StepNo          = round(t_final/dt);
-  t_final+=Sim.time;
+static double KETol = 1e-3;
 
+static Vector3 ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
+{
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  std::vector<double> RobotConfigRef = Sim.world->robots[0]->q;
+  double ImpFx = 7500.0;
+  double ImpFy = 7500.0;
+  double ImpFz = 1500.0;
 
-  // Case 0
-  Vector3 CentDir = CentDirection;
-  double CentDirNorm = sqrt(CentDir.x * CentDir.x + CentDir.y * CentDir.y + CentDir.z * CentDir.z);
-  std::uniform_real_distribution<> dis(0.0, 500.0);
-  double ForceMag = dis(gen);
-  double Fx_t = ForceMag * CentDir.x/CentDirNorm;
-  double Fy_t = ForceMag * CentDir.y/CentDirNorm;
-  double Fz_t = ForceMag * CentDir.z/CentDirNorm;
+  std::uniform_real_distribution<> ImpXdis(ImpFx/2.0, ImpFx);
+  std::uniform_real_distribution<> ImpYdis(ImpFy/2.0, ImpFy);
+  std::uniform_real_distribution<> ImpZdis(ImpFz/2.0, ImpFz);
+
+  double Sign_x_val = ((double) rand() / (RAND_MAX));
+  double Sign_y_val = ((double) rand() / (RAND_MAX));
+  double Sign_z_val = ((double) rand() / (RAND_MAX));
+
+  double Sign_x, Sign_y, Sign_z;
+  if(Sign_x_val<=0.5)
+  {
+    Sign_x = -1.0;
+  }
+  else
+  {
+    Sign_x = 1.0;
+  }
+  if(Sign_y_val<=0.5)
+  {
+    Sign_y = -1.0;
+  }
+  else
+  {
+    Sign_y = 1.0;
+  }
+  if(Sign_z_val<=0.5)
+  {
+    Sign_z = -1.0;
+  }
+  else
+  {
+    Sign_z = 1.0;
+  }
+
+  std::printf("Sign_x_val: %f\n", Sign_x_val);
+  std::printf("Sign_y_val: %f\n", Sign_y_val);
+  std::printf("Sign_z_val: %f\n", Sign_z_val);
+
+  Fx_t = Sign_x_val * ImpXdis(gen);
+  Fy_t = Sign_y_val * ImpYdis(gen);
+  Fz_t = Sign_z_val * ImpZdis(gen);
+
+  Vector3 F_t(Fx_t, Fy_t, Fz_t);
+  return F_t;
+}
+
+static std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActContactPositions)
+{
+  // Projection to ground
+  std::vector<Vector3> ProjActContactPositions;
+  ProjActContactPositions.reserve(ActContactPositions.size());
+  double LowestHeight = 1000.0;
+  for (int j = 0; j < ActContactPositions.size(); j++)
+  {
+    if(LowestHeight>ActContactPositions[j].z)
+    {
+      LowestHeight = ActContactPositions[j].z;
+    }
+  }
+  for (int j = 0; j < ActContactPositions.size(); j++)
+  {
+    Vector3 ProjActContact(ActContactPositions[j].x, ActContactPositions[j].y, LowestHeight);
+    ProjActContactPositions.push_back(ProjActContact);
+  }
+  return ProjActContactPositions;
+}
+
+static void SimSmoother(const int & ControllerType, WorldSimulation & Sim, const std::vector<Config> & qdotDesTraj, const int & DOF)
+{
+  // This function is used to smoothen the weird oscillatory motion at certain robot actuators.
+  switch (ControllerType)
+  {
+    case 1:
+    {
+
+    }
+    break;
+    default:
+    {
+      // A weird problem with actuators at ankles have been observed. Here we assume that these two motors behave in an ideal way.
+      std::vector<double> RealVelocities(DOF);
+      for (int i = 0; i < DOF; i++)
+      {
+        RealVelocities[i] = Sim.world->robots[0]->dq[i];
+      }
+      // Four actuators are compensated with ideal values.
+      RealVelocities[10] = qdotDesTraj[qdotDesTraj.size()-1][10];
+      RealVelocities[11] = qdotDesTraj[qdotDesTraj.size()-1][11];
+      RealVelocities[16] = qdotDesTraj[qdotDesTraj.size()-1][16];
+      RealVelocities[17] = qdotDesTraj[qdotDesTraj.size()-1][17];
+
+      Sim.world->robots[0]->dq = RealVelocities;
+      Config RealVelocitiesSet(RealVelocities);
+      Sim.controlSimulators[0].oderobot->SetVelocities(RealVelocitiesSet);
+    }
+    break;
+  }
+  return;
+}
+
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, SimGUIBackend & Backend, const std::vector<Vector3> & ContactPositionRef, const double & dt, const int & FileIndex)
+{
+  /* Simulation parameters */
+  int     EdgeNumber      = 4;
+  double  mu              = 1.0;
+  int DOF = Sim.world->robots[0]->q.size();
+  double  t_last          = 2.0 * dt;
+  double  t_impul         = Sim.time + t_last;                      // The impulse lasts for 2.0 * dt.
+  double  t_final         = 10.0;                      // The impulse lasts for 2.0 * dt.
+  t_final+=Sim.time;
+
+  double Fx_t, Fy_t, Fz_t;
+  Vector3 ImpulseForce = ImpulForceGene(Fx_t, Fy_t, Fz_t);
 
   /* Override the default controller with a PolynomialPathController */
   auto NewControllerPtr = std::make_shared<PolynomialPathController>(*Sim.world->robots[0]);
@@ -35,36 +136,25 @@ void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vect
   NewControllerPtr->SetConstant(Sim.world->robots[0]->q);
 
   /* Simulation Trajectory */
-  // These three are used to save the trajectory of the desired robot's properties.
-  std::vector<Config> qTrajDes,       qdotTrajDes;
-  qTrajDes.reserve(StepNo);           qdotTrajDes.reserve(StepNo);
-  qTrajDes.push_back(Sim.world->robots[0]->q);
-  qdotTrajDes.push_back(Sim.world->robots[0]->dq);
+  // These two save robot's desired trajectories.
+  std::vector<Config> qDesTraj,       qdotDesTraj;
+  qDesTraj.push_back(Sim.world->robots[0]->q);
+  qdotDesTraj.push_back(Sim.world->robots[0]->dq);
 
-  // These two save the trajectory of robot's actual properties.
-  std::vector<Config> qTrajAct,       qdotTrajAct;
-  qTrajAct.reserve(StepNo);           qdotTrajAct.reserve(StepNo);
-  qTrajAct.push_back(Sim.world->robots[0]->q);
-  qdotTrajAct.push_back(Sim.world->robots[0]->dq);
-
-  // Centroidal Informatioin only contains robot's centroidal position and velocity.
-  std::vector<double> COMx(StepNo),             COMy(StepNo),             COMz(StepNo);
-  std::vector<double> COMVelx(StepNo),          COMVely(StepNo),          COMVelz(StepNo);
-
-  std::vector<double> KETraj(StepNo);
+  // These two save robot's actual trajectories.
+  std::vector<Config> qActTraj,       qdotActTraj;
+  qActTraj.push_back(Sim.world->robots[0]->q);
+  qdotActTraj.push_back(Sim.world->robots[0]->dq);
 
   // Seven objective trajectories
-  std::vector<double> PVKRBTraj(StepNo),        PVKCPTraj(StepNo),        PVKHJBTraj(StepNo);
-  std::vector<double> ZSCTraj(StepNo),          OETraj(StepNo),           CPTraj(StepNo),           ZMPTraj(StepNo);
+  std::vector<double> PVKRBTraj, PVKCPTraj, OETraj, CPTraj;
 
   int NumberOfActEndEffectorInit;               // This variable describes the number of active end effectors!
   int NumberOfContactPoints;                    // This variable describes the number of total contact points!
   ContactNumberFinder(RobotContactInfo, NumberOfActEndEffectorInit, NumberOfContactPoints);
-  SpecsWriter(*Sim.world->robots[0], t_final, dt, NumberOfActEndEffectorInit, FileIndex);
+  SpecsWriter(*Sim.world->robots[0], t_final, t_last, ImpulseForce, NumberOfActEndEffectorInit, FileIndex);
 
-  int DOF = Sim.world->robots[0]->q.size();
-
-  std::vector<const char*> EdgeFileNames, CentroidalFileNames, ObjectiveNames, StateTrajNames;
+  std::vector<const char*> EdgeFileNames, StateTrajNames;
   string fEdgeAFile = "EdgeATraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeAFile_Name = fEdgeAFile.c_str();
   string fEdgeBFile = "EdgeBTraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeBFile_Name = fEdgeBFile.c_str();
   string fEdgeCOMFile = "EdgeCOMTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
@@ -72,101 +162,59 @@ void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vect
   string fEdgeyTrajFile = "EdgeyTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
   string fEdgezTrajFile = "EdgezTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
 
-  EdgeFileNames.push_back(fEdgeAFile_Name);         EdgeFileNames.push_back(fEdgeBFile_Name);         EdgeFileNames.push_back(fEdgeCOMFile_Name);
-  EdgeFileNames.push_back(fEdgexTrajFile_Name);     EdgeFileNames.push_back(fEdgeyTrajFile_Name);     EdgeFileNames.push_back(fEdgezTrajFile_Name);
+  EdgeFileNames.push_back(fEdgeAFile_Name);
+  EdgeFileNames.push_back(fEdgeBFile_Name);
+  EdgeFileNames.push_back(fEdgeCOMFile_Name);
+  EdgeFileNames.push_back(fEdgexTrajFile_Name);
+  EdgeFileNames.push_back(fEdgeyTrajFile_Name);
+  EdgeFileNames.push_back(fEdgezTrajFile_Name);
 
-  const string COMxFile = "COMxTraj" + std::to_string(FileIndex) + ".txt";              const char *COMxFile_Name = COMxFile.c_str();
-  const string COMyFile = "COMyTraj" + std::to_string(FileIndex) + ".txt";              const char *COMyFile_Name = COMyFile.c_str();
-  const string COMzFile = "COMzTraj" + std::to_string(FileIndex) + ".txt";              const char *COMzFile_Name = COMzFile.c_str();
-  const string COMVelxFile = "COMVelxTraj" + std::to_string(FileIndex) + ".txt";        const char *COMVelxFile_Name = COMVelxFile.c_str();
-  const string COMVelyFile = "COMVelyTraj" + std::to_string(FileIndex) + ".txt";        const char *COMVelyFile_Name = COMVelyFile.c_str();
-  const string COMVelzFile = "COMVelzTraj" + std::to_string(FileIndex) + ".txt";        const char *COMVelzFile_Name = COMVelzFile.c_str();
-  const string KEFile = "KETraj" + std::to_string(FileIndex) + ".txt";                  const char *KEFile_Name = KEFile.c_str();
-
-  CentroidalFileNames.push_back(COMxFile_Name);     CentroidalFileNames.push_back(COMyFile_Name);     CentroidalFileNames.push_back(COMzFile_Name);
-  CentroidalFileNames.push_back(COMVelxFile_Name);  CentroidalFileNames.push_back(COMVelyFile_Name);  CentroidalFileNames.push_back(COMVelzFile_Name);
-  CentroidalFileNames.push_back(KEFile_Name);
-
-  const string PVKRBTrajFile = "PVKRBTraj" + std::to_string(FileIndex) + ".txt";        const char *PVKRBTrajFile_Name = PVKRBTrajFile.c_str();
-  const string PVKHJBTrajFile = "PVKHJBTraj" + std::to_string(FileIndex) + ".txt";      const char *PVKHJBTrajFile_Name = PVKHJBTrajFile.c_str();
-  const string PVKCPTrajFile = "PVKCPTraj" + std::to_string(FileIndex) + ".txt";        const char *PVKCPTrajFile_Name = PVKCPTrajFile.c_str();
-  const string ZSCTrajFile = "ZSCTraj" + std::to_string(FileIndex) + ".txt";            const char *ZSCTrajFile_Name = ZSCTrajFile.c_str();
-  const string OETrajFile = "OETraj" + std::to_string(FileIndex) + ".txt";              const char *OETrajFile_Name = OETrajFile.c_str();
-  const string CPTrajFile = "CPTraj" + std::to_string(FileIndex) + ".txt";              const char *CPTrajFile_Name = CPTrajFile.c_str();
-  const string ZMPTrajFile = "ZMPTraj" + std::to_string(FileIndex) + ".txt";            const char *ZMPTrajFile_Name = ZMPTrajFile.c_str();
-
-  ObjectiveNames.push_back(PVKRBTrajFile_Name);
-  ObjectiveNames.push_back(PVKHJBTrajFile_Name);
-  ObjectiveNames.push_back(PVKCPTrajFile_Name);
-  ObjectiveNames.push_back(ZSCTrajFile_Name);
-  ObjectiveNames.push_back(OETrajFile_Name);
-  ObjectiveNames.push_back(CPTrajFile_Name);
-  ObjectiveNames.push_back(ZMPTrajFile_Name);
-
-  const string qTrajActFile = "qTrajAct" + std::to_string(FileIndex) + ".txt";          const char *qTrajActFile_Name = qTrajActFile.c_str();
-  const string qdotTrajActFile = "qdotTrajAct" + std::to_string(FileIndex) + ".txt";    const char *qdotTrajActFile_Name = qdotTrajActFile.c_str();
-  StateTrajNames.push_back(qTrajActFile_Name);
-  StateTrajNames.push_back(qdotTrajActFile_Name);
+  const string qActTrajFile = "qActTraj" + std::to_string(FileIndex) + ".txt";          const char *qActTrajFile_Name = qActTrajFile.c_str();
+  const string qdotActTrajFile = "qdotActTraj" + std::to_string(FileIndex) + ".txt";    const char *qdotActTrajFile_Name = qdotActTrajFile.c_str();
+  StateTrajNames.push_back(qActTrajFile_Name);
+  StateTrajNames.push_back(qdotActTrajFile_Name);
 
   string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";             const char *stateTrajFile_Name = stateTrajFile.c_str();
 
   /*
-    Here we have three types of controller:
+    Here we have two types of controller:
         1. Rigid-body controller
         2. Whole-body QP stabilizing controller
   */
+
   int ControllerType = 2;
-  int StepIndex = 0;
-
   std::vector<double> qDes = Sim.world->robots[0]->q;   // This is commanded robot configuration to the controller.
-  int QPStatus = 0;
 
-  while(Sim.time < t_final)
+  // The simulation will be terminated if robot's current kinetic energy declines to a value lower than the tolerance.
+  // However, initially this simulation has to last until t_impul time has elapsed.
+
+  Robot SimRobot = *Sim.world->robots[0];
+  while(Sim.time <t_impul)
   {
+    SimSmoother(ControllerType, Sim, qdotDesTraj, DOF);
+    SimRobot = *Sim.world->robots[0];
+    // The impulse is given to the robot's torso
     switch (ControllerType)
     {
-      case 1:
+      case 2:
       {
-
+        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
       }
       break;
       default:
       {
-        // A weird problem with actuators at ankles have been observed. Here we assume that these two motors behave in an ideal way.
-        std::vector<double> RealVelocities(DOF);
-        for (int i = 0; i < DOF; i++)
-        {
-          RealVelocities[i] = Sim.world->robots[0]->dq[i];
-        }
-        // Four actuators are compensated with ideal values.
-        RealVelocities[10] = qdotTrajDes[qdotTrajDes.size()-1][10];
-        RealVelocities[11] = qdotTrajDes[qdotTrajDes.size()-1][11];
-        RealVelocities[16] = qdotTrajDes[qdotTrajDes.size()-1][16];
-        RealVelocities[17] = qdotTrajDes[qdotTrajDes.size()-1][17];
-
-        Sim.world->robots[0]->dq = RealVelocities;
-        Config RealVelocitiesSet(RealVelocities);
-        Sim.controlSimulators[0].oderobot->SetVelocities(RealVelocitiesSet);
+        // For PID controller, disturbances need to be larger since it is more robust than QP controller.
+        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(18), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
+        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
       }
       break;
     }
-
-    Robot SimRobot = *Sim.world->robots[0];
-
-   //  if(Sim.time<=t_impul)
-   // {
-   //   // The impulse is given to the robot's torso
-   //   dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
-   // }
+    qDesTraj.push_back(Sim.world->robots[0]->q);
+    qdotDesTraj.push_back(Sim.world->robots[0]->dq);
 
     /* Robot's COMPos and COMVel */
-    Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0), COMAcc(0.0, 0.0, 0.0);
+    Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
     CentroidalState(SimRobot, COMPos, COMVel);
-    COMx[StepIndex] = COMPos.x;             COMy[StepIndex] = COMPos.y;               COMz[StepIndex] = COMPos.z;
-    COMVelx[StepIndex] = COMVel.x;          COMVely[StepIndex] = COMVel.y;            COMVelz[StepIndex] = COMVel.z;
-
-    // Get robot's current kinetic energy
-    KETraj[StepIndex] = SimRobot.GetKineticEnergy();
 
     std::vector<Vector3>  ActContactPositions, ActVelocities;        // A vector of Vector3 points
     std::vector<Matrix>   ActJacobians;       // A vector of Jacobian matrices
@@ -174,80 +222,6 @@ void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vect
 
     std::vector<Vector3> ConeShiftedUnits, ConeUnits;
     ConeUnitGenerator(ActContactPositions, SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
-
-    /* 3. Failure Metric using PVK-HJB assumption*/
-    double HJBObjective;
-    std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, ActVelocities, ActStatus, COMPos, COMVel, EdgeFileNames, VKObj, HJBObjective, dt);
-    PVKHJBTraj[StepIndex] = HJBObjective;
-
-    /* 1. Failure Metric using PVK-RB assumption*/
-    double RBObjective = RBGenerator(PIPTotal);
-    PVKRBTraj[StepIndex] = RBObjective;
-
-    /* 2. Failure Metric using PVK-CP assumption*/
-    double CPCEObjective = CPCEGenerator(PIPTotal);
-    PVKCPTraj[StepIndex] = CPCEObjective;
-
-    /* 4. Zero-Step-Capturability with Convex Optimization */
-    double ZSCObjective = ZeroStepCapturabilityGenerator(ActContactPositions, ConeShiftedUnits, EdgeNumber, COMPos, COMVel);
-    ZSCTraj[StepIndex] = ZSCObjective;
-
-    // Projection to ground
-    std::vector<Vector3> ProjActContactPositions;
-    ProjActContactPositions.reserve(ActContactPositions.size());
-    double LowestHeight = 100.0;
-    for (int j = 0; j < ActContactPositions.size(); j++)
-    {
-      if(LowestHeight>ActContactPositions[j].z)
-      {
-        LowestHeight = ActContactPositions[j].z;
-      }
-    }
-
-    for (int j = 0; j < ActContactPositions.size(); j++)
-    {
-      Vector3 ProjActContact(ActContactPositions[j].x, ActContactPositions[j].y, LowestHeight);
-      ProjActContactPositions.push_back(ProjActContact);
-    }
-
-    std::vector<double> PIPObj;
-    double PVKHJBMargin = 0.0;
-    double HJBSPObjective = 0.0;
-    std::vector<PIPInfo> PIPSPTotal = PIPGeneratorAnalysis(ProjActContactPositions, ActVelocities, ActStatus, COMPos, COMVel, VKObj, PIPObj, HJBSPObjective, PVKHJBMargin, dt);
-
-    // Orbital Energy which is a 2D version of PVK-RB
-    double OEMargin = 0.0;
-    double OEObjective = RBGeneratorAnalysis(PIPSPTotal, OEMargin);
-    OETraj[StepIndex] = OEObjective;
-
-    // Capture Point which is a 2D versino of PVK-CP
-    double CPMargin = 0.0;
-    double CPObjective = CPCEGeneratorAnalysis(PIPSPTotal, CPMargin);
-    CPTraj[StepIndex] = CPObjective;
-
-    switch (StepIndex)
-    {
-      case 0:
-      {
-
-      }
-      break;
-      default:
-      {
-        COMAcc.x = (COMVelx[StepIndex] - COMVelx[StepIndex-1])/dt;
-        COMAcc.y = (COMVely[StepIndex] - COMVely[StepIndex-1])/dt;
-        COMAcc.z = (COMVelz[StepIndex] - COMVelz[StepIndex-1])/dt;
-      }
-      break;
-    }
-
-    // ZMP
-    double ZMPMargin = 0.0;
-    double ZMPObjective = ZMPGeneratorAnalysis(PIPSPTotal, COMPos, COMAcc, ZMPMargin);
-    ZMPTraj[StepIndex] = ZMPObjective;
-
-    std::vector<double> FailureMetricVec = { RBObjective, CPCEObjective, HJBObjective, ZSCObjective, OEObjective, CPObjective, ZMPObjective};
-    CentroidalFailureMetricWriter(COMPos, COMVel, KETraj[StepIndex], FailureMetricVec, CentroidalFileNames, ObjectiveNames);
 
     /*  Controller Input  */
     switch (ControllerType)
@@ -257,16 +231,15 @@ void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vect
         // In this case, the robot's controller holds a constant initial configuration.
         std::printf("Using Controller 1: Rigid-body Controller!\n");
 
-        qTrajAct.push_back(SimRobot.q);
-        qdotTrajAct.push_back(SimRobot.dq);
+        qActTraj.push_back(SimRobot.q);
+        qdotActTraj.push_back(SimRobot.dq);
       }
       break;
       case 2:
       {
         // In this case, the robot's controller would like to stabilize the robot with a QP controller.
         std::printf("Using Controller 2: QP Stabilizing Controller!\n");
-        // std::vector<double> qNew = StabilizingControllerGRB(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qTrajDes, qdotTrajDes, qddotTraj, qTrajAct, qdotTrajAct, QPStatus, RobotLinkInfo, RobotContactInfo, RobotConfigRef, NumberOfContactPoints, StepIndex);
-        std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qTrajDes, qdotTrajDes, qTrajAct, qdotTrajAct, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, StepIndex);
+        std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, 0);
         qDes = qNew;
       }
       break;
@@ -276,8 +249,8 @@ void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vect
       break;
     }
 
-    TrajAppender(StateTrajNames[0], qTrajAct[qTrajAct.size()-1], DOF);
-    TrajAppender(StateTrajNames[1], qdotTrajAct[qdotTrajAct.size()-1], DOF);
+    TrajAppender(StateTrajNames[0], qActTraj[qActTraj.size()-1], DOF);
+    TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
 
     // Send the control command!
     Config qDesired(qDes);
@@ -286,7 +259,88 @@ void SimulationTest(WorldSimulation & Sim, ViabilityKernelInfo& VKObj, std::vect
     Sim.Advance(dt);
     Sim.UpdateModel();
     Backend.DoStateLogging_LinearPath(0, stateTrajFile_Name);
-    StepIndex = StepIndex + 1;
+
   }
+
+  double KENow = SimRobot.GetKineticEnergy();
+  int StepIndex = 0;
+  while (KENow>=KETol)
+  {
+    // This loop is used to stabilize the robot
+    SimSmoother(ControllerType, Sim, qdotDesTraj, DOF);
+    SimRobot = *Sim.world->robots[0];
+    KENow = SimRobot.GetKineticEnergy();
+
+    /* Robot's COMPos and COMVel */
+    Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+    CentroidalState(SimRobot, COMPos, COMVel);
+
+    std::vector<Vector3>  ActContactPositions, ActVelocities;        // A vector of Vector3 points
+    std::vector<Matrix>   ActJacobians;       // A vector of Jacobian matrices
+    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, SDFInfo);
+    std::vector<Vector3> ConeShiftedUnits, ConeUnits;
+    ConeUnitGenerator(ActContactPositions, SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
+    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPositions);
+    std::vector<PIPInfo> PIPSPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+    // int OEPIPIndex, CPPIPIndex;
+    int CPPIPIndex;
+    // double OEObjective = RBGenerator(PIPSPTotal, OEPIPIndex);
+    double CPObjective = CapturePointGenerator(PIPSPTotal, CPPIPIndex);
+
+    ContactPolytopeWriter(PIPSPTotal, EdgeFileNames);
+
+    switch (CPPIPIndex)
+    {
+      case -1:
+      {
+        // Here is for stabilization
+        /*  Controller Input  */
+        switch (ControllerType)
+        {
+          case 1:
+          {
+            // In this case, the robot's controller holds a constant initial configuration.
+            std::printf("Using Controller 1: Rigid-body Controller!\n");
+
+            qActTraj.push_back(SimRobot.q);
+            qdotActTraj.push_back(SimRobot.dq);
+          }
+          break;
+          case 2:
+          {
+            // In this case, the robot's controller would like to stabilize the robot with a QP controller.
+            std::printf("Using Controller 2: QP Stabilizing Controller!\n");
+            std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, StepIndex);
+            qDes = qNew;
+          }
+          break;
+          default:
+          {
+          }
+          break;
+        }
+
+      }
+      break;
+      default:
+      {
+        // Here is for robot's contact modification.
+        std::printf("Critial PIP Index is %d\n", CPPIPIndex);
+
+      }
+      break;
+    }
+    TrajAppender(StateTrajNames[0], qActTraj[qActTraj.size()-1], DOF);
+    TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
+
+    // Send the control command!
+    Config qDesired(qDes);
+    NewControllerPtr->SetConstant(qDesired);
+
+    Sim.Advance(dt);
+    Sim.UpdateModel();
+    Backend.DoStateLogging_LinearPath(0, stateTrajFile_Name);
+  }
+
   return;
 }

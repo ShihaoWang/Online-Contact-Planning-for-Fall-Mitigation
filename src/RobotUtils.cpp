@@ -305,14 +305,16 @@ std::vector<int> ActContactNJacobian(const Robot& SimRobot, const std::vector<Li
 
           double CurrentDist = SDFInfo.SignedDistance(LinkiPjPos);
 
-          if(CurrentDist>=DistTol)
-          {
-            RealActiveIndices.push_back(0);
-          }
-          else
-          {
-            RealActiveIndices.push_back(1);
-          }
+          // if(CurrentDist>=DistTol)
+          // {
+          //   RealActiveIndices.push_back(0);
+          // }
+          // else
+          // {
+          //   RealActiveIndices.push_back(1);
+          // }
+
+          RealActiveIndices.push_back(1);
           Matrix ActJacobian;
           SimRobot.GetPositionJacobian(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, ActJacobian);
           ActJacobians.push_back(ActJacobian);

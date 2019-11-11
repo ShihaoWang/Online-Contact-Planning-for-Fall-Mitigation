@@ -348,8 +348,8 @@ static bool InitialVelocityOptFn(const double & KEInit, const Vector3 & CentDire
     xupp_vec[i] = SimRobotObj.velMax(i);
   }
   // A positive lower and higher bound
-  xlow_vec[n-1] = 0.001;      // 0.001
-  xupp_vec[n-1] = 10.0;
+  xlow_vec[n-1] = 0.1;      // 0.001
+  xupp_vec[n-1] = 1.0;
   InitialVelocityOptProblem.VariableBoundsUpdate(xlow_vec, xupp_vec);
 
   /*
