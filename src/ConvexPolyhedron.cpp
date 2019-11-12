@@ -722,3 +722,98 @@ std::vector<Vector3> FullPIPInterCal(const std::vector<FacetInfo> & FacetInfoObj
   }
   return PIPInters;
 }
+
+int Edge2EndEffector(Robot & SimRobot, const Vector3 & EdgePoint, const std::vector<LinkInfo> & RobotLinkInfo)
+{
+  // Enumerate all the contact point and gives out the one with the lowest deviation.
+  std::vector<double> EdgeDev(RobotLinkInfo.size());
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    std::vector<double> EdgeInnerDev(RobotLinkInfo[i].LocalContacts.size());
+    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      // This means that current contact is active and we should keep its location and Jacobian.
+      Vector3 LinkiPjPos;
+      SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+      double LinkiPjPosDevEdge_x = LinkiPjPos.x - EdgePoint.x;
+      double LinkiPjPosDevEdge_y = LinkiPjPos.y - EdgePoint.y;
+      double LinkiPjPosDevEdge_z = LinkiPjPos.z - EdgePoint.z;
+      LinkiPjPosDevEdge_z = 0.0;
+      double LinkiPjPosDevEdge = LinkiPjPosDevEdge_x * LinkiPjPosDevEdge_x + LinkiPjPosDevEdge_y * LinkiPjPosDevEdge_y + LinkiPjPosDevEdge_z * LinkiPjPosDevEdge_z;
+      EdgeInnerDev[j] = LinkiPjPosDevEdge;
+    }
+    // Get the minimum element out for EdgeDev
+    EdgeDev[i] = *std::min_element(EdgeInnerDev.begin(), EdgeInnerDev.end());
+  }
+  int EdgeEffectorInfoIndex = std::distance(EdgeDev.begin(), std::min_element(EdgeDev.begin(), EdgeDev.end()));
+  return EdgeEffectorInfoIndex;
+}
+
+double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, Vector3 & Edge1, Vector3 & Edge2)
+{
+  std::vector<ContactStatusInfo> RobotContactInfo = _RobotContactInfo;
+  for (int i = 0; i < RobotLinkInfo[CriticalLink].LocalContacts.size(); i++)
+  {
+    switch (_RobotContactInfo[CriticalLink].LocalContactStatus[i])
+    {
+      case 1:
+      {
+        RobotContactInfo[CriticalLink].LocalContactStatus[i] = 0;
+      }
+      break;
+      default:
+      {
+        RobotContactInfo[CriticalLink].LocalContactStatus[i] = 1;
+      }
+      break;
+    }
+  }
+
+  std::vector<Vector3>  ActContacts;
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      switch (RobotContactInfo[i].LocalContactStatus[j])
+      {
+        case 1:
+        {
+          // This means that current contact is active and we should keep its location and Jacobian.
+          Vector3 LinkiPjPos, LinkiPjVel;
+          SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+          ActContacts.push_back(LinkiPjPos);
+        }
+        break;
+        default:
+        break;
+      }
+    }
+  }
+
+  /* Robot's COMPos and COMVel */
+  Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+  CentroidalState(SimRobot, COMPos, COMVel);
+  std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContacts);
+  std::vector<PIPInfo> PIPSPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+  int CPPIPIndex;
+  double CPObjective = CapturePointGenerator(PIPSPTotal, CPPIPIndex);
+
+  switch (CPPIPIndex)
+  {
+    case -1:
+    {
+      Edge1.x = 0.0;
+      Edge1.y = 0.0;
+      Edge1.z = 0.0;
+      Edge2 = Edge1;
+    }
+    break;
+    default:
+    {
+      Edge1 = PIPSPTotal[CPPIPIndex].EdgeA;
+      Edge2 = PIPSPTotal[CPPIPIndex].EdgeB;
+    }
+    break;
+  }
+  return CPObjective;
+}
