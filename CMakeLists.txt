@@ -80,7 +80,8 @@ add_executable(MyApp
                src/ContactInfoLoader.cpp
 	       src/ContactPlanning.cpp
 	       src/ContactPlanningInner.cpp
-               src/SignedDistanceField.cpp
+               src/EnviGeometry.cpp
+               src/ReachabilityMap.cpp
                src/RobotStateFiler.cpp
                src/RobotUtils.cpp
 	       src/InitialStateOptimization.cpp

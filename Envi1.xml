@@ -2,10 +2,10 @@
 <world>
   <robot name="HRP2" file="../../Klampt-examples/data/robots/hrp2.rob" config="36	0.144053 0.124296 -0.159682 0.189791 0.077538 -0.044873 0.015354 0.058618 0.200448 0.698072 -0.968078 -0.014906 0.026981 0.000560 -1.116670 1.149117 -0.100857 0.042095 0.083400 -0.087266 -0.000100 -0.001800 -0.796900 0.012800 0.001600 -0.746800 1.605703 -0.000600 -0.000000 0.850047 -0.007400 -0.000000 -0.316100 -1.605703 -0.000200 -0.000000 "/>
   <!-- <robot name="HRP2" file="../../Klampt-examples/data/robots/hrp2.rob" config="36	0.324043 0.158873 -0.100276 0.189791 1.358948 6.301562 0.014764 0.055976 -1.173788 0.623430 -0.809913 -0.030035 0.140209 -0.039431 -1.905739 1.096447 -0.542241 -0.132442 0.051483 0.068651 -0.000100 -0.001800 -0.800491 -0.019624 -0.021711 -0.626044 1.602583 0.025580 -0.000000 -1.054570 -0.034682 -0.007796 -0.373062 -1.604600 -0.019065 -0.000000 "/> -->
-  <terrain file="../../Klampt-examples/data/terrains/block.off" scale="5 2.5 10" translation= "0.0 0.0 0.0"/>
-  <terrain file="../../Klampt-examples/data/terrains/cube.off" scale="1 2 2" translation="5 -1.5 0.0">
+  <terrain file="../../Klampt-examples/data/terrains/block.off" scale="2.0 2.0 2.0" translation= "0.0 0.0 0.0"/>
+  <!-- <terrain file="../../Klampt-examples/data/terrains/cube.off" scale="1 2 2" translation="5 -1.5 0.0">
      <display color="0.4 0.3 0.2"/>
-  </terrain>
+  </terrain> -->
   <simulation>
     <globals adaptiveTimeStepping="1" />
     <robot index="0" body="11">  <!-- right foot -->

@@ -886,31 +886,35 @@ struct SignedDistanceFieldInfo
   int GridNo;
 };
 
-struct ParaStructure
+struct RMPoint
 {
-  // This struct is used to save the information of the signed distance field
-  ParaStructure()
+  // This struct is used to save the information of a point in Reachability Map.
+  RMPoint()
   {
   }
-  ParaStructure(Robot & _SimRobot, std::vector<LinkInfo> & _RobotLinkInfo, std::vector<ContactStatusInfo> & _RobotContactInfo)
+  RMPoint(const double & r, const Vector3 & Pos)
   {
     // Constructor
-    SimRobot = _SimRobot;
-    RobotLinkInfo = _RobotLinkInfo;
-    RobotContactInfo = _RobotContactInfo;
+    Radius = r;
+    Position = Pos;
+    Direction = Position;
+    double PositionLength = sqrt(Position.x * Position.x + Position.y * Position.y + Position.z * Position.z);
+    Direction.x = Direction.x/PositionLength;
+    Direction.y = Direction.y/PositionLength;
+    Direction.z = Direction.z/PositionLength;
   }
-  void RobotUpdate(Robot & _SimRobot)
-  {
-    SimRobot = _SimRobot;
-  }
-  Robot SimRobot;
-  std::vector<LinkInfo> RobotLinkInfo;
-  std::vector<ContactStatusInfo> RobotContactInfo;
-  int ConeEdgeNumber;
-  double dt;
-  int NumberOfContactPoints;
-  int DOF;
-  std::vector<double> RobotConfigRef;
+  double Radius;
+  Vector3 Position;
+  Vector3 Direction;
 };
+
+// struct RM
+// {
+//   // This struct is used to save the reachability map
+//   RM()
+//   {}
+//   RM()
+//
+// };
 
 #endif

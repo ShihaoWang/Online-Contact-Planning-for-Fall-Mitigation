@@ -69,10 +69,13 @@ int main()
   const std::string ContactStatusPath = UserFilePath + "InitContact.txt";
   std::vector<ContactStatusInfo> RobotContactInfo = ContactStatusInfoLoader(ContactStatusPath);
 
-  /* 3. Signed Distance Field Computation */
+  /* 3. Environment Geometry */
+  Meshing::PointCloud3D EnviPointCloud = PointCloudGene(world);
   const int GridsNo = 251;
-  // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
-  SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);
+  SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
+  // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);
+
+  std::map<int, std::vector<RMPoint>> asdf = ReachabilityMapGenerator();
 
   /* 4. Robot State Loader */
   Robot SimRobot = *world.robots[0];

@@ -4,14 +4,21 @@
 #include <fstream>
 #include <limits.h>
 #include <string>
+#include <KrisLibrary/geometry/Conversions.h>
+#include <KrisLibrary/geometry/MultiVolumeGrid.h>
+#include <KrisLibrary/geometry/CollisionMesh.h>
+#include <KrisLibrary/geometry/AnyGeometry.h>
+#include <KrisLibrary/meshing/VolumeGrid.h>
+#include <KrisLibrary/meshing/PointCloud.h>
 #include "RobotInfo.h"
 /* 0. Robot Info Initiaization */
 std::vector<LinkInfo> ContactInfoLoader(const string & ContactLinkFile, int & ContactPointNo);
 std::vector<ContactStatusInfo> ContactStatusInfoLoader(const string & ContactStatusFile);
 
-/* 1. Signed Distance Field */
+/* 1. Environment Geometry */
 SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, const int& GridsNo);
 SignedDistanceFieldInfo SignedDistanceFieldLoader(const int GridsNo);
+Meshing::PointCloud3D PointCloudGene(const RobotWorld& WorldObj);
 
 /* 2. Robot State File Operations */
 void RobotConfigLoader(Robot &SimRobot, const string &user_path, const string &file_name);
@@ -85,5 +92,8 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector
 double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex);
 double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj);
 double ContactAddPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj);
+
+/*  11. Reachability Map */
+std::map<int, std::vector<RMPoint>> ReachabilityMapGenerator();
 
 #endif

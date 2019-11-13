@@ -3,11 +3,9 @@
 #include "CommonHeader.h"
 #include <vector>
 using namespace std;
-#include <KrisLibrary/geometry/Conversions.h>
-#include <KrisLibrary/geometry/MultiVolumeGrid.h>
-#include <KrisLibrary/geometry/CollisionMesh.h>
-#include <KrisLibrary/geometry/AnyGeometry.h>
-#include <KrisLibrary/meshing/VolumeGrid.h>
+
+// static const string PointCloudFile = "EnviPointCloud";
+// const char *PointCloudFile_Name = PointCloudFile.c_str();
 
 static void SignedDistanceFieldWriter(const std::vector<double> & SDFVector, const std::vector<double> & SDFSpecs)
 {
@@ -25,7 +23,7 @@ static void SignedDistanceFieldWriter(const std::vector<double> & SDFVector, con
 
 SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, const int& GridsNo)
 {
-  double resolution = 0.05;
+  double resolution = 0.025;
 
   const int NumberOfTerrains = WorldObj.terrains.size();
 
@@ -39,6 +37,12 @@ SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, cons
     Meshing::TriMesh EnviTriMesh_i  = Terrain_ptr->geometry->AsTriangleMesh();
     EnviTriMesh.MergeWith(EnviTriMesh_i);
   }
+
+  // Meshing::PointCloud3D EnviPC;
+  // double maxDispersion = 0.01;
+  // MeshToPointCloud(EnviTriMesh, EnviPC, maxDispersion, false);
+  // EnviPC.SavePCL(PointCloudFile_Name);
+  // EnviPointCloud = EnviPC;
 
   Meshing::VolumeGrid SDFGrid;
   CollisionMesh EnviTriMeshTopology(EnviTriMesh);
@@ -163,5 +167,26 @@ SignedDistanceFieldInfo SignedDistanceFieldLoader(const int GridsNo)
   fclose(SDFSpecsFile);
 
   SignedDistanceFieldInfo SDFInfo(SDFTensor, SDFSpecs);
+
+  // EnviPointCloud.LoadPCL(PointCloudFile_Name);
+
   return SDFInfo;
+}
+
+Meshing::PointCloud3D PointCloudGene(const RobotWorld& WorldObj)
+{
+  const int NumberOfTerrains = WorldObj.terrains.size();
+  std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*WorldObj.terrains[0]);
+  Meshing::TriMesh EnviTriMesh  = Terrain_ptr->geometry->AsTriangleMesh();
+  // This step is used to merge the meshes into a single one.
+  for (int i = 0; i < NumberOfTerrains-1; i++)
+  {
+    std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*WorldObj.terrains[i+1]);
+    Meshing::TriMesh EnviTriMesh_i  = Terrain_ptr->geometry->AsTriangleMesh();
+    EnviTriMesh.MergeWith(EnviTriMesh_i);
+  }
+  Meshing::PointCloud3D EnviPC;
+  double maxDispersion = 0.01;
+  MeshToPointCloud(EnviTriMesh, EnviPC, maxDispersion, false);
+  return EnviPC;
 }

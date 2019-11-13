@@ -52,11 +52,23 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector
     }
   }
 
-  std::vector<Vector3> AddCOMPosTraj, AddCOMVelTraj;
-  double ContactAddColTime = ContactAddPreEstimation(SimRobot, PIPObj, SDFInfo, AddCOMPosTraj, AddCOMVelTraj);
+  switch (ContactAddInfoIndices.size())
+  {
+    case 0:
+    {
+      // This means that all current contacts are active so no additional contact can be added!
+    }
+    break;
+    default:
+    {
 
+      std::vector<Vector3> AddCOMPosTraj, AddCOMVelTraj;
+      double ContactAddColTime = ContactAddPreEstimation(SimRobot, PIPObj, SDFInfo, AddCOMPosTraj, AddCOMVelTraj);
+
+    }
+    break;
+  }
 
   int a = 1;
-
-
+  return 1;
 }
