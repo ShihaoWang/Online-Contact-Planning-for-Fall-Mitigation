@@ -3,7 +3,7 @@
 #include <sstream>
 #include "CommonHeader.h"
 
-int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo)
+int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, const Meshing::PointCloud3D & PointCloudObj)
 {
   // This function is used to fix the end effector whose contact should not be modified.
   // First the job is to figure out whether this edge belongs to a certain end effector

@@ -386,3 +386,28 @@ void RobotStateLoader(const string &user_path, const string &config_file_name, c
   }
   return;
 }
+
+std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath)
+{
+  ifstream TorsoLinkFile (TorsoLinkFilePath);
+  std::vector<int> TorsoLinkVec;
+  int LinkIndex = -1;
+  if (TorsoLinkFile.is_open())
+  {
+    string str_line;
+    while (getline (TorsoLinkFile, str_line) )
+    {
+      int link_index = stoi(str_line);
+      TorsoLinkVec.push_back(link_index);
+
+    }
+    TorsoLinkFile.close();
+  }
+  else std::cerr << "Unable to open file " <<TorsoLinkFilePath<<" does not exist!\n";
+
+  if (TorsoLinkVec.size() == 0)
+  {
+    std::cerr<<"Robot Contact Status Info failed to be loaded!"<<"\n";
+  }
+  return TorsoLinkVec;
+}

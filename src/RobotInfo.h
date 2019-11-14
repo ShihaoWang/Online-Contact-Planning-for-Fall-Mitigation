@@ -908,13 +908,67 @@ struct RMPoint
   Vector3 Direction;
 };
 
-// struct RM
-// {
-//   // This struct is used to save the reachability map
-//   RM()
-//   {}
-//   RM()
-//
-// };
+struct ReachabilityMap
+{
+  // This struct is used to save the reachability map
+  ReachabilityMap()
+  {}
+  ReachabilityMap(const std::map<int, std::vector<RMPoint>> & _RMLayers)
+  {
+    RMLayers = _RMLayers;
+  };
+  void ReachabilityMapPara(const double & _MaxRadius, const int & _LayerNumber, const int & _PointNumberOnInner, const double & _LayerDiff, const double & _MinRadius)
+  {
+    MaxRadius = _MaxRadius;
+    LayerNumber = _LayerNumber;
+    PointNumberOnInner = _PointNumberOnInner;
+    LayerDiff = _LayerDiff;
+    MinRadius = _MinRadius;
+  }
+  std::vector<Vector3> ReachablePointsGene(const Vector3 & RefPoint, const double & Radius, SignedDistanceFieldInfo & SDFInfo)
+  {
+    // Here MinRadius is used for comparison while Radius is the maximum allowed radius of robot's end effector.
+    // This function is used to get presumably active ReachablePointsGene() from all sampled points.
+    std::vector<Vector3> ReachablePoints;
+    int LayerIndex = 0;
+    double LayerRadius = MinRadius;
+    if(Radius>MaxRadius)
+    {
+      // Then LayerNumber can all be used.
+      LayerIndex = LayerNumber-1;
+    }
+    else
+    {
+      while (LayerRadius<Radius)
+      {
+        LayerRadius+=LayerDiff;
+        LayerIndex++;
+      }
+      LayerRadius-=LayerDiff;
+    }
+
+    for (int i = 0; i < LayerIndex; i++)
+    {
+      std::vector<RMPoint> RMLayer_i = RMLayers[i];
+      for (int j = 0; j < RMLayer_i.size(); j++)
+      {
+        Vector3 RMPoint_i = RMLayer_i[j].Position + RefPoint;
+        double CurrentDist = SDFInfo.SignedDistance(RMPoint_i);
+        if(CurrentDist*CurrentDist<MinRadius*MinRadius)
+        {
+          ReachablePoints.push_back(RMPoint_i);
+        }
+      }
+    }
+    return ReachablePoints;
+  }
+  std::map<int, std::vector<RMPoint>> RMLayers;       // Each layer contains several data points.
+  std::vector<double> EndEffectorRadius;
+  double MaxRadius;
+  int LayerNumber;
+  int PointNumberOnInner;
+  double LayerDiff;
+  double MinRadius;
+};
 
 #endif

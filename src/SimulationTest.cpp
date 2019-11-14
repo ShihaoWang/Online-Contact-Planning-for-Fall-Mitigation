@@ -95,7 +95,7 @@ static void SimSmoother(const int & ControllerType, WorldSimulation & Sim, const
   return;
 }
 
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, SimGUIBackend & Backend, const std::vector<Vector3> & ContactPositionRef, const double & dt, const int & FileIndex)
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, const ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
 {
   /* Simulation parameters */
   int     EdgeNumber      = 4;
@@ -124,6 +124,28 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   std::vector<Config> qActTraj,       qdotActTraj;
   qActTraj.push_back(Sim.world->robots[0]->q);
   qdotActTraj.push_back(Sim.world->robots[0]->dq);
+
+  // This function is used to get the robot's current active end effector position and Jacobian matrices.
+  std::vector<Vector3> ContactPositionRef;
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      switch (RobotContactInfo[i].LocalContactStatus[j])
+      {
+        case 1:
+        {
+          // This means that current contact is active and we should keep its location and Jacobian.
+          Vector3 LinkiPjPos, LinkiPjVel;
+          Sim.world->robots[0]->GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+          ContactPositionRef.push_back(LinkiPjPos);
+        }
+        break;
+        default:
+        break;
+      }
+    }
+  }
 
   // Seven objective trajectories
   std::vector<double> PVKRBTraj, PVKCPTraj, OETraj, CPTraj;
@@ -305,9 +327,11 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         // Here is for robot's contact modification.
         std::printf("Critial PIP Index is %d\n", CPPIPIndex);
-        // Now it is time to plan the contact
-        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], RobotLinkInfo, RobotContactInfo, SDFInfo);
 
+
+
+        // Now it is time to plan the contact
+        // int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], RobotLinkInfo, RobotContactInfo, SDFInfo, PointCloudObj);
       }
       break;
     }

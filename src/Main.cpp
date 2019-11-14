@@ -65,21 +65,24 @@ int main()
   int NumberOfContactPoints;
   std::vector<LinkInfo> RobotLinkInfo = ContactInfoLoader(ContactLinkPath, NumberOfContactPoints);
 
+  const std::string TorsoLinkFilePath = UserFilePath + "TorsoLink.txt";
+  std::vector<int> TorsoLink = TorsoLinkReader(TorsoLinkFilePath);
+
+
   /* 2. Load the Contact Status file */
   const std::string ContactStatusPath = UserFilePath + "InitContact.txt";
   std::vector<ContactStatusInfo> RobotContactInfo = ContactStatusInfoLoader(ContactStatusPath);
 
   /* 3. Environment Geometry */
-  Meshing::PointCloud3D EnviPointCloud = PointCloudGene(world);
+  // Meshing::PointCloud3D PointCloudObj = PointCloudGene(world);
   const int GridsNo = 251;
-  SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
-  // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);
-
-  // std::map<int, std::vector<RMPoint>> asdf = ReachabilityMapGenerator();
+  // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
+  SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);
 
   /* 4. Robot State Loader */
   Robot SimRobot = *world.robots[0];
   RobotConfigLoader(SimRobot, UserFilePath, "SampleTest.config");
+  ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, RobotLinkInfo, TorsoLink);
 
   std::vector<double> InitRobotConfig(SimRobot.q.size()), InitRobotVelocity(SimRobot.q.size()), ZeroRobotVelocity(SimRobot.q.size());
   std::vector<double> RobotConfigRef(SimRobot.q.size());
@@ -162,12 +165,8 @@ int main()
   // Config InitRobotVelocityImpl(InitRobotVelocity);
   // Sim.controlSimulators[0].oderobot->SetVelocities(InitRobotVelocityImpl);
 
-  std::vector<Vector3> ActContactPositionsRef, ActVelocitiesRef;
-  std::vector<Matrix> ActJacobiansRef;
-  ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositionsRef, ActVelocitiesRef, ActJacobiansRef, SDFInfo);
-
   /* 8. Internal Experimentation */
-  SimulationTest(Sim, RobotLinkInfo, RobotContactInfo, SDFInfo, Backend, ActContactPositionsRef, dt, FileIndex);
+  SimulationTest(Sim, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject, Backend, dt, FileIndex);
 
   return true;
 }
