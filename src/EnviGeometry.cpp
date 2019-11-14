@@ -38,12 +38,6 @@ SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, cons
     EnviTriMesh.MergeWith(EnviTriMesh_i);
   }
 
-  // Meshing::PointCloud3D EnviPC;
-  // double maxDispersion = 0.01;
-  // MeshToPointCloud(EnviTriMesh, EnviPC, maxDispersion, false);
-  // EnviPC.SavePCL(PointCloudFile_Name);
-  // EnviPointCloud = EnviPC;
-
   Meshing::VolumeGrid SDFGrid;
   CollisionMesh EnviTriMeshTopology(EnviTriMesh);
   EnviTriMeshTopology.InitCollisions();

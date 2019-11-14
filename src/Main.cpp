@@ -75,7 +75,7 @@ int main()
   SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
   // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);
 
-  std::map<int, std::vector<RMPoint>> asdf = ReachabilityMapGenerator();
+  // std::map<int, std::vector<RMPoint>> asdf = ReachabilityMapGenerator();
 
   /* 4. Robot State Loader */
   Robot SimRobot = *world.robots[0];
