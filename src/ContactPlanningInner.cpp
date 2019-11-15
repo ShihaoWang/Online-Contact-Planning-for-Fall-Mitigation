@@ -119,7 +119,6 @@ double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const 
     COMPosTraj.push_back(PredCOMPosTraj[i]);
     COMVelTraj.push_back(PredCOMVelTraj[i]);
   }
-
   return CollisionTime;
 }
 
@@ -142,4 +141,32 @@ double ContactAddPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, SignedD
     COMVelTraj.push_back(PredCOMVelTraj[i]);
   }
   return CollisionTime;
+}
+
+std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot,const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
+{
+  /*
+    This function is used to plan single contactL: _RobotContactInfo keeps the robot presumably contact status.
+    Here Type will have two values:
+    0     This indicates a contact modification.
+    1     This indicates a contact addition.
+   */
+  Robot SimRobot = _SimRobot;
+  std::vector<ContactStatusInfo> OriRobotContactInfo = _RobotContactInfo;
+  switch (Type)
+  {
+    case 0:
+    {
+      // This is a contact modification.
+      for (int i = 0; i < RobotLinkInfo[LinkInfoIndex].LocalContacts.size(); i++)
+      {
+        OriRobotContactInfo[LinkInfoIndex].LocalContactStatus[i] = 0;
+      }
+    }
+    break;
+    default:
+    {}
+    break;
+  }
+  int a = 1;
 }

@@ -925,6 +925,16 @@ struct ReachabilityMap
     LayerDiff = _LayerDiff;
     MinRadius = _MinRadius;
   }
+  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo)
+  {
+    double Radius = EndEffectorRadius[LinkInfoIndex];
+    double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
+
+    Vector3 RefPoint, ZeroPos(0.0, 0.0, 0.0);
+    SimRobot.GetWorldPosition(ZeroPos, PivotalLinkIndex, RefPoint);
+
+    return ReachablePointsGene(RefPoint, Radius, SDFInfo);
+  }
   std::vector<Vector3> ReachablePointsGene(const Vector3 & RefPoint, const double & Radius, SignedDistanceFieldInfo & SDFInfo)
   {
     // Here MinRadius is used for comparison while Radius is the maximum allowed radius of robot's end effector.
@@ -961,9 +971,11 @@ struct ReachabilityMap
       }
     }
     return ReachablePoints;
-  }
+  };
   std::map<int, std::vector<RMPoint>> RMLayers;       // Each layer contains several data points.
   std::vector<double> EndEffectorRadius;
+  std::vector<int> EndEffectorLinkIndex;              //
+  std::vector<int> EndEffectorPivotalIndex;
   double MaxRadius;
   int LayerNumber;
   int PointNumberOnInner;

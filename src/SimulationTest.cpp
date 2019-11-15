@@ -95,7 +95,7 @@ static void SimSmoother(const int & ControllerType, WorldSimulation & Sim, const
   return;
 }
 
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, const ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
 {
   /* Simulation parameters */
   int     EdgeNumber      = 4;
@@ -327,11 +327,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         // Here is for robot's contact modification.
         std::printf("Critial PIP Index is %d\n", CPPIPIndex);
-
-
-
         // Now it is time to plan the contact
-        // int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], RobotLinkInfo, RobotContactInfo, SDFInfo, PointCloudObj);
+        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], CPObjective, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
       }
       break;
     }

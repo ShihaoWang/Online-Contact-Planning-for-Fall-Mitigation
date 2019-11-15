@@ -3,10 +3,51 @@
 #include <sstream>
 #include "CommonHeader.h"
 
-int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, const Meshing::PointCloud3D & PointCloudObj)
+static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot,const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
+{
+  std::vector<Config> StabilizingPoses;
+  switch (ContactModiInfoIndices.size())
+  {
+    case 0:
+    {
+    }
+    break;
+    default:
+    {
+      for (int i = 0; i < ContactModiInfoIndices.size(); i++)
+      {
+        std::vector<double> StabilizingPose = SingleContactPlanning(ContactModiInfoIndices[i], 0, SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+        StabilizingPoses.push_back(Config(StabilizingPose));
+      }
+    }
+    break;
+  }
+  switch (ContactAddInfoIndices.size())
+  {
+    case 0:
+    {
+    }
+    break;
+    default:
+    {
+      for (int i = 0; i < ContactAddInfoIndices.size(); i++)
+      {
+        std::vector<double> StabilizingPose = SingleContactPlanning(ContactAddInfoIndices[i], 1, SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+        StabilizingPoses.push_back(Config(StabilizingPose));
+      }
+    }
+    break;
+  }
+  return StabilizingPoses;
+}
+
+int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
 {
   // This function is used to fix the end effector whose contact should not be modified.
   // First the job is to figure out whether this edge belongs to a certain end effector
+
+  double ContactModiColTime = -1.0;
+  double ContactAddColTime = -1.0;
 
   // Evaluation of the current contact status for contact addition consideration.
   std::vector<int> ContactAddInfoIndices;
@@ -21,14 +62,15 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector
       }
       break;
       default:
+      {}
       break;
     }
   }
 
   // This part is to figure out what contact can be changed.
   std::vector<Vector3> ModiCOMPosTraj, ModiCOMVelTraj;
-  int FixedContactIndex;
-  double ContactModiColTime = ContactModiPreEstimation(SimRobot, PIPObj, RobotLinkInfo, RobotContactInfo, SDFInfo, FixedContactIndex, ModiCOMPosTraj, ModiCOMVelTraj);
+  int FixedContactIndex;;
+  ContactModiColTime = ContactModiPreEstimation(SimRobot, PIPObj, RobotLinkInfo, RobotContactInfo, SDFInfo, FixedContactIndex, ModiCOMPosTraj, ModiCOMVelTraj);
   std::vector<int> ContactModiInfoIndices;
   for (int i = 0; i < RobotLinkInfo.size(); i++)
   {
@@ -61,13 +103,13 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector
     break;
     default:
     {
-
       std::vector<Vector3> AddCOMPosTraj, AddCOMVelTraj;
-      double ContactAddColTime = ContactAddPreEstimation(SimRobot, PIPObj, SDFInfo, AddCOMPosTraj, AddCOMVelTraj);
-
+      ContactAddColTime = ContactAddPreEstimation(SimRobot, PIPObj, SDFInfo, AddCOMPosTraj, AddCOMVelTraj);
     }
     break;
   }
+
+  std::vector<Config> StabilizingPoses = StabilizingPoseGenerator(ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
 
   int a = 1;
   return 1;

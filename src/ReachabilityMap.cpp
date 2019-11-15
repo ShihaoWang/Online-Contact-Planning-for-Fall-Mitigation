@@ -62,11 +62,14 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   }
   SimRobot.UpdateConfig(Config(ZeroConfiguration));
   std::vector<double> EndEffectorRadius(RobotLinkInfo.size());
+  std::vector<int> EndEffectorLinkIndex(RobotLinkInfo.size());
+  std::vector<int> EndEffectorPivotalIndex(RobotLinkInfo.size());
 
   for (int i = 0; i < RobotLinkInfo.size(); i++)
   {
     int ParentIndex = -1;
     int CurrentIndex = RobotLinkInfo[i].LinkIndex;
+    EndEffectorLinkIndex[i] = RobotLinkInfo[i].LinkIndex;
     while(std::find(TorsoLink.begin(), TorsoLink.end(), ParentIndex)==TorsoLink.end())
     {
       ParentIndex = SimRobot.parents[CurrentIndex];
@@ -75,11 +78,14 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
     Vector3 PivotalPos, EndPos, PivotalRef(0.0, 0.0, 0.0);
     SimRobot.GetWorldPosition(PivotalRef, ParentIndex, PivotalPos);
     SimRobot.GetWorldPosition(RobotLinkInfo[i].AvgLocalContact, RobotLinkInfo[i].LinkIndex, EndPos);
+    EndEffectorPivotalIndex[i] = ParentIndex;
 
     Vector3 Pivotal2End = PivotalPos - EndPos;
     double Pivotal2EndRadius = sqrt(Pivotal2End.x * Pivotal2End.x + Pivotal2End.y * Pivotal2End.y + Pivotal2End.z * Pivotal2End.z);
     EndEffectorRadius[i] = Pivotal2EndRadius;
   }
   RMObject.EndEffectorRadius = EndEffectorRadius;
+  RMObject.EndEffectorLinkIndex = EndEffectorLinkIndex;
+  RMObject.EndEffectorPivotalIndex = EndEffectorPivotalIndex;
   return RMObject;
 }
