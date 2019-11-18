@@ -12,6 +12,8 @@ static Vector3 RefAvgPos;
 static std::vector<LinkInfo> RobotLinkInfoObj;
 static int LinkInfoIndex;
 
+static double Tol = 1e-8;
+
 struct ContactFeasibleOpt: public NonlinearOptimizerInfo
 {
   ContactFeasibleOpt():NonlinearOptimizerInfo(){};
@@ -66,7 +68,7 @@ struct ContactFeasibleOpt: public NonlinearOptimizerInfo
     double ConfigVia = 0.0;
 
     Vector3 LinkiPjPos;
-    SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].AvgLocalContact, LinkInfoIndex, LinkiPjPos);
+    SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].AvgLocalContact, RobotLinkInfoObj[LinkInfoIndex].LinkIndex, LinkiPjPos);
     double Avg_x_diff = LinkiPjPos.x - RefAvgPos.x;
     double Avg_y_diff = LinkiPjPos.y - RefAvgPos.y;
     double Avg_z_diff = LinkiPjPos.z - RefAvgPos.z;
@@ -75,7 +77,7 @@ struct ContactFeasibleOpt: public NonlinearOptimizerInfo
     int ConstraintIndex = 1;
     for (int i = 0; i < RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size(); i++)
     {
-      SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].LocalContacts[i], LinkInfoIndex, LinkiPjPos);
+      SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].LocalContacts[i], RobotLinkInfoObj[LinkInfoIndex].LinkIndex, LinkiPjPos);
       F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos);
       ConstraintIndex = ConstraintIndex + 1;
     }
@@ -83,19 +85,19 @@ struct ContactFeasibleOpt: public NonlinearOptimizerInfo
   }
 };
 
-int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> &RobotConfig)
+int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig)
 {
   // This function is used to optimize robot's configuration such that a certain contact need to be made
   SimRobotObj = SimRobot;
   RefConfiguration = SimRobot.q;
-  EndEffectorLink2Pivotal = RMObject.EndEffectorLink2Pivotal[LinkInfoIndex];
+  EndEffectorLink2Pivotal = RMObject.EndEffectorLink2Pivotal[_LinkInfoIndex];
   RefAvgPos = RefPos;
   RobotLinkInfoObj = _RobotLinkInfo;
   LinkInfoIndex = _LinkInfoIndex;
 
   ContactFeasibleOpt ContactFeasibleOptProblem;
   // Static Variable Substitution
-  std::vector<int> ActiveLinkChain = RMObject.EndEffectorLink2Pivotal[LinkInfoIndex];
+  std::vector<int> ActiveLinkChain = RMObject.EndEffectorLink2Pivotal[_LinkInfoIndex];
   std::vector<double> ActiveJoint(ActiveLinkChain.size());
   int n = ActiveLinkChain.size();
   // Cost function on the norm difference between the reference avg position and the modified contact position.
@@ -153,7 +155,35 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
   // Solve with Finite-Difference
   ContactFeasibleOptProblem.ProblemOptionsUpdate(0, 3);
   ContactFeasibleOptProblem.Solve(ActiveJoint);
-  return 0;
+
+  for (int i = 0; i < EndEffectorLink2Pivotal.size(); i++)
+  {
+    RefConfiguration[EndEffectorLink2Pivotal[i]] = ActiveJoint[i];
+  }
+  RobotConfig = RefConfiguration;
+  Config ConfigOptNew(RefConfiguration);
+  SimRobotObj.UpdateConfig(ConfigOptNew);
+  std::vector<double> Fcon(neF-1);
+  ConstraintIndex = 0;
+  for (int i = 0; i < RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size(); i++)
+  {
+    Vector3 LinkiPjPos;
+    SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].LocalContacts[i], RobotLinkInfoObj[LinkInfoIndex].LinkIndex, LinkiPjPos);
+    double SDF_i = NonlinearOptimizerInfo::SDFInfo.SignedDistance(LinkiPjPos);
+    Fcon[ConstraintIndex] = SDF_i * SDF_i;
+    ConstraintIndex = ConstraintIndex + 1;
+  }
+
+  string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  RobotConfigWriter(RefConfiguration, UserFilePath, "TryConfig.config");
+
+  double Fconval = *std::min_element(Fcon.begin(),Fcon.end());
+  int OptRes = -1;
+  if(Fconval<Tol)
+  {
+    OptRes = 0;
+  }
+  return OptRes;
 }
 
 static void StepIntegrator(double & Theta, double & Thetadot, Vector3 & COMPos, Vector3 & COMVel, const PIPInfo & PIPObj, double & dt)

@@ -398,8 +398,8 @@ def Reachable_Contact_Plot(vis, ReachableContacts_data):
     RowNo, ColumnNo = ReachableContacts_data.shape
     RowStart = 0
     RowEnd = RowNo
-    # RowStart = 510000
-    # RowEnd = 515000
+    # RowStart = 400000
+    # RowEnd = 401000
     PointTol = 0.001;
     for i in range(RowStart, RowEnd):
         point_start = [0.0, 0.0, 0.0]

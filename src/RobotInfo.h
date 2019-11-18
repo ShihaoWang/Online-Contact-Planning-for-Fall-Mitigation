@@ -1007,8 +1007,50 @@ struct ReachabilityMap
       }
     }
     return ReachablePoints;
+  }
+  std::vector<Vector3> ContactFreePointsFinder(const std::vector<Vector3> & ReachablePoints,const std::vector<std::pair<Vector3, double>> & ContactFreeInfo, int & ContactFreeNo)
+  {
+    // This function can only be called after ReachablePointsFinder() to reduce the extra point further.
+    std::vector<Vector3> ContactFreePoints;
+    ContactFreePoints.reserve(ReachablePoints.size());
+    ContactFreeNo = 0;
+    for (int i = 0; i < ReachablePoints.size(); i++)
+    {
+      Vector3 ReachablePoint = ReachablePoints[i];
+      bool ContactFreeFlag = true;
+      int ContactFreeInfoIndex = 0;
+      while (ContactFreeInfoIndex<ContactFreeInfo.size())
+      {
+        Vector3 RefPoint = ContactFreeInfo[ContactFreeInfoIndex].first;
+        double Radius = ContactFreeInfo[ContactFreeInfoIndex].second;
+        Vector3 PosDiff = ReachablePoint - RefPoint;
+        double PosDiffDis = sqrt(PosDiff.x * PosDiff.x + PosDiff.y * PosDiff.y + PosDiff.z * PosDiff.z);
+        if(PosDiffDis<=Radius)
+        {
+          ContactFreeFlag = false;
+          break;
+        }
+        ContactFreeInfoIndex++;
+      }
+      switch (ContactFreeFlag)
+      {
+        case true:
+        {
+          ContactFreePoints.push_back(ReachablePoints[i]);
+          ContactFreeNo++;
+        }
+        break;
+        default:
+        {
+
+        }
+        break;
+      }
+    }
+    return ContactFreePoints;
   };
   std::map<int, std::vector<RMPoint>> RMLayers;       // Each layer contains several data points.
+  std::vector<double> EndEffectorCollisionRadius;
   std::vector<double> EndEffectorRadius;
   std::vector<int> EndEffectorLinkIndex;              //
   std::vector<int> EndEffectorPivotalIndex;

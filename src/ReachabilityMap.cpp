@@ -62,6 +62,7 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   }
   SimRobot.UpdateConfig(Config(ZeroConfiguration));
   std::vector<double> EndEffectorRadius(RobotLinkInfo.size());
+  std::vector<double> EndEffectorCollisionRadius(RobotLinkInfo.size());
   std::vector<int> EndEffectorLinkIndex(RobotLinkInfo.size());
   std::vector<int> EndEffectorPivotalIndex(RobotLinkInfo.size());
   std::map<int, std::vector<int>> EndEffectorLink2Pivotal;
@@ -86,12 +87,20 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
     EndEffectorPivotalIndex[i] = EndEffectorLink2PivotalIndex[EndEffectorLink2PivotalIndex.size()-1];
     EndEffectorLink2Pivotal[i] = EndEffectorLink2PivotalIndex;
 
+    std::vector<double> CollisionRadius(RobotLinkInfo[i].LocalContacts.size());
+    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      Vector3 Center2Edge = RobotLinkInfo[i].LocalContacts[j]  - RobotLinkInfo[i].AvgLocalContact;
+      CollisionRadius[j] = sqrt(Center2Edge.x * Center2Edge.x + Center2Edge.y * Center2Edge.y + Center2Edge.z * Center2Edge.z);
+    }
+    EndEffectorCollisionRadius[i] = *std::max_element(CollisionRadius.begin(), CollisionRadius.end());
     Vector3 Pivotal2End = PivotalPos - EndPos;
     double Pivotal2EndRadius = sqrt(Pivotal2End.x * Pivotal2End.x + Pivotal2End.y * Pivotal2End.y + Pivotal2End.z * Pivotal2End.z);
     EndEffectorRadius[i] = Pivotal2EndRadius;
   }
   RMObject.EndEffectorRadius = EndEffectorRadius;
   RMObject.EndEffectorLinkIndex = EndEffectorLinkIndex;
+  RMObject.EndEffectorCollisionRadius = EndEffectorCollisionRadius;
   RMObject.EndEffectorPivotalIndex = EndEffectorPivotalIndex;
   RMObject.EndEffectorLink2Pivotal = EndEffectorLink2Pivotal;
 
