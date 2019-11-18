@@ -162,8 +162,6 @@ SignedDistanceFieldInfo SignedDistanceFieldLoader(const int GridsNo)
 
   SignedDistanceFieldInfo SDFInfo(SDFTensor, SDFSpecs);
 
-  // EnviPointCloud.LoadPCL(PointCloudFile_Name);
-
   return SDFInfo;
 }
 

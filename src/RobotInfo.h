@@ -925,21 +925,51 @@ struct ReachabilityMap
     LayerDiff = _LayerDiff;
     MinRadius = _MinRadius;
   }
-  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo)
+  std::vector<Vector3> IdealReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex)
+  {
+    std::vector<Vector3> ReachablePoints;
+    ReachablePoints.reserve(TotalPoint);
+    double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
+    Vector3 RefPoint, ZeroPos(0.0, 0.0, 0.0);
+    SimRobot.GetWorldPosition(ZeroPos, PivotalLinkIndex, RefPoint);
+    for (int i = 0; i < LayerNumber; i++)
+    {
+      std::vector<RMPoint> RMLayer_i = RMLayers[i];
+      for (int j = 0; j < RMLayer_i.size(); j++)
+      {
+        Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
+        ReachablePoints.push_back(RMPointPos);
+      }
+    }
+    return ReachablePoints;
+  }
+  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, int & ReachablePointNo, const Vector3 & COMVel)
   {
     double Radius = EndEffectorRadius[LinkInfoIndex];
     double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
 
     Vector3 RefPoint, ZeroPos(0.0, 0.0, 0.0);
     SimRobot.GetWorldPosition(ZeroPos, PivotalLinkIndex, RefPoint);
-
-    return ReachablePointsGene(RefPoint, Radius, SDFInfo);
+    return ReachablePointsGene(RefPoint, Radius, SDFInfo, ReachablePointNo, COMVel);
   }
-  std::vector<Vector3> ReachablePointsGene(const Vector3 & RefPoint, const double & Radius, SignedDistanceFieldInfo & SDFInfo)
+  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, int & ReachablePointNo)
+  {
+    double Radius = EndEffectorRadius[LinkInfoIndex];
+    double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
+
+    Vector3 RefPoint, ZeroPos(0.0, 0.0, 0.0);
+    SimRobot.GetWorldPosition(ZeroPos, PivotalLinkIndex, RefPoint);
+    Vector3 COMVel(0.0, 0.0, 0.0);
+    return ReachablePointsGene(RefPoint, Radius, SDFInfo, ReachablePointNo, COMVel);
+  }
+  std::vector<Vector3> ReachablePointsGene(const Vector3 & RefPoint, const double & Radius, SignedDistanceFieldInfo & SDFInfo, int & ReachablePointNo, const Vector3 & COMVel)
   {
     // Here MinRadius is used for comparison while Radius is the maximum allowed radius of robot's end effector.
     // This function is used to get presumably active ReachablePointsGene() from all sampled points.
+    const double DisTol = 0.005;        // 5mm as a signed distance tolerance.
     std::vector<Vector3> ReachablePoints;
+    ReachablePoints.reserve(TotalPoint);
+    ReachablePointNo = 0;
     int LayerIndex = 0;
     double LayerRadius = MinRadius;
     if(Radius>MaxRadius)
@@ -962,11 +992,17 @@ struct ReachabilityMap
       std::vector<RMPoint> RMLayer_i = RMLayers[i];
       for (int j = 0; j < RMLayer_i.size(); j++)
       {
-        Vector3 RMPoint_i = RMLayer_i[j].Position + RefPoint;
-        double CurrentDist = SDFInfo.SignedDistance(RMPoint_i);
-        if(CurrentDist*CurrentDist<MinRadius*MinRadius)
+        Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
+        double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
+        if(CurrentDist*CurrentDist<DisTol*DisTol)
         {
-          ReachablePoints.push_back(RMPoint_i);
+          Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
+          double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
+          if(Proj<=0.0)
+          {
+            ReachablePoints.push_back(RMPointPos);
+            ReachablePointNo++;
+          }
         }
       }
     }
@@ -981,6 +1017,7 @@ struct ReachabilityMap
   int PointNumberOnInner;
   double LayerDiff;
   double MinRadius;
+  int TotalPoint;
 };
 
 #endif

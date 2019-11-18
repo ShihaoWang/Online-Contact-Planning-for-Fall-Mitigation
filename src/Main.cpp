@@ -74,7 +74,7 @@ int main()
   std::vector<ContactStatusInfo> RobotContactInfo = ContactStatusInfoLoader(ContactStatusPath);
 
   /* 3. Environment Geometry */
-  // Meshing::PointCloud3D PointCloudObj = PointCloudGene(world);
+  Meshing::PointCloud3D PointCloudObj = PointCloudGene(world);
   const int GridsNo = 251;
   // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
   SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);

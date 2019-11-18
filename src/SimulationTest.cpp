@@ -328,7 +328,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // Here is for robot's contact modification.
         std::printf("Critial PIP Index is %d\n", CPPIPIndex);
         // Now it is time to plan the contact
-        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], CPObjective, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], CPObjective, COMVel, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
       }
       break;
     }

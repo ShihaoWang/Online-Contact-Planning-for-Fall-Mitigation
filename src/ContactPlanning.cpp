@@ -3,7 +3,68 @@
 #include <sstream>
 #include "CommonHeader.h"
 
-static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot,const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
+static std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
+{
+  /*
+    This function is used to plan single contactL: _RobotContactInfo keeps the robot presumably contact status.
+    Here Type will have two values:
+    0     This indicates a contact modification.
+    1     This indicates a contact addition.
+   */
+  Robot SimRobot = _SimRobot;
+  std::vector<ContactStatusInfo> OriRobotContactInfo = _RobotContactInfo;
+  switch (Type)
+  {
+    case 0:
+    {
+      // This is a contact modification.
+      for (int i = 0; i < RobotLinkInfo[LinkInfoIndex].LocalContacts.size(); i++)
+      {
+        OriRobotContactInfo[LinkInfoIndex].LocalContactStatus[i] = 0;
+      }
+    }
+    break;
+    default:
+    {}
+    break;
+  }
+  // Now the job is to get all the active contact for planning purpose.
+  std::vector<Vector3> FixedContacts;
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      switch (OriRobotContactInfo[i].LocalContactStatus[j])
+      {
+        case 1:
+        {
+          // This means that current contact is active and we should keep its location and Jacobian.
+          Vector3 LinkiPjPos;
+          SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+          FixedContacts.push_back(LinkiPjPos);
+        }
+        break;
+        default:
+        break;
+      }
+    }
+  }
+  int ReachablePointNumber1, ReachablePointNumber2;
+  std::vector<Vector3> IdealReachableContact = RMObject.IdealReachablePointsFinder(SimRobot, LinkInfoIndex);
+  Vector3Writer(IdealReachableContact, "IdealReachableContact");
+
+  std::vector<Vector3> ActiveReachableContact = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, SDFInfo, ReachablePointNumber1);
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+
+  // std::vector<Vector3> ReachablePoints2 = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, SDFInfo, ReachablePointNumber2, COMVel);
+  int a = 1;
+
+  // There are four rules to get rid of unnecessary points.
+
+}
+
+
+static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
 {
   std::vector<Config> StabilizingPoses;
   switch (ContactModiInfoIndices.size())
@@ -16,7 +77,7 @@ static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & Con
     {
       for (int i = 0; i < ContactModiInfoIndices.size(); i++)
       {
-        std::vector<double> StabilizingPose = SingleContactPlanning(ContactModiInfoIndices[i], 0, SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+        std::vector<double> StabilizingPose = SingleContactPlanning(ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
         StabilizingPoses.push_back(Config(StabilizingPose));
       }
     }
@@ -32,7 +93,7 @@ static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & Con
     {
       for (int i = 0; i < ContactAddInfoIndices.size(); i++)
       {
-        std::vector<double> StabilizingPose = SingleContactPlanning(ContactAddInfoIndices[i], 1, SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+        std::vector<double> StabilizingPose = SingleContactPlanning(ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
         StabilizingPoses.push_back(Config(StabilizingPose));
       }
     }
@@ -41,7 +102,7 @@ static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & Con
   return StabilizingPoses;
 }
 
-int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
+int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject)
 {
   // This function is used to fix the end effector whose contact should not be modified.
   // First the job is to figure out whether this edge belongs to a certain end effector
@@ -109,7 +170,7 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
     break;
   }
 
-  std::vector<Config> StabilizingPoses = StabilizingPoseGenerator(ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+  std::vector<Config> StabilizingPoses = StabilizingPoseGenerator(ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
 
   int a = 1;
   return 1;

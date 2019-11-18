@@ -14,7 +14,7 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   // Due to the fact that the area of sphere is propotional to r^2, the number of the sampled data is propotional to r^2 on each sphere.
   double MaxRadius = 0.7;
   int LayerNumber = 70;
-  int PointNumberOnInner = 25;
+  int PointNumberOnInner = 5;
   double LayerDiff = MaxRadius/(LayerNumber * 1.0);
   double MinRadius = LayerDiff;
 
@@ -87,5 +87,6 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   RMObject.EndEffectorRadius = EndEffectorRadius;
   RMObject.EndEffectorLinkIndex = EndEffectorLinkIndex;
   RMObject.EndEffectorPivotalIndex = EndEffectorPivotalIndex;
+  RMObject.TotalPoint = TotalPoint;
   return RMObject;
 }
