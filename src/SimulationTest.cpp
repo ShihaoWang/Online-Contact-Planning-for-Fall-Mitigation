@@ -4,6 +4,7 @@
 #include <ode/ode.h>
 #include "Control/PathController.h"
 #include "Control/JointTrackingController.h"
+#include "NonlinearOptimizerInfo.h"
 
 static double KETol = 1e-3;
 
@@ -95,7 +96,7 @@ static void SimSmoother(const int & ControllerType, WorldSimulation & Sim, const
   return;
 }
 
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
 {
   /* Simulation parameters */
   int     EdgeNumber      = 4;
@@ -219,10 +220,10 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
     std::vector<Vector3>  ActContactPositions, ActVelocities;        // A vector of Vector3 points
     std::vector<Matrix>   ActJacobians;       // A vector of Jacobian matrices
-    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, SDFInfo);
+    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians,  NonlinearOptimizerInfo::SDFInfo);
 
     std::vector<Vector3> ConeShiftedUnits, ConeUnits;
-    ConeUnitGenerator(ActContactPositions, SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
+    ConeUnitGenerator(ActContactPositions, NonlinearOptimizerInfo::SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
 
     /*  Controller Input  */
     switch (ControllerType)
@@ -278,9 +279,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
     std::vector<Vector3>  ActContactPositions, ActVelocities;        // A vector of Vector3 points
     std::vector<Matrix>   ActJacobians;       // A vector of Jacobian matrices
-    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, SDFInfo);
+    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians,  NonlinearOptimizerInfo::SDFInfo);
     std::vector<Vector3> ConeShiftedUnits, ConeUnits;
-    ConeUnitGenerator(ActContactPositions, SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
+    ConeUnitGenerator(ActContactPositions,  NonlinearOptimizerInfo::SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
 
     std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPositions);
     // std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
@@ -328,7 +329,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // Here is for robot's contact modification.
         std::printf("Critial PIP Index is %d\n", CPPIPIndex);
         // Now it is time to plan the contact
-        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], CPObjective, COMVel, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject);
+        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], CPObjective, COMVel, RobotLinkInfo, RobotContactInfo,  NonlinearOptimizerInfo::SDFInfo, RMObject);
       }
       break;
     }

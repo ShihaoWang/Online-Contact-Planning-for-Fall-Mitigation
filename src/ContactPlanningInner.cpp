@@ -3,6 +3,158 @@
 #include <sstream>
 #include "CommonHeader.h"
 #include <omp.h>
+#include "NonlinearOptimizerInfo.h"
+
+static Robot SimRobotObj;
+static std::vector<double> RefConfiguration;
+static std::vector<int> EndEffectorLink2Pivotal;
+static Vector3 RefAvgPos;
+static std::vector<LinkInfo> RobotLinkInfoObj;
+static int LinkInfoIndex;
+
+struct ContactFeasibleOpt: public NonlinearOptimizerInfo
+{
+  ContactFeasibleOpt():NonlinearOptimizerInfo(){};
+
+  // This struct inherits the NonlinearOptimizerInfo struct and we just need to defined the Constraint function
+  static void ObjNConstraint(int    *Status, int *n,    double x[],
+    int    *needF,  int *neF,  double F[],
+    int    *needG,  int *neG,  double G[],
+    char      *cu,  int *lencu,
+    int    iu[],    int *leniu,
+    double ru[],    int *lenru)
+    {
+      std::vector<double> x_vec(*n);
+      for (int i = 0; i < *n; i++)
+      {
+        x_vec[i] = x[i];
+      }
+      std::vector<double> F_val = ContactFeasibleOptNCons(*n, *neF, x_vec);
+      for (int i = 0; i < *neF; i++)
+      {
+        F[i] = F_val[i];
+      }
+    }
+  void Solve(std::vector<double> &RobotConfig)
+  {
+    int StartType = 0;
+    NonlinearProb.solve(StartType, neF, n, ObjAdd, ObjRow, ObjNConstraint,
+      xlow, xupp, Flow, Fupp,
+      x, xstate, xmul, F, Fstate, Fmul,
+      nS, nInf, sumInf);
+      for (int i = 0; i < n; i++)
+      {
+        RobotConfig[i] = x[i];
+      }
+      delete []x;      delete []xlow;   delete []xupp;
+      delete []xmul;   delete []xstate;
+
+      delete []F;      delete []Flow;   delete []Fupp;
+      delete []Fmul;   delete []Fstate;
+  }
+  static std::vector<double> ContactFeasibleOptNCons(const int & nVar, const int & nObjNCons, const std::vector<double> & ActiveConfigOpt)
+  {
+    // This funciton provides the constraint for the configuration variable
+    std::vector<double> F(nObjNCons);
+    for (int i = 0; i < EndEffectorLink2Pivotal.size(); i++)
+    {
+      RefConfiguration[EndEffectorLink2Pivotal[i]] = ActiveConfigOpt[i];
+    }
+    Config ConfigOptNew(RefConfiguration);
+    SimRobotObj.UpdateConfig(ConfigOptNew);
+
+    double ConfigVia = 0.0;
+
+    Vector3 LinkiPjPos;
+    SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].AvgLocalContact, LinkInfoIndex, LinkiPjPos);
+    double Avg_x_diff = LinkiPjPos.x - RefAvgPos.x;
+    double Avg_y_diff = LinkiPjPos.y - RefAvgPos.y;
+    double Avg_z_diff = LinkiPjPos.z - RefAvgPos.z;
+
+    F[0] =  Avg_x_diff * Avg_x_diff + Avg_y_diff * Avg_y_diff + Avg_z_diff * Avg_z_diff;
+    int ConstraintIndex = 1;
+    for (int i = 0; i < RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size(); i++)
+    {
+      SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].LocalContacts[i], LinkInfoIndex, LinkiPjPos);
+      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos);
+      ConstraintIndex = ConstraintIndex + 1;
+    }
+    return F;
+  }
+};
+
+int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> &RobotConfig)
+{
+  // This function is used to optimize robot's configuration such that a certain contact need to be made
+  SimRobotObj = SimRobot;
+  RefConfiguration = SimRobot.q;
+  EndEffectorLink2Pivotal = RMObject.EndEffectorLink2Pivotal[LinkInfoIndex];
+  RefAvgPos = RefPos;
+  RobotLinkInfoObj = _RobotLinkInfo;
+  LinkInfoIndex = _LinkInfoIndex;
+
+  ContactFeasibleOpt ContactFeasibleOptProblem;
+  // Static Variable Substitution
+  std::vector<int> ActiveLinkChain = RMObject.EndEffectorLink2Pivotal[LinkInfoIndex];
+  std::vector<double> ActiveJoint(ActiveLinkChain.size());
+  int n = ActiveLinkChain.size();
+  // Cost function on the norm difference between the reference avg position and the modified contact position.
+  int neF = 1;
+  neF = neF + RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size();
+  ContactFeasibleOptProblem.InnerVariableInitialize(n, neF);
+
+  /*
+    Initialize the bounds of variables
+  */
+  std::vector<double> xlow_vec(n), xupp_vec(n);
+
+  for (int i = 0; i < n; i++)
+  {
+    // Configuration
+    xlow_vec[i] = SimRobot.qMin(ActiveLinkChain[i]);
+    xupp_vec[i] = SimRobot.qMax(ActiveLinkChain[i]);
+    ActiveJoint[i] = SimRobot.q[ActiveLinkChain[i]];
+  }
+  ContactFeasibleOptProblem.VariableBoundsUpdate(xlow_vec, xupp_vec);
+
+  /*
+    Initialize the bounds of variables
+  */
+  std::vector<double> Flow_vec(neF), Fupp_vec(neF);
+  Flow_vec[0] = 0;
+  Fupp_vec[0] = 1e20;           // The default idea is that the objective should always be nonnegative
+  int ConstraintIndex = 1;
+  for (int i = 0; i < RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size(); i++)
+  {
+    Flow_vec[ConstraintIndex] = 0;
+    Fupp_vec[ConstraintIndex] = 0;
+    ConstraintIndex = ConstraintIndex + 1;
+  }
+  ContactFeasibleOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
+
+  /*
+    Initialize the seed guess
+  */
+  ContactFeasibleOptProblem.SeedGuessUpdate(ActiveJoint);
+
+  /*
+    Given a name of this problem for the output
+  */
+  ContactFeasibleOptProblem.ProblemNameUpdate("ContactFeasibleOptProblem", 0);
+
+  // Here we would like allow much more time to be spent on IK
+  ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Iterations limit", 100);
+  ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 25);
+  ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
+  ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
+  /*
+    ProblemOptions seting
+  */
+  // Solve with Finite-Difference
+  ContactFeasibleOptProblem.ProblemOptionsUpdate(0, 3);
+  ContactFeasibleOptProblem.Solve(ActiveJoint);
+  return 0;
+}
 
 static void StepIntegrator(double & Theta, double & Thetadot, Vector3 & COMPos, Vector3 & COMVel, const PIPInfo & PIPObj, double & dt)
 {

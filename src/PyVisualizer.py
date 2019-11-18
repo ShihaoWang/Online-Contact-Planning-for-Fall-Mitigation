@@ -549,4 +549,4 @@ def main(*arg):
 
 if __name__ == "__main__":
     # main("InitConfig")
-    main("2.path")
+    main("1.path")

@@ -6,6 +6,8 @@
 #include "Simulation/WorldSimulation.h"
 #include <ode/ode.h>
 
+SignedDistanceFieldInfo NonlinearOptimizerInfo::SDFInfo;
+
 static void InitParaGenerator(double & KEInit, Vector3& CentDirection)
 {
   // The robot's initial kinetic energy will be sampled from a distribution.
@@ -76,8 +78,8 @@ int main()
   /* 3. Environment Geometry */
   Meshing::PointCloud3D PointCloudObj = PointCloudGene(world);
   const int GridsNo = 251;
-  // SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldGene(world, GridsNo);
-  SignedDistanceFieldInfo SDFInfo = SignedDistanceFieldLoader(GridsNo);
+  // NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
+  NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
 
   /* 4. Robot State Loader */
   Robot SimRobot = *world.robots[0];
@@ -101,7 +103,7 @@ int main()
   InitParaGenerator(KEInit, CentDirection);
   bool ConfigOptFlag = true;
   bool VelocityOptFlag = true;
-  bool InitFlag = InitialStateOptFn(SimRobot, RobotLinkInfo, RobotContactInfo, SDFInfo, RobotConfigRef, KEInit, CentDirection, InitRobotConfig, InitRobotVelocity, ConfigOptFlag, VelocityOptFlag);
+  bool InitFlag = InitialStateOptFn(SimRobot, RobotLinkInfo, RobotContactInfo, RobotConfigRef, KEInit, CentDirection, InitRobotConfig, InitRobotVelocity, ConfigOptFlag, VelocityOptFlag);
   switch (InitFlag)
   {
     case false:
@@ -134,7 +136,7 @@ int main()
   /* 6. Projected Inverted Pendulum Plot */
   std::vector<Vector3> ActContactPositions, ActVelocities;
   std::vector<Matrix> ActJacobians;
-  std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, SDFInfo);
+  std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, NonlinearOptimizerInfo::SDFInfo);
 
   std::vector<Vector3> CPVertex, CPEdgeA, CPEdgeB;
   std::vector<FacetInfo> FacetInfoObj = ContactHullGeneration(ActContactPositions, CPVertex, CPEdgeA, CPEdgeB);      // This function output is only used for visualization purpose.
@@ -166,7 +168,7 @@ int main()
   // Sim.controlSimulators[0].oderobot->SetVelocities(InitRobotVelocityImpl);
 
   /* 8. Internal Experimentation */
-  SimulationTest(Sim, RobotLinkInfo, RobotContactInfo, SDFInfo, RMObject, Backend, dt, FileIndex);
+  SimulationTest(Sim, RobotLinkInfo, RobotContactInfo, RMObject, Backend, dt, FileIndex);
 
   return true;
 }

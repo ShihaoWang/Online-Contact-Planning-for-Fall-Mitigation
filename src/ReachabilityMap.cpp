@@ -14,7 +14,7 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   // Due to the fact that the area of sphere is propotional to r^2, the number of the sampled data is propotional to r^2 on each sphere.
   double MaxRadius = 0.7;
   int LayerNumber = 70;
-  int PointNumberOnInner = 5;
+  int PointNumberOnInner = 4;
   double LayerDiff = MaxRadius/(LayerNumber * 1.0);
   double MinRadius = LayerDiff;
 
@@ -64,21 +64,27 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   std::vector<double> EndEffectorRadius(RobotLinkInfo.size());
   std::vector<int> EndEffectorLinkIndex(RobotLinkInfo.size());
   std::vector<int> EndEffectorPivotalIndex(RobotLinkInfo.size());
+  std::map<int, std::vector<int>> EndEffectorLink2Pivotal;
 
   for (int i = 0; i < RobotLinkInfo.size(); i++)
   {
     int ParentIndex = -1;
     int CurrentIndex = RobotLinkInfo[i].LinkIndex;
     EndEffectorLinkIndex[i] = RobotLinkInfo[i].LinkIndex;
+    std::vector<int> EndEffectorLink2PivotalIndex;
+    EndEffectorLink2PivotalIndex.push_back(CurrentIndex);
     while(std::find(TorsoLink.begin(), TorsoLink.end(), ParentIndex)==TorsoLink.end())
     {
       ParentIndex = SimRobot.parents[CurrentIndex];
       CurrentIndex = ParentIndex;
+      EndEffectorLink2PivotalIndex.push_back(CurrentIndex);
     }
+    EndEffectorLink2PivotalIndex.pop_back();
     Vector3 PivotalPos, EndPos, PivotalRef(0.0, 0.0, 0.0);
-    SimRobot.GetWorldPosition(PivotalRef, ParentIndex, PivotalPos);
+    SimRobot.GetWorldPosition(PivotalRef, EndEffectorLink2PivotalIndex[EndEffectorLink2PivotalIndex.size()-1], PivotalPos);
     SimRobot.GetWorldPosition(RobotLinkInfo[i].AvgLocalContact, RobotLinkInfo[i].LinkIndex, EndPos);
-    EndEffectorPivotalIndex[i] = ParentIndex;
+    EndEffectorPivotalIndex[i] = EndEffectorLink2PivotalIndex[EndEffectorLink2PivotalIndex.size()-1];
+    EndEffectorLink2Pivotal[i] = EndEffectorLink2PivotalIndex;
 
     Vector3 Pivotal2End = PivotalPos - EndPos;
     double Pivotal2EndRadius = sqrt(Pivotal2End.x * Pivotal2End.x + Pivotal2End.y * Pivotal2End.y + Pivotal2End.z * Pivotal2End.z);
@@ -87,6 +93,8 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   RMObject.EndEffectorRadius = EndEffectorRadius;
   RMObject.EndEffectorLinkIndex = EndEffectorLinkIndex;
   RMObject.EndEffectorPivotalIndex = EndEffectorPivotalIndex;
+  RMObject.EndEffectorLink2Pivotal = EndEffectorLink2Pivotal;
+
   RMObject.TotalPoint = TotalPoint;
   return RMObject;
 }

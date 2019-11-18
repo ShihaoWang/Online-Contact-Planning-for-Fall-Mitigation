@@ -49,6 +49,8 @@ static std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, cons
       }
     }
   }
+
+  // The following three are used to plot the all, active, and optimal
   int ReachablePointNumber1, ReachablePointNumber2;
   std::vector<Vector3> IdealReachableContact = RMObject.IdealReachablePointsFinder(SimRobot, LinkInfoIndex);
   Vector3Writer(IdealReachableContact, "IdealReachableContact");
@@ -58,9 +60,7 @@ static std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, cons
 
   // std::vector<Vector3> ReachablePoints2 = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, SDFInfo, ReachablePointNumber2, COMVel);
   int a = 1;
-
   // There are four rules to get rid of unnecessary points.
-
 }
 
 

@@ -188,7 +188,7 @@ struct NonlinearOptimizerInfo
   // std::vector<double> RobotConfigRef;                // This serves as a reference for robot configurations
   // std::vector<double> RobotVelocityRef;              // This serves as a reference for robot velocities.
 
-  // SignedDistanceFieldInfo SDFInfo;
+  static SignedDistanceFieldInfo SDFInfo;
   // FailureMetricInfo FailureMetricObj;
 };
 

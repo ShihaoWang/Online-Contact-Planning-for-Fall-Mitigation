@@ -4,7 +4,6 @@
 static Robot SimRobotObj;
 static std::vector<LinkInfo> RobotLinkInfo;
 static std::vector<ContactStatusInfo> RobotContactInfo;
-static SignedDistanceFieldInfo SDFInfo;
 static std::vector<double> RobotConfigRef;
 
 static double KEInit;
@@ -75,7 +74,7 @@ struct InitialConfigOpt: public NonlinearOptimizerInfo
       {
         Vector3 LinkiPjPos;
         SimRobotObj.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
-        F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos);      ConstraintIndex = ConstraintIndex + 1;
+        F[ConstraintIndex] = NonlinearOptimizerInfo::SDFInfo.SignedDistance(LinkiPjPos);      ConstraintIndex = ConstraintIndex + 1;
       }
     }
 
@@ -85,7 +84,7 @@ struct InitialConfigOpt: public NonlinearOptimizerInfo
     {
       Vector3 Link_i_COM;
       SimRobotObj.links[i+6].GetWorldCOM(Link_i_COM);
-      F[ConstraintIndex] = SDFInfo.SignedDistance(Link_i_COM);     // Here 0.001 is the epsilon addition
+      F[ConstraintIndex] = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Link_i_COM);     // Here 0.001 is the epsilon addition
       ConstraintIndex = ConstraintIndex + 1;
     }
 
@@ -457,12 +456,11 @@ static bool InitialVelocityOptFn(const double & KEInit, const Vector3 & CentDire
   return FeasibleFlag;
 }
 
-bool InitialStateOptFn(Robot& _SimRobotObj, const std::vector<LinkInfo> & _RobotLinkInfo, const std::vector<ContactStatusInfo> &  _RobotContactInfo, const SignedDistanceFieldInfo& _SDFInfo, const std::vector<double>& _RobotConfigRef, const double & _KEInit, const Vector3& _CentDirection, std::vector<double> & RobotConfig, std::vector<double> & RobotVelocity, const bool & ConfigFlag, const bool & VelocityFlag)
+bool InitialStateOptFn(Robot& _SimRobotObj, const std::vector<LinkInfo> & _RobotLinkInfo, const std::vector<ContactStatusInfo> &  _RobotContactInfo, const std::vector<double>& _RobotConfigRef, const double & _KEInit, const Vector3& _CentDirection, std::vector<double> & RobotConfig, std::vector<double> & RobotVelocity, const bool & ConfigFlag, const bool & VelocityFlag)
 {
   SimRobotObj = _SimRobotObj;
   RobotLinkInfo = _RobotLinkInfo;
   RobotContactInfo = _RobotContactInfo;
-  SDFInfo = _SDFInfo;
   RobotConfigRef = _RobotConfigRef;
 
   KEInit = _KEInit;
