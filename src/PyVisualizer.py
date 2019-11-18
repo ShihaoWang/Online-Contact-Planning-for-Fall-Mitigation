@@ -410,13 +410,17 @@ def Reachable_Contact_Plot(vis, ReachableContacts_data):
         point_start[1] = ReachableContact_i[1]
         point_start[2] = ReachableContact_i[2]
 
-        point_end[0] = ReachableContact_i[0] + PointTol * random.uniform(0, 1)
-        point_end[1] = ReachableContact_i[1] + PointTol * random.uniform(0, 1)
-        point_end[2] = ReachableContact_i[2] + PointTol * random.uniform(0, 1)
-
-        vis.add("Point:" + str(i), Trajectory([0, 1], [point_start, point_end]))
+        vis.add("Point:" + str(i), point_start)
         vis.hideLabel("Point:" + str(i), True)
-        vis.setAttribute("Point:" + str(i),'width', 7.5)
+        vis.setColor("Point:" + str(i),65.0/255.0, 199.0/255.0, 244.0/255.0, 1.0)
+
+        # point_end[0] = ReachableContact_i[0] + PointTol * random.uniform(0, 1)
+        # point_end[1] = ReachableContact_i[1] + PointTol * random.uniform(0, 1)
+        # point_end[2] = ReachableContact_i[2] + PointTol * random.uniform(0, 1)
+        #
+        # vis.add("Point:" + str(i), Trajectory([0, 1], [point_start, point_end]))
+        # vis.hideLabel("Point:" + str(i), True)
+        # vis.setAttribute("Point:" + str(i),'width', 7.5)
 
 def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # Initialize the robot motion viewer
@@ -454,6 +458,18 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     f_ActiveReachableContacts = open(ActiveReachableContacts, 'rb')
     ActiveReachableContacts_data = np.fromfile(f_ActiveReachableContacts, dtype=np.double)
     ActiveReachableContacts_data = ActiveReachableContacts_data.reshape((ActiveReachableContacts_data.size/3, 3))
+
+    # 3. Contact Free Points
+    ContactFreeContacts = ExpName + "build/ContactFreeContact.bin"
+    f_ContactFreeContacts = open(ContactFreeContacts, 'rb')
+    ContactFreeContacts_data = np.fromfile(f_ContactFreeContacts, dtype=np.double)
+    ContactFreeContacts_data = ContactFreeContacts_data.reshape((ContactFreeContacts_data.size/3, 3))
+
+    # 4. Supportive Points
+    SupportContacts = ExpName + "build/SupportContact.bin"
+    f_SupportContacts = open(SupportContacts, 'rb')
+    SupportContacts_data = np.fromfile(f_SupportContacts, dtype=np.double)
+    SupportContacts_data = SupportContacts_data.reshape((SupportContacts_data.size/3, 3))
 
     # # 3. Optimal Reachable Points
     # OptimalReachableContacts = ExpName + "build/OptimalReachableContact.bin"
@@ -500,7 +516,9 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             #     else:
             #         print "Input Contact Polytope Infeasible!"
             # Reachable_Contact_Plot(vis, IdealReachableContacts_data)
-            Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
+            # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
+            Reachable_Contact_Plot(vis, ContactFreeContacts_data)
+            # Reachable_Contact_Plot(vis, SupportContacts_data)
             vis.unlock()
             time.sleep(delta_t)
 

@@ -943,16 +943,17 @@ struct ReachabilityMap
     }
     return ReachablePoints;
   }
-  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, int & ReachablePointNo, const Vector3 & COMVel)
+  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, const Vector3 & COMVel)
   {
     double Radius = EndEffectorRadius[LinkInfoIndex];
     double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
 
     Vector3 RefPoint, ZeroPos(0.0, 0.0, 0.0);
     SimRobot.GetWorldPosition(ZeroPos, PivotalLinkIndex, RefPoint);
+    int ReachablePointNo = 0;
     return ReachablePointsGene(RefPoint, Radius, SDFInfo, ReachablePointNo, COMVel);
   }
-  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, int & ReachablePointNo)
+  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo)
   {
     double Radius = EndEffectorRadius[LinkInfoIndex];
     double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
@@ -960,6 +961,7 @@ struct ReachabilityMap
     Vector3 RefPoint, ZeroPos(0.0, 0.0, 0.0);
     SimRobot.GetWorldPosition(ZeroPos, PivotalLinkIndex, RefPoint);
     Vector3 COMVel(0.0, 0.0, 0.0);
+    int ReachablePointNo = 0;
     return ReachablePointsGene(RefPoint, Radius, SDFInfo, ReachablePointNo, COMVel);
   }
   std::vector<Vector3> ReachablePointsGene(const Vector3 & RefPoint, const double & Radius, SignedDistanceFieldInfo & SDFInfo, int & ReachablePointNo, const Vector3 & COMVel)
@@ -1008,12 +1010,12 @@ struct ReachabilityMap
     }
     return ReachablePoints;
   }
-  std::vector<Vector3> ContactFreePointsFinder(const std::vector<Vector3> & ReachablePoints,const std::vector<std::pair<Vector3, double>> & ContactFreeInfo, int & ContactFreeNo)
+  std::vector<Vector3> ContactFreePointsFinder(const double & radius, const std::vector<Vector3> & ReachablePoints,const std::vector<std::pair<Vector3, double>> & ContactFreeInfo)
   {
     // This function can only be called after ReachablePointsFinder() to reduce the extra point further.
     std::vector<Vector3> ContactFreePoints;
     ContactFreePoints.reserve(ReachablePoints.size());
-    ContactFreeNo = 0;
+    int ContactFreeNo = 0;
     for (int i = 0; i < ReachablePoints.size(); i++)
     {
       Vector3 ReachablePoint = ReachablePoints[i];
@@ -1025,7 +1027,7 @@ struct ReachabilityMap
         double Radius = ContactFreeInfo[ContactFreeInfoIndex].second;
         Vector3 PosDiff = ReachablePoint - RefPoint;
         double PosDiffDis = sqrt(PosDiff.x * PosDiff.x + PosDiff.y * PosDiff.y + PosDiff.z * PosDiff.z);
-        if(PosDiffDis<=Radius)
+        if(PosDiffDis<=(Radius + radius))
         {
           ContactFreeFlag = false;
           break;

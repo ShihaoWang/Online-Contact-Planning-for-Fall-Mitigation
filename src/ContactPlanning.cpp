@@ -4,6 +4,30 @@
 #include "CommonHeader.h"
 #include "NonlinearOptimizerInfo.h"
 
+static std::vector<Vector3> SupportContactFinder(const Vector3 & COMPos, const PIPInfo & PIPObj, const std::vector<Vector3> & ContactFreeContact, SignedDistanceFieldInfo & SDFInfo)
+{
+  // This function is used to get supportive contact and should be only called after ContactFreePoint function.
+  // The introduced rotational momentum should be in the counter direction.
+  Vector3 EdgeA = PIPObj.EdgeA;
+  Vector3 EdgeB = PIPObj.EdgeB;
+  Vector3 EdgeDir = EdgeB - EdgeA;
+  std::vector<Vector3> SupportContact;
+  SupportContact.reserve(ContactFreeContact.size());
+  for (int i = 0; i < ContactFreeContact.size(); i++)
+  {
+    Vector3 ContactFreePoint = ContactFreeContact[i];
+    Vector3 PointNormDir = SDFInfo.SignedDistanceNormal(ContactFreePoint);
+    Vector3 rPos2COMPos = ContactFreePoint - COMPos;
+    Vector3 InducedMomentum = cross(rPos2COMPos, PointNormDir);
+    double ProjMomentumVal = InducedMomentum.x * EdgeDir.x + InducedMomentum.y * EdgeDir.y + InducedMomentum.z * EdgeDir.z;
+    if(ProjMomentumVal<=0)
+    {
+      SupportContact.push_back(ContactFreePoint);
+    }
+  }
+  return SupportContact;
+}
+
 static std::vector<std::pair<Vector3, double>> ContactFreeInfoFn(const Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
   // This function is used to generate pairs of ContactFreeInfo
@@ -26,10 +50,10 @@ static std::vector<std::pair<Vector3, double>> ContactFreeInfoFn(const Robot & S
   return ContactFreeInfo;
 }
 
-static std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
+static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
 {
   /*
-    This function is used to plan single contactL: _RobotContactInfo keeps the robot presumably contact status.
+    This function is used to plan single contact: _RobotContactInfo keeps the robot presumably contact status.
     Here Type will have two values:
     0     This indicates a contact modification.
     1     This indicates a contact addition.
@@ -76,19 +100,30 @@ static std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, cons
 
   std::vector<std::pair<Vector3, double>> ContactFreeInfo = ContactFreeInfoFn(SimRobot, RobotLinkInfo, OriRobotContactInfo, RMObject);
 
-
   // The following three are used to plot the all, active, and optimal
-  int ReachablePointNumber1, ReachablePointNumber2;
   std::vector<Vector3> IdealReachableContact = RMObject.IdealReachablePointsFinder(SimRobot, LinkInfoIndex);
   Vector3Writer(IdealReachableContact, "IdealReachableContact");
 
-  std::vector<Vector3> ActiveReachableContact = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, NonlinearOptimizerInfo::SDFInfo, ReachablePointNumber1);
+  std::vector<Vector3> ActiveReachableContact = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, NonlinearOptimizerInfo::SDFInfo);
   Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
 
-  int ContactFreeNo;
-  std::vector<Vector3> ContactFreeContact =  RMObject.ContactFreePointsFinder(ActiveReachableContact, ContactFreeInfo, ContactFreeNo);
+  std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[LinkInfoIndex], ActiveReachableContact, ContactFreeInfo);
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
 
+  // Here we can make use of the PIPInfo to get rid of the extra contact points
+  // The purpose is to select the contact point such that the rotational momentum can be reduced in to opposite direction.
+  /* Robot's COMPos and COMVel */
+  Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+  CentroidalState(SimRobot, COMPos, COMVel);
+  std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
+  Vector3Writer(SupportContact, "SupportContact");
 
+  // Config RobotConfigNew(InitConfig);
+  // SimRobotObj.UpdateConfig(RobotConfigNew);
+  // SimRobotObj.UpdateGeometry();
+  // CollisionFlag = SimRobotObj.SelfCollision();
+
+  // Before resorting to the adoption of all contact free contact
   for (int i = 0; i < ActiveReachableContact.size(); i++)
   {
     std::vector<double> RobotConfig;
@@ -101,7 +136,7 @@ static std::vector<double> SingleContactPlanning(const int & LinkInfoIndex, cons
 }
 
 
-static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+static std::vector<Config> StabilizingPoseGenerator(const PIPInfo & PIPObj, const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
   std::vector<Config> StabilizingPoses;
   switch (ContactModiInfoIndices.size())
@@ -114,7 +149,7 @@ static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & Con
     {
       for (int i = 0; i < ContactModiInfoIndices.size(); i++)
       {
-        std::vector<double> StabilizingPose = SingleContactPlanning(ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+        std::vector<double> StabilizingPose = SingleContactPlanning(PIPObj, ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
         StabilizingPoses.push_back(Config(StabilizingPose));
       }
     }
@@ -130,7 +165,7 @@ static std::vector<Config> StabilizingPoseGenerator(const std::vector<int> & Con
     {
       for (int i = 0; i < ContactAddInfoIndices.size(); i++)
       {
-        std::vector<double> StabilizingPose = SingleContactPlanning(ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+        std::vector<double> StabilizingPose = SingleContactPlanning(PIPObj, ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
         StabilizingPoses.push_back(Config(StabilizingPose));
       }
     }
@@ -143,10 +178,8 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
 {
   // This function is used to fix the end effector whose contact should not be modified.
   // First the job is to figure out whether this edge belongs to a certain end effector
-
   double ContactModiColTime = -1.0;
   double ContactAddColTime = -1.0;
-
   // Evaluation of the current contact status for contact addition consideration.
   std::vector<int> ContactAddInfoIndices;
   for (int i = 0; i < RobotLinkInfo.size(); i++)
@@ -164,7 +197,6 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
       break;
     }
   }
-
   // This part is to figure out what contact can be changed.
   std::vector<Vector3> ModiCOMPosTraj, ModiCOMVelTraj;
   int FixedContactIndex;;
@@ -191,7 +223,6 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
       break;
     }
   }
-
   switch (ContactAddInfoIndices.size())
   {
     case 0:
@@ -206,9 +237,7 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
     }
     break;
   }
-
-  std::vector<Config> StabilizingPoses = StabilizingPoseGenerator(ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-
+  std::vector<Config> StabilizingPoses = StabilizingPoseGenerator(PIPObj, ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
   int a = 1;
   return 1;
 }
