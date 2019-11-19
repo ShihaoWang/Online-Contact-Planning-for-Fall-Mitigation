@@ -517,8 +517,8 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             #         print "Input Contact Polytope Infeasible!"
             # Reachable_Contact_Plot(vis, IdealReachableContacts_data)
             # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
-            Reachable_Contact_Plot(vis, ContactFreeContacts_data)
-            # Reachable_Contact_Plot(vis, SupportContacts_data)
+            # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
+            Reachable_Contact_Plot(vis, SupportContacts_data)
             vis.unlock()
             time.sleep(delta_t)
 

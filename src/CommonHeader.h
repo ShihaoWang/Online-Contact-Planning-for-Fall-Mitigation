@@ -93,7 +93,7 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
 double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex);
 double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj);
 double ContactAddPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj);
-int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> &RobotConfig);
+int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig, std::vector<Vector3> & NewContacts);
 
 /*  11. Reachability Map */
 ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<int> & TorsoLink);

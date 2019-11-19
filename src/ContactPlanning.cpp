@@ -4,6 +4,64 @@
 #include "CommonHeader.h"
 #include "NonlinearOptimizerInfo.h"
 
+static double Tol = 1e-5;
+
+static double NewContactsEval(const std::vector<Vector3> & FixedContacts, const std::vector<Vector3> & NewContacts, const Vector3 & COMPos, const Vector3 & COMVel)
+{
+  // This function is used to evaluate the robot current NewContact according to our objective.
+  std::vector<Vector3> ActContacts;
+  ActContacts.reserve(FixedContacts.size() + NewContacts.size());
+  for (int i = 0; i < FixedContacts.size(); i++)
+  {
+    ActContacts.push_back(FixedContacts[i]);
+  }
+  for (int i = 0; i < NewContacts.size(); i++)
+  {
+    ActContacts.push_back(NewContacts[i]);
+  }
+  std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContacts, COMPos, COMVel);
+  int CPPIPIndex;
+  double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
+  return CPObjective;
+}
+
+static void FailureMetricSelector(const Robot& SimRobot, const int & LinkInfoIndex, const std::vector<Vector3> & SupportContact, std::vector<ContactConfigInfo> & SafeContact, std::vector<ContactConfigInfo> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const double & RefFailureMetric, ReachabilityMap & RMObject)
+{
+  for (int i = 0; i < SupportContact.size(); i++)
+  {
+    std::vector<double> RobotConfig;
+    std::vector<Vector3> NewContacts;
+    int FeasiRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, SupportContact[i], RobotLinkInfo, RMObject, RobotConfig, NewContacts);
+    switch (FeasiRes)
+    {
+      case 1:
+      {
+        // This indicates that current Support Contact is reachable.
+        double NewContactFailureMetric = NewContactsEval(FixedContacts, NewContacts, COMPos, COMVel);
+        if (NewContactFailureMetric<RefFailureMetric)
+        {
+          if(NewContactFailureMetric<Tol)
+          {
+            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig);
+            SafeContact.push_back(NewContactConfig);
+          }
+          else
+          {
+            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig);
+            BetterContact.push_back(NewContactConfig);
+          }
+        }
+      }
+      break;
+      default:
+      {
+      }
+      break;
+    }
+  }
+  return;
+}
+
 static std::vector<Vector3> SupportContactFinder(const Vector3 & COMPos, const PIPInfo & PIPObj, const std::vector<Vector3> & ContactFreeContact, SignedDistanceFieldInfo & SDFInfo)
 {
   // This function is used to get supportive contact and should be only called after ContactFreePoint function.
@@ -55,8 +113,8 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   /*
     This function is used to plan single contact: _RobotContactInfo keeps the robot presumably contact status.
     Here Type will have two values:
-    0     This indicates a contact modification.
-    1     This indicates a contact addition.
+      0     This indicates a contact modification.
+      1     This indicates a contact addition.
   */
 
   Robot SimRobot = _SimRobot;
@@ -112,11 +170,19 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
 
   // Here we can make use of the PIPInfo to get rid of the extra contact points
   // The purpose is to select the contact point such that the rotational momentum can be reduced in to opposite direction.
-  /* Robot's COMPos and COMVel */
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
   Vector3Writer(SupportContact, "SupportContact");
+
+  std::vector<ContactConfigInfo> SafeContact, BetterContact;
+  FailureMetricSelector(SimRobot, LinkInfoIndex, SupportContact, SafeContact, BetterContact, FixedContacts, COMPos, COMVel, RobotLinkInfo, RefFailureMetric, RMObject);
+
+
+  /* Divide SupportContact into two groups:
+      1. Failure Metric equals 0
+      2. Failure Metric not equal to 0 but smaller than RefFailureMetric
+  */
 
   // Config RobotConfigNew(InitConfig);
   // SimRobotObj.UpdateConfig(RobotConfigNew);
@@ -124,11 +190,7 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   // CollisionFlag = SimRobotObj.SelfCollision();
 
   // Before resorting to the adoption of all contact free contact
-  for (int i = 0; i < ActiveReachableContact.size(); i++)
-  {
-    std::vector<double> RobotConfig;
-    int FeasiRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, ActiveReachableContact[i], RobotLinkInfo, RMObject, RobotConfig);
-  }
+
 
   // std::vector<Vector3> ReachablePoints2 = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, SDFInfo, ReachablePointNumber2, COMVel);
   int a = 1;

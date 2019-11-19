@@ -1065,4 +1065,16 @@ struct ReachabilityMap
   int TotalPoint;
 };
 
+struct ContactConfigInfo
+{
+  ContactConfigInfo(){};
+  ContactConfigInfo(const std::vector<Vector3> & _Contacts, const std::vector<double> _Config)
+  {
+    Contacts = _Contacts;
+    Config = _Config;
+  };
+  std::vector<Vector3> Contacts;
+  std::vector<double> Config;
+};
+
 #endif

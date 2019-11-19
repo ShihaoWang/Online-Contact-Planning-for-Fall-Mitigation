@@ -85,7 +85,7 @@ struct ContactFeasibleOpt: public NonlinearOptimizerInfo
   }
 };
 
-int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig)
+int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig, std::vector<Vector3> & NewContacts)
 {
   // This function is used to optimize robot's configuration such that a certain contact need to be made
   SimRobotObj = SimRobot;
@@ -165,10 +165,12 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
   SimRobotObj.UpdateConfig(ConfigOptNew);
   std::vector<double> Fcon(neF-1);
   ConstraintIndex = 0;
+  NewContacts.reserve(RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size());
   for (int i = 0; i < RobotLinkInfoObj[LinkInfoIndex].LocalContacts.size(); i++)
   {
     Vector3 LinkiPjPos;
     SimRobotObj.GetWorldPosition(RobotLinkInfoObj[LinkInfoIndex].LocalContacts[i], RobotLinkInfoObj[LinkInfoIndex].LinkIndex, LinkiPjPos);
+    NewContacts.push_back(LinkiPjPos);
     double SDF_i = NonlinearOptimizerInfo::SDFInfo.SignedDistance(LinkiPjPos);
     Fcon[ConstraintIndex] = SDF_i * SDF_i;
     ConstraintIndex = ConstraintIndex + 1;
@@ -181,7 +183,7 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
   int OptRes = -1;
   if(Fconval<Tol)
   {
-    OptRes = 0;
+    OptRes = 1;
   }
   return OptRes;
 }
