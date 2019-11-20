@@ -473,8 +473,30 @@ void ROCAppender(const double & TPR, const double & FPR, const int & CaseNumber,
   FPRFile.close();
 }
 
+void Vector3Writer(const std::vector<ContactConfigInfo>& ContactConfigs, const std::string &ContactPointFileName)
+{
+  std::vector<Vector3> ContactPoints;
+  ContactPoints.reserve(ContactConfigs.size());
+  for (int i = 0; i < ContactConfigs.size(); i++)
+  {
+    ContactPoints.push_back(ContactConfigs[i].RefContact);
+  }
+  Vector3Writer(ContactPoints, ContactPointFileName);
+  return;
+}
+
 void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName)
 {
+  switch (ContactPoints.size())
+  {
+    case 0:
+    {
+      return;
+    }
+    break;
+    default:
+    break;
+  }
   int NumberOfContactPoints = ContactPoints.size();
   std::vector<double> FlatContactPoints(3 * NumberOfContactPoints);
   int FlatContactPointIndex = 0;

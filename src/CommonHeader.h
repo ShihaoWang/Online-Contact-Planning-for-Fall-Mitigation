@@ -62,6 +62,7 @@ int FallStatusFinder(const std::vector<double> & ObjTraj, const int & CutOffInde
 void ROCAppender(const double & TPR, const double & FPR, const int & CaseNumber, const int & CutOffIndex, const string FallDetector);
 std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath);
 void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName);
+void Vector3Writer(const std::vector<ContactConfigInfo>& ContactConfigs, const std::string &ContactPointFileName);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);

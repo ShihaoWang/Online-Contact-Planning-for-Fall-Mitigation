@@ -1068,13 +1068,15 @@ struct ReachabilityMap
 struct ContactConfigInfo
 {
   ContactConfigInfo(){};
-  ContactConfigInfo(const std::vector<Vector3> & _Contacts, const std::vector<double> _Config)
+  ContactConfigInfo(const std::vector<Vector3> & _Contacts, const std::vector<double> _Config, const Vector3 & _RefContact)
   {
     Contacts = _Contacts;
     Config = _Config;
+    RefContact = _RefContact;
   };
   std::vector<Vector3> Contacts;
   std::vector<double> Config;
+  Vector3 RefContact;
 };
 
 #endif

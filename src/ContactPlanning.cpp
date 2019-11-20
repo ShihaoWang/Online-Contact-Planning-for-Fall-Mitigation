@@ -3,6 +3,7 @@
 #include <sstream>
 #include "CommonHeader.h"
 #include "NonlinearOptimizerInfo.h"
+#include <ctime>
 
 static double Tol = 1e-5;
 
@@ -25,6 +26,43 @@ static double NewContactsEval(const std::vector<Vector3> & FixedContacts, const 
   return CPObjective;
 }
 
+static void FailureMetricEstimator(const std::vector<Vector3> & SupportContact, std::vector<Vector3> & SafeContact, std::vector<Vector3> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric)
+{
+  // This function is used to estimate robot's cost based on the point contact addition for failure metric evaluation.
+  SafeContact.reserve(SupportContact.size());
+  BetterContact.reserve(SupportContact.size());
+
+  const int ActContactNo = FixedContacts.size() + 1;
+  for (int i = 0; i < SupportContact.size(); i++)
+  {
+    std::vector<Vector3> ActContacts;
+    ActContacts.reserve(ActContactNo);
+    for (int j = 0; j < ActContactNo-1; j++)
+    {
+      ActContacts.push_back(FixedContacts[j]);
+    }
+    ActContacts.push_back(SupportContact[i]);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContacts, COMPos, COMVel);
+    int CPPIPIndex;
+    double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
+    if(CPObjective<RefFailureMetric)
+    {
+      // This indicates that the curent contact is at least a better contact.
+      if(CPObjective<Tol)
+      {
+        // This means that current contact is SafeContact
+        SafeContact.push_back(SupportContact[i]);
+      }
+      else
+      {
+        // This means that current contact is BetterContact
+        BetterContact.push_back(SupportContact[i]);
+      }
+    }
+  }
+  return;
+}
+
 static void FailureMetricSelector(const Robot& SimRobot, const int & LinkInfoIndex, const std::vector<Vector3> & SupportContact, std::vector<ContactConfigInfo> & SafeContact, std::vector<ContactConfigInfo> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const double & RefFailureMetric, ReachabilityMap & RMObject)
 {
   for (int i = 0; i < SupportContact.size(); i++)
@@ -42,12 +80,12 @@ static void FailureMetricSelector(const Robot& SimRobot, const int & LinkInfoInd
         {
           if(NewContactFailureMetric<Tol)
           {
-            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig);
+            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig, SupportContact[i]);
             SafeContact.push_back(NewContactConfig);
           }
           else
           {
-            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig);
+            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig, SupportContact[i]);
             BetterContact.push_back(NewContactConfig);
           }
         }
@@ -162,21 +200,49 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   std::vector<Vector3> IdealReachableContact = RMObject.IdealReachablePointsFinder(SimRobot, LinkInfoIndex);
   Vector3Writer(IdealReachableContact, "IdealReachableContact");
 
+  clock_t beginTime = std::clock();
   std::vector<Vector3> ActiveReachableContact = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, NonlinearOptimizerInfo::SDFInfo);
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  clock_t endTime = std::clock();
+  double elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
+  std::printf("ReachablePointsFinder function takes: %f ms\n", 1000.0 * elapsed_secs);
 
+
+  beginTime = std::clock();
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[LinkInfoIndex], ActiveReachableContact, ContactFreeInfo);
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  endTime = std::clock();
+  elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
+  std::printf("ContactFreeContact function takes: %f ms\n", 1000.0 * elapsed_secs);
 
   // Here we can make use of the PIPInfo to get rid of the extra contact points
   // The purpose is to select the contact point such that the rotational momentum can be reduced in to opposite direction.
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
+
+  beginTime = std::clock();
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
-  Vector3Writer(SupportContact, "SupportContact");
+  endTime = std::clock();
+  elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
+  std::printf("SupportContactFinder function takes: %f ms\n", 1000.0 * elapsed_secs);
 
   std::vector<ContactConfigInfo> SafeContact, BetterContact;
-  FailureMetricSelector(SimRobot, LinkInfoIndex, SupportContact, SafeContact, BetterContact, FixedContacts, COMPos, COMVel, RobotLinkInfo, RefFailureMetric, RMObject);
+  SafeContact.reserve(SupportContact.size());
+  BetterContact.reserve(SupportContact.size());
+  beginTime = std::clock();
+
+  std::vector<Vector3> SafeContactPos, BetterContactPos;
+  FailureMetricEstimator(SupportContact, SafeContactPos, BetterContactPos, FixedContacts, COMPos, COMVel, RefFailureMetric);
+  // FailureMetricSelector(SimRobot, LinkInfoIndex, SupportContact, SafeContact, BetterContact, FixedContacts, COMPos, COMVel, RobotLinkInfo, RefFailureMetric, RMObject);
+  endTime = std::clock();
+  elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
+  std::printf("FailureMetricSelector function takes: %f ms\n", 1000.0 * elapsed_secs);
+
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  Vector3Writer(SupportContact, "SupportContact");
+  Vector3Writer(SafeContactPos, "SafeContact");
+  Vector3Writer(BetterContactPos, "BetterContact");
+
+  std::cerr << "Pure Test!" << '\n';
 
 
   /* Divide SupportContact into two groups:

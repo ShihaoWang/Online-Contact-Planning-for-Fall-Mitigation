@@ -146,7 +146,7 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
 
   // Here we would like allow much more time to be spent on IK
   ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Iterations limit", 100);
-  ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 25);
+  ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 15);
   ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
   ContactFeasibleOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
   /*
@@ -176,8 +176,21 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
     ConstraintIndex = ConstraintIndex + 1;
   }
 
-  string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  RobotConfigWriter(RefConfiguration, UserFilePath, "TryConfig.config");
+  // SimRobotObj.UpdateGeometry();
+  // bool CollisionFlag = SimRobotObj.SelfCollision();
+  // switch (CollisionFlag)
+  // {
+  //   case true:
+  //   {
+  //     return -1;
+  //   }
+  //   break;
+  //   default:
+  //   break;
+  // }
+
+  // string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  // RobotConfigWriter(RefConfiguration, UserFilePath, "TryConfig.config");
 
   double Fconval = *std::min_element(Fcon.begin(),Fcon.end());
   int OptRes = -1;

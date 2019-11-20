@@ -398,9 +398,10 @@ def Reachable_Contact_Plot(vis, ReachableContacts_data):
     RowNo, ColumnNo = ReachableContacts_data.shape
     RowStart = 0
     RowEnd = RowNo
-    # RowStart = 400000
-    # RowEnd = 401000
+    # RowStart = 100000
+    # RowEnd = 110000
     PointTol = 0.001;
+    print RowEnd
     for i in range(RowStart, RowEnd):
         point_start = [0.0, 0.0, 0.0]
         point_end = [0.0, 0.0, 0.0]
@@ -421,6 +422,14 @@ def Reachable_Contact_Plot(vis, ReachableContacts_data):
         # vis.add("Point:" + str(i), Trajectory([0, 1], [point_start, point_end]))
         # vis.hideLabel("Point:" + str(i), True)
         # vis.setAttribute("Point:" + str(i),'width', 7.5)
+
+def ContactDataLoader(IdealReachableContact):
+    IdealReachableContacts = ExpName + "build/" + IdealReachableContact + ".bin"
+    f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
+    IdealReachableContacts_data = np.fromfile(f_IdealReachableContacts, dtype=np.double)
+    IdealReachableContacts_data = IdealReachableContacts_data.reshape((IdealReachableContacts_data.size/3, 3))
+    return IdealReachableContacts_data
+
 
 def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # Initialize the robot motion viewer
@@ -448,28 +457,17 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # Technically, there are three point clouds to be plotted.
 
     # 1. All Reachable Points
-    IdealReachableContacts = ExpName + "build/IdealReachableContact.bin"
-    f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
-    IdealReachableContacts_data = np.fromfile(f_IdealReachableContacts, dtype=np.double)
-    IdealReachableContacts_data = IdealReachableContacts_data.reshape((IdealReachableContacts_data.size/3, 3))
-
+    IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
     # 2. Active Reachable Points
-    ActiveReachableContacts = ExpName + "build/ActiveReachableContact.bin"
-    f_ActiveReachableContacts = open(ActiveReachableContacts, 'rb')
-    ActiveReachableContacts_data = np.fromfile(f_ActiveReachableContacts, dtype=np.double)
-    ActiveReachableContacts_data = ActiveReachableContacts_data.reshape((ActiveReachableContacts_data.size/3, 3))
-
+    ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
     # 3. Contact Free Points
-    ContactFreeContacts = ExpName + "build/ContactFreeContact.bin"
-    f_ContactFreeContacts = open(ContactFreeContacts, 'rb')
-    ContactFreeContacts_data = np.fromfile(f_ContactFreeContacts, dtype=np.double)
-    ContactFreeContacts_data = ContactFreeContacts_data.reshape((ContactFreeContacts_data.size/3, 3))
-
+    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
     # 4. Supportive Points
-    SupportContacts = ExpName + "build/SupportContact.bin"
-    f_SupportContacts = open(SupportContacts, 'rb')
-    SupportContacts_data = np.fromfile(f_SupportContacts, dtype=np.double)
-    SupportContacts_data = SupportContacts_data.reshape((SupportContacts_data.size/3, 3))
+    SupportContacts_data = ContactDataLoader("SupportContact")
+    # 5. Safe Points
+    SafeContacts_data = ContactDataLoader("SafeContact")
+    # 6. Better Points
+    BetterContacts_data = ContactDataLoader("BetterContact")
 
     # # 3. Optimal Reachable Points
     # OptimalReachableContacts = ExpName + "build/OptimalReachableContact.bin"
@@ -494,14 +492,14 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             EdgeyList_i = EdgeyList[i]
             EdgezList_i = EdgezList[i]
 
-            for j in range(0, len(EdgeAList_i)):
-                EdgeA = EdgeAList_i[j]
-                EdgeB = EdgeBList_i[j]
-                EdgeCOM = EdgeCOMList_i[j]
-                Edgex = EdgexList_i[j]
-                Edgey = EdgeyList_i[j]
-                Edgez = EdgezList_i[j]
-                PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
+            # for j in range(0, len(EdgeAList_i)):
+            #     EdgeA = EdgeAList_i[j]
+            #     EdgeB = EdgeBList_i[j]
+            #     EdgeCOM = EdgeCOMList_i[j]
+            #     Edgex = EdgexList_i[j]
+            #     Edgey = EdgeyList_i[j]
+            #     Edgez = EdgezList_i[j]
+            #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
 
             # if CPFlag is 1 or 2:
             #     try:
@@ -518,12 +516,16 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, IdealReachableContacts_data)
             # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
             # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
-            Reachable_Contact_Plot(vis, SupportContacts_data)
+            # Reachable_Contact_Plot(vis, SupportContacts_data)
+            Reachable_Contact_Plot(vis, SafeContacts_data)
+            # Reachable_Contact_Plot(vis, BetterContacts_data)
             vis.unlock()
             time.sleep(delta_t)
 
-            for j in range(0, len(EdgeAList_i)):
-                PIP_Remove(j, vis)
+            # for j in range(0, len(EdgeAList_i)):
+            #     PIP_Remove(j, vis)
+
+        # Reachable_Contact_Plot(vis, IdealReachableContacts_data)
 
             # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
             #     vis.remove("blah")
