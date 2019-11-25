@@ -468,6 +468,8 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     SafeContacts_data = ContactDataLoader("SafeContact")
     # 6. Better Points
     BetterContacts_data = ContactDataLoader("BetterContact")
+    # 7. Optimal Point
+    # OptimalContact_data = ContactDataLoader("OptimalContact")
 
     # # 3. Optimal Reachable Points
     # OptimalReachableContacts = ExpName + "build/OptimalReachableContact.bin"
@@ -517,8 +519,9 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
             # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
             # Reachable_Contact_Plot(vis, SupportContacts_data)
-            Reachable_Contact_Plot(vis, SafeContacts_data)
-            # Reachable_Contact_Plot(vis, BetterContacts_data)
+            # Reachable_Contact_Plot(vis, SafeContacts_data)
+            Reachable_Contact_Plot(vis, BetterContacts_data)
+            # Reachable_Contact_Plot(vis, OptimalContact_data)
             vis.unlock()
             time.sleep(delta_t)
 

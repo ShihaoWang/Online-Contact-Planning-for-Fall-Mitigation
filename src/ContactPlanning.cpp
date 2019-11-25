@@ -26,7 +26,7 @@ static double NewContactsEval(const std::vector<Vector3> & FixedContacts, const 
   return CPObjective;
 }
 
-static void FailureMetricEstimator(const std::vector<Vector3> & SupportContact, std::vector<Vector3> & SafeContact, std::vector<Vector3> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric)
+static Vector3 FailureMetricEstimator(const std::vector<Vector3> & SupportContact, std::vector<Vector3> & SafeContact, std::vector<Vector3> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const Vector3 & RefContact, const double & RefFailureMetric)
 {
   // This function is used to estimate robot's cost based on the point contact addition for failure metric evaluation.
   SafeContact.reserve(SupportContact.size());
@@ -60,45 +60,83 @@ static void FailureMetricEstimator(const std::vector<Vector3> & SupportContact, 
       }
     }
   }
+  // Here for the Safecontact, we would like to use a heuristic to select the optimal contact point.
+  // We would like to the contact point to be as further away from the fixed contact as possible but as close to robot's modified contasct as possible.
+
+  // Vector3 OptimalContact(0.0, 0.0, 0.0);
+  // switch (SafeContact.size())
+  // {
+  //   case 0:
+  //   {
+  //     //  In this case, there is no safe contact to be considered.
+  //   }
+  //   break;
+  //   default:
+  //   {
+  //     std::vector<double> SafeContactCost(SafeContact.size());
+  //     // The cost has two parts: distance to other fixed contacts & distance to its current position.
+  //     for (int i = 0; i < SafeContact.size(); i++)
+  //     {
+  //       double SafeContactCost_i = 0.0;
+  //       for (int j = 0; j < FixedContacts.size(); j++)
+  //       {
+  //         double SafeContactCost_i_x = SafeContact[i].x - FixedContacts[j].x;
+  //         double SafeContactCost_i_y = SafeContact[i].y - FixedContacts[j].y;
+  //         double SafeContactCost_i_z = SafeContact[i].z - FixedContacts[j].z;
+  //         SafeContactCost_i+=SafeContactCost_i_x*SafeContactCost_i_x + SafeContactCost_i_y*SafeContactCost_i_y + SafeContactCost_i_z*SafeContactCost_i_z;
+  //       }
+  //       // SafeContactCost_i = SafeContactCost_i/FixedContacts.size();
+  //       // double SafeContactCost_i_x = SafeContact[i].x - RefContact.x;
+  //       // double SafeContactCost_i_y = SafeContact[i].y - RefContact.y;
+  //       // double SafeContactCost_i_z = SafeContact[i].z - RefContact.z;
+  //       // SafeContactCost_i+=SafeContactCost_i_x*SafeContactCost_i_x + SafeContactCost_i_y*SafeContactCost_i_y + SafeContactCost_i_z*SafeContactCost_i_z;
+  //       SafeContactCost[i] = SafeContactCost_i;
+  //     }
+  //     auto max_ele_ptr = std::max_element(SafeContactCost.begin(), SafeContactCost.end());
+  //     int OptimalContactIndex = std::distance(SafeContactCost.begin(), max_ele_ptr);
+  //     OptimalContact = SafeContact[OptimalContactIndex];
+  //   }
+  //   break;
+  // }
   return;
 }
 
-static void FailureMetricSelector(const Robot& SimRobot, const int & LinkInfoIndex, const std::vector<Vector3> & SupportContact, std::vector<ContactConfigInfo> & SafeContact, std::vector<ContactConfigInfo> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const double & RefFailureMetric, ReachabilityMap & RMObject)
-{
-  for (int i = 0; i < SupportContact.size(); i++)
-  {
-    std::vector<double> RobotConfig;
-    std::vector<Vector3> NewContacts;
-    int FeasiRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, SupportContact[i], RobotLinkInfo, RMObject, RobotConfig, NewContacts);
-    switch (FeasiRes)
-    {
-      case 1:
-      {
-        // This indicates that current Support Contact is reachable.
-        double NewContactFailureMetric = NewContactsEval(FixedContacts, NewContacts, COMPos, COMVel);
-        if (NewContactFailureMetric<RefFailureMetric)
-        {
-          if(NewContactFailureMetric<Tol)
-          {
-            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig, SupportContact[i]);
-            SafeContact.push_back(NewContactConfig);
-          }
-          else
-          {
-            ContactConfigInfo NewContactConfig(NewContacts, RobotConfig, SupportContact[i]);
-            BetterContact.push_back(NewContactConfig);
-          }
-        }
-      }
-      break;
-      default:
-      {
-      }
-      break;
-    }
-  }
-  return;
-}
+// static void OptimalContactFinder(const Robot& SimRobot, const int & LinkInfoIndex, const std::vector<Vector3> & SupportContact, std::vector<ContactConfigInfo> & SafeContact, std::vector<ContactConfigInfo> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, ReachabilityMap & RMObject)
+// {
+//   for (int i = 0; i < SupportContact.size(); i++)
+//   {
+//     std::vector<double> RobotConfig;
+//     std::vector<Vector3> NewContacts;
+//     int FeasiRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, SupportContact[i], RobotLinkInfo, RMObject, RobotConfig, NewContacts);
+//     switch (FeasiRes)
+//     {
+//       case 1:
+//       {
+//         // This indicates that current Support Contact is reachable.
+//         double NewContactFailureMetric = NewContactsEval(FixedContacts, NewContacts, COMPos, COMVel);
+//         if (NewContactFailureMetric<RefFailureMetric)
+//         {
+//           if(NewContactFailureMetric<Tol)
+//           {
+//             ContactConfigInfo NewContactConfig(NewContacts, RobotConfig, SupportContact[i]);
+//             SafeContact.push_back(NewContactConfig);
+//           }
+//           else
+//           {
+//             ContactConfigInfo NewContactConfig(NewContacts, RobotConfig, SupportContact[i]);
+//             BetterContact.push_back(NewContactConfig);
+//           }
+//         }
+//       }
+//       break;
+//       default:
+//       {
+//       }
+//       break;
+//     }
+//   }
+//   return;
+// }
 
 static std::vector<Vector3> SupportContactFinder(const Vector3 & COMPos, const PIPInfo & PIPObj, const std::vector<Vector3> & ContactFreeContact, SignedDistanceFieldInfo & SDFInfo)
 {
@@ -194,6 +232,9 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
     }
   }
 
+  Vector3 RefContact;       // This is the position of the reference contact for robot's active end effector.
+  SimRobot.GetWorldPosition(RobotLinkInfo[LinkInfoIndex].AvgLocalContact, RobotLinkInfo[LinkInfoIndex].LinkIndex, RefContact);
+
   std::vector<std::pair<Vector3, double>> ContactFreeInfo = ContactFreeInfoFn(SimRobot, RobotLinkInfo, OriRobotContactInfo, RMObject);
 
   // The following three are used to plot the all, active, and optimal
@@ -230,7 +271,7 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   beginTime = std::clock();
 
   std::vector<Vector3> SafeContactPos, BetterContactPos;
-  FailureMetricEstimator(SupportContact, SafeContactPos, BetterContactPos, FixedContacts, COMPos, COMVel, RefFailureMetric);
+  FailureMetricEstimator(SupportContact, SafeContactPos, BetterContactPos, FixedContacts, COMPos, COMVel, RefContact, RefFailureMetric);
   // FailureMetricSelector(SimRobot, LinkInfoIndex, SupportContact, SafeContact, BetterContact, FixedContacts, COMPos, COMVel, RobotLinkInfo, RefFailureMetric, RMObject);
   endTime = std::clock();
   elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
@@ -241,6 +282,7 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   Vector3Writer(SupportContact, "SupportContact");
   Vector3Writer(SafeContactPos, "SafeContact");
   Vector3Writer(BetterContactPos, "BetterContact");
+  // Vector3Writer(OptimalContactPos, "OptimalContact");
 
   std::cerr << "Pure Test!" << '\n';
 

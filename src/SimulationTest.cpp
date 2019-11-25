@@ -321,7 +321,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           }
           break;
         }
-
       }
       break;
       default:
