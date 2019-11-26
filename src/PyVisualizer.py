@@ -472,6 +472,8 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # OptimalContact_data = ContactDataLoader("OptimalContact")
     # 8. Circle Point
     CirclePointContact_data = ContactDataLoader("CirclePointContact")
+    # 9. Transition Points
+    TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     # # 3. Optimal Reachable Points
     # OptimalReachableContacts = ExpName + "build/OptimalReachableContact.bin"
@@ -523,7 +525,9 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, SupportContacts_data)
             # Reachable_Contact_Plot(vis, SafeContacts_data)
             # Reachable_Contact_Plot(vis, BetterContacts_data)
-            Reachable_Contact_Plot(vis, CirclePointContact_data)
+            # Reachable_Contact_Plot(vis, CirclePointContact_data)
+            Reachable_Contact_Plot(vis, TransitionPoints_data)
+
             vis.unlock()
             time.sleep(delta_t)
 

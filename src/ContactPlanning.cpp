@@ -298,13 +298,9 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
     std::vector<double>   GoalConfig;
     std::vector<Vector3>  GoalContacts;
     int OptRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, SafeContactPos[i], RobotLinkInfo, RMObject, GoalConfig, GoalContacts);
-    std::vector<Config> TransientTraj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, GoalConfig, SafeContactPos[0]);
+    std::vector<Config> TransientTraj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, GoalConfig, SafeContactPos[0], RMObject);
 
   }
-
-
-
-
 
   std::cerr << "Pure Test!" << '\n';
 
