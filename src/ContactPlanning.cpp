@@ -4,6 +4,8 @@
 #include "CommonHeader.h"
 #include "NonlinearOptimizerInfo.h"
 #include <ctime>
+#include <algorithm>
+#include <random>
 
 static double Tol = 1e-5;
 
@@ -26,7 +28,7 @@ static double NewContactsEval(const std::vector<Vector3> & FixedContacts, const 
   return CPObjective;
 }
 
-static Vector3 FailureMetricEstimator(const std::vector<Vector3> & SupportContact, std::vector<Vector3> & SafeContact, std::vector<Vector3> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const Vector3 & RefContact, const double & RefFailureMetric)
+static void FailureMetricEstimator(const std::vector<Vector3> & SupportContact, std::vector<Vector3> & SafeContact, std::vector<Vector3> & BetterContact, const std::vector<Vector3> & FixedContacts, const Vector3 & COMPos, const Vector3 & COMVel, const Vector3 & RefContact, const double & RefFailureMetric)
 {
   // This function is used to estimate robot's cost based on the point contact addition for failure metric evaluation.
   SafeContact.reserve(SupportContact.size());
@@ -234,7 +236,11 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
 
   Vector3 RefContact;       // This is the position of the reference contact for robot's active end effector.
   SimRobot.GetWorldPosition(RobotLinkInfo[LinkInfoIndex].AvgLocalContact, RobotLinkInfo[LinkInfoIndex].LinkIndex, RefContact);
-
+  std::vector<double> RefConfig(_SimRobot.q.size());
+  for (int i = 0; i < _SimRobot.q.size(); i++)
+  {
+    RefConfig[i] =  _SimRobot.q[i];
+  }
   std::vector<std::pair<Vector3, double>> ContactFreeInfo = ContactFreeInfoFn(SimRobot, RobotLinkInfo, OriRobotContactInfo, RMObject);
 
   // The following three are used to plot the all, active, and optimal
@@ -283,6 +289,22 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   Vector3Writer(SafeContactPos, "SafeContact");
   Vector3Writer(BetterContactPos, "BetterContact");
   // Vector3Writer(OptimalContactPos, "OptimalContact");
+
+  // Then the job is to generate transition Trajectory for robot's end effector.
+
+  std::random_shuffle(SafeContactPos.begin(), SafeContactPos.end());
+  for (int i = 0; i < SafeContactPos.size(); i++)
+  {
+    std::vector<double>   GoalConfig;
+    std::vector<Vector3>  GoalContacts;
+    int OptRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, SafeContactPos[i], RobotLinkInfo, RMObject, GoalConfig, GoalContacts);
+    std::vector<Config> TransientTraj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, GoalConfig, SafeContactPos[0]);
+
+  }
+
+
+
+
 
   std::cerr << "Pure Test!" << '\n';
 

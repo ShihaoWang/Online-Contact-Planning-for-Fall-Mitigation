@@ -89,7 +89,8 @@ add_executable(MyApp
                src/SimulationTest.cpp
 	       src/ViabilityKernelLoader.cpp
 	       src/ConvexPolyhedron.cpp
-	       src/StabilizingControllerContact.cpp)
+	       src/StabilizingControllerContact.cpp
+	       src/TransientTrajectory.cpp)
 
 target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY})
 #set_property(TARGET MyApp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)

@@ -98,4 +98,8 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
 
 /*  11. Reachability Map */
 ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<int> & TorsoLink);
+
+/*  12. TransientTraj */
+std::vector<Config> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & InitPoint, const std::vector<double> & GoalConfig, const Vector3 & GoalPoint);
+
 #endif
