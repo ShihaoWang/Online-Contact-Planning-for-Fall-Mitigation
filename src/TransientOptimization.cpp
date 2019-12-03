@@ -184,6 +184,22 @@ int TransientOptFn(const Robot & SimRobot, const std::vector<double> & RefConfig
   RobotConfig = RefConfiguration;
   Config ConfigOptNew(RefConfiguration);
   SimRobotObj.UpdateConfig(ConfigOptNew);
+  SimRobotObj.UpdateGeometry();
+  int CollisionFlag = SimRobotObj.SelfCollision();        // Self-collision has been included.
+  switch(CollisionFlag)
+  {
+    case 1:
+    {
+      return -1;
+    }
+    break;
+    default:
+    {
+
+    }
+    break;
+  }
+
   std::vector<double> Fcon(neF-1);
   ConstraintIndex = 0;
   double DisCoeff = 0.0;

@@ -1079,4 +1079,19 @@ struct ContactConfigInfo
   Vector3 RefContact;
 };
 
+struct TrajInfo
+{
+  // This function is used to save robot's trajectory information.
+  TrajInfo(){};
+  TrajInfo(const std::vector<Config> & _Traj)
+  {
+    Traj.reserve(_Traj.size());
+    for (int i = 0; i < _Traj.size(); i++)
+    {
+      Traj.push_back(_Traj[i]);
+    }
+  }
+  std::vector<Config> Traj;
+};
+
 #endif

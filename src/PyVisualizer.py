@@ -525,8 +525,8 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, SupportContacts_data)
             # Reachable_Contact_Plot(vis, SafeContacts_data)
             # Reachable_Contact_Plot(vis, BetterContacts_data)
-            # Reachable_Contact_Plot(vis, CirclePointContact_data)
-            Reachable_Contact_Plot(vis, TransitionPoints_data)
+            Reachable_Contact_Plot(vis, CirclePointContact_data)
+            # Reachable_Contact_Plot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(delta_t)

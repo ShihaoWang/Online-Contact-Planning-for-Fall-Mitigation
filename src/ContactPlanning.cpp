@@ -62,44 +62,7 @@ static void FailureMetricEstimator(const std::vector<Vector3> & SupportContact, 
       }
     }
   }
-  // Here for the Safecontact, we would like to use a heuristic to select the optimal contact point.
-  // We would like to the contact point to be as further away from the fixed contact as possible but as close to robot's modified contasct as possible.
 
-  // Vector3 OptimalContact(0.0, 0.0, 0.0);
-  // switch (SafeContact.size())
-  // {
-  //   case 0:
-  //   {
-  //     //  In this case, there is no safe contact to be considered.
-  //   }
-  //   break;
-  //   default:
-  //   {
-  //     std::vector<double> SafeContactCost(SafeContact.size());
-  //     // The cost has two parts: distance to other fixed contacts & distance to its current position.
-  //     for (int i = 0; i < SafeContact.size(); i++)
-  //     {
-  //       double SafeContactCost_i = 0.0;
-  //       for (int j = 0; j < FixedContacts.size(); j++)
-  //       {
-  //         double SafeContactCost_i_x = SafeContact[i].x - FixedContacts[j].x;
-  //         double SafeContactCost_i_y = SafeContact[i].y - FixedContacts[j].y;
-  //         double SafeContactCost_i_z = SafeContact[i].z - FixedContacts[j].z;
-  //         SafeContactCost_i+=SafeContactCost_i_x*SafeContactCost_i_x + SafeContactCost_i_y*SafeContactCost_i_y + SafeContactCost_i_z*SafeContactCost_i_z;
-  //       }
-  //       // SafeContactCost_i = SafeContactCost_i/FixedContacts.size();
-  //       // double SafeContactCost_i_x = SafeContact[i].x - RefContact.x;
-  //       // double SafeContactCost_i_y = SafeContact[i].y - RefContact.y;
-  //       // double SafeContactCost_i_z = SafeContact[i].z - RefContact.z;
-  //       // SafeContactCost_i+=SafeContactCost_i_x*SafeContactCost_i_x + SafeContactCost_i_y*SafeContactCost_i_y + SafeContactCost_i_z*SafeContactCost_i_z;
-  //       SafeContactCost[i] = SafeContactCost_i;
-  //     }
-  //     auto max_ele_ptr = std::max_element(SafeContactCost.begin(), SafeContactCost.end());
-  //     int OptimalContactIndex = std::distance(SafeContactCost.begin(), max_ele_ptr);
-  //     OptimalContact = SafeContact[OptimalContactIndex];
-  //   }
-  //   break;
-  // }
   return;
 }
 
@@ -186,7 +149,7 @@ static std::vector<std::pair<Vector3, double>> ContactFreeInfoFn(const Robot & S
   return ContactFreeInfo;
 }
 
-static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
+static TrajInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
 {
   /*
     This function is used to plan single contact: _RobotContactInfo keeps the robot presumably contact status.
@@ -281,7 +244,7 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   // FailureMetricSelector(SimRobot, LinkInfoIndex, SupportContact, SafeContact, BetterContact, FixedContacts, COMPos, COMVel, RobotLinkInfo, RefFailureMetric, RMObject);
   endTime = std::clock();
   elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
-  std::printf("FailureMetricSelector function takes: %f ms\n", 1000.0 * elapsed_secs);
+  std::printf("FailureMetricEstimator function takes: %f ms\n", 1000.0 * elapsed_secs);
 
   Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
   Vector3Writer(ContactFreeContact, "ContactFreeContact");
@@ -291,42 +254,42 @@ static std::vector<double> SingleContactPlanning(const PIPInfo & PIPObj, const i
   // Vector3Writer(OptimalContactPos, "OptimalContact");
 
   // Then the job is to generate transition Trajectory for robot's end effector.
-
   std::random_shuffle(SafeContactPos.begin(), SafeContactPos.end());
+
+  // Here a number of transition trajectories can be generated.
+  // Only one trajectory is needed actually.
+
+  int FeasiFlag = 0;
+  TrajInfo TransientTraj;
   for (int i = 0; i < SafeContactPos.size(); i++)
   {
     std::vector<double>   GoalConfig;
     std::vector<Vector3>  GoalContacts;
     int OptRes = ContactFeasibleOptFn(SimRobot, LinkInfoIndex, SafeContactPos[i], RobotLinkInfo, RMObject, GoalConfig, GoalContacts);
-    std::vector<Config> TransientTraj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, GoalConfig, SafeContactPos[0], RMObject);
+    beginTime = std::clock();
+    TransientTraj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, GoalConfig, SafeContactPos[0], RMObject, FeasiFlag);
+    endTime = std::clock();
+    elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
+    std::printf("TransientTrajGene function takes: %f ms\n", 1000.0 * elapsed_secs);
+    switch (FeasiFlag)
+    {
+      case 1:
+      {
+        return TransientTraj;
+      }
+      break;
+      default:
+      {
 
+      }
+      break;
+    }
   }
-
-  std::cerr << "Pure Test!" << '\n';
-
-
-  /* Divide SupportContact into two groups:
-      1. Failure Metric equals 0
-      2. Failure Metric not equal to 0 but smaller than RefFailureMetric
-  */
-
-  // Config RobotConfigNew(InitConfig);
-  // SimRobotObj.UpdateConfig(RobotConfigNew);
-  // SimRobotObj.UpdateGeometry();
-  // CollisionFlag = SimRobotObj.SelfCollision();
-
-  // Before resorting to the adoption of all contact free contact
-
-
-  // std::vector<Vector3> ReachablePoints2 = RMObject.ReachablePointsFinder(SimRobot, LinkInfoIndex, SDFInfo, ReachablePointNumber2, COMVel);
-  int a = 1;
-  // There are four rules to get rid of unnecessary points.
+  return TransientTraj;
 }
-
-
-static std::vector<Config> StabilizingPoseGenerator(const PIPInfo & PIPObj, const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+static std::vector<TrajInfo> TransitionTrajGenerator(const PIPInfo & PIPObj, const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  std::vector<Config> StabilizingPoses;
+  std::vector<TrajInfo> TransitionTrajs;
   switch (ContactModiInfoIndices.size())
   {
     case 0:
@@ -337,8 +300,8 @@ static std::vector<Config> StabilizingPoseGenerator(const PIPInfo & PIPObj, cons
     {
       for (int i = 0; i < ContactModiInfoIndices.size(); i++)
       {
-        std::vector<double> StabilizingPose = SingleContactPlanning(PIPObj, ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-        StabilizingPoses.push_back(Config(StabilizingPose));
+        TrajInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+        TransitionTrajs.push_back(TransitionTraj);
       }
     }
     break;
@@ -353,13 +316,13 @@ static std::vector<Config> StabilizingPoseGenerator(const PIPInfo & PIPObj, cons
     {
       for (int i = 0; i < ContactAddInfoIndices.size(); i++)
       {
-        std::vector<double> StabilizingPose = SingleContactPlanning(PIPObj, ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-        StabilizingPoses.push_back(Config(StabilizingPose));
+        TrajInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+        TransitionTrajs.push_back(TransitionTraj);
       }
     }
     break;
   }
-  return StabilizingPoses;
+  return TransitionTrajs;
 }
 
 int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
@@ -425,7 +388,7 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
     }
     break;
   }
-  std::vector<Config> StabilizingPoses = StabilizingPoseGenerator(PIPObj, ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+  std::vector<TrajInfo> TransitionTrajs = TransitionTrajGenerator(PIPObj, ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
   int a = 1;
   return 1;
 }

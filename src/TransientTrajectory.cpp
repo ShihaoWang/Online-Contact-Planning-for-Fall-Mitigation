@@ -5,8 +5,22 @@
 #include "NonlinearOptimizerInfo.h"
 #include <ctime>
 
-
-
+static Vector3 ContactRelocater(const Vector3 & ContactPoint)
+{
+  // This function is used to relocate contact point according to signed distance and contact normal.
+  double Margin = 0.025;    //2.5cm
+  Vector3 ContactPointNormal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ContactPoint);
+  Vector3 Contact = ContactPoint + Margin * ContactPointNormal;
+  double CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Contact);
+  while(CurDist<=Margin)
+  {
+    // This inner function  conducts an iterative "push" of this contact accoding to signed distance normal.
+    ContactPointNormal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ContactPoint);
+    Contact = ContactPoint + Margin * ContactPointNormal;
+    CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Contact);
+  }
+  return Contact;
+}
 
 static std::vector<Vector3> TransitionPointGene(const Vector3 & PointA, const Vector3 & PointB, const Vector3 & PointC, const int & PointNo)
 {
@@ -19,20 +33,37 @@ static std::vector<Vector3> TransitionPointGene(const Vector3 & PointA, const Ve
   {
     double alpha_i = (1.0 * i + 1.0) * alphaUnit;
     Vector3 TransitionPoint = PointA + alpha_i * (PointB - PointA);
-    TransitionPoints.push_back(TransitionPoint);
+    if(NonlinearOptimizerInfo::SDFInfo.SignedDistance(TransitionPoint)>-0.005)    // Here 0.005 is defined from Reachability Map function.
+    {
+      TransitionPoints.push_back(TransitionPoint);
+    }
+    else
+    {
+      TransitionPoint = ContactRelocater(TransitionPoint);
+      TransitionPoints.push_back(TransitionPoint);
+    }
   }
   TransitionPoints.push_back(PointB);
   for (int i = 0; i < PointNo; i++)
   {
     double alpha_i = (1.0 * i + 1.0) * alphaUnit;
     Vector3 TransitionPoint = PointB + alpha_i * (PointC - PointB);
-    TransitionPoints.push_back(TransitionPoint);
+    if(NonlinearOptimizerInfo::SDFInfo.SignedDistance(TransitionPoint)>-0.005)    // Here 0.005 is defined from Reachability Map function.
+    {
+      TransitionPoints.push_back(TransitionPoint);
+    }
+    else
+    {
+      TransitionPoint = ContactRelocater(TransitionPoint);
+      TransitionPoints.push_back(TransitionPoint);
+    }
   }
   TransitionPoints.push_back(PointC);
+
   return TransitionPoints;
 }
 
-std::vector<Config> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & InitPoint, const std::vector<double> & GoalConfig, const Vector3 & GoalPoint, ReachabilityMap & RMObject)
+TrajInfo TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & InitPoint, const std::vector<double> & GoalConfig, const Vector3 & GoalPoint, ReachabilityMap & RMObject, int & TransFeasFlag)
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   double Ratio = 0.5;        // This ratio stands for height ration with respect to point distance.
@@ -91,24 +122,39 @@ std::vector<Config> TransientTrajGene(const Robot & SimRobot, const int & LinkIn
 
   string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
 
-  for (int i = 0; i < TransitionPoints.size(); i++)
+  std::vector<Config> TransientTraj;
+  TransientTraj.reserve(TransitionPoints.size());
+
+  int TransitionPointIndex = 0;
+  while(TransitionPointIndex<TransitionPoints.size())
   {
-    Vector3 RefPos = TransitionPoints[i];
+    Vector3 RefPos = TransitionPoints[TransitionPointIndex];
     int Res = TransientOptFn(SimRobot, RefConfig, LinkInfoIndex, RefPos, RobotLinkInfo, RMObject, OptConfig, 0);
-    string ConfigName = "TransientConfig" + std::to_string(i) +".config";
+    switch(Res)
+    {
+      case -1:
+      {
+        TransFeasFlag = 0;
+        return TrajInfo(TransientTraj);
+      }
+      break;
+      default:
+      {
+        TransFeasFlag = 1;
+      }
+      break;
+    }
+    string ConfigName = "TransientConfig" + std::to_string(TransitionPointIndex) +".config";
     RobotConfigWriter(OptConfig, UserFilePath, ConfigName);
     RefConfig = OptConfig;
+    TransientTraj.push_back(Config(OptConfig));
+    TransitionPointIndex++;
   }
 
-  int a = 1;
-
-
-
-  // for (int i = 0; i < CirclePointContact.size(); i++)
-  // {
-  //   TransitionPoints.push_back(CirclePointContact[i]);
-  // }
-  //
-  // Vector3Writer(TransitionPoints, "TransitionPoints");
-
+  for (int i = 0; i < CirclePointContact.size(); i++)
+  {
+    TransitionPoints.push_back(CirclePointContact[i]);
+  }
+  Vector3Writer(TransitionPoints, "TransitionPoints");
+  return TrajInfo(TransientTraj);
 }
