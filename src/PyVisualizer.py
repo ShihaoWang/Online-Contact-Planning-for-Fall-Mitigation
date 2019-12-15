@@ -464,15 +464,11 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
     # 4. Supportive Points
     SupportContacts_data = ContactDataLoader("SupportContact")
-    # 5. Safe Points
-    SafeContacts_data = ContactDataLoader("SafeContact")
-    # 6. Better Points
-    BetterContacts_data = ContactDataLoader("BetterContact")
-    # 7. Optimal Point
-    # OptimalContact_data = ContactDataLoader("OptimalContact")
-    # 8. Circle Point
-    CirclePointContact_data = ContactDataLoader("CirclePointContact")
-    # 9. Transition Points
+    # 5. Optimal Point
+    OptimalContact_data = ContactDataLoader("OptimalContact")
+    # 6. Circle Point
+    # CirclePointContact_data = ContactDataLoader("CirclePointContact")
+    # 7. Transition Points
     TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     # # 3. Optimal Reachable Points
@@ -523,10 +519,9 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
             # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
             # Reachable_Contact_Plot(vis, SupportContacts_data)
-            # Reachable_Contact_Plot(vis, SafeContacts_data)
-            # Reachable_Contact_Plot(vis, BetterContacts_data)
-            Reachable_Contact_Plot(vis, CirclePointContact_data)
-            # Reachable_Contact_Plot(vis, TransitionPoints_data)
+            # Reachable_Contact_Plot(vis, OptimalContact_data)
+            # Reachable_Contact_Plot(vis, CirclePointContact_data)
+            Reachable_Contact_Plot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(delta_t)

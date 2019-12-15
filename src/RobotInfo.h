@@ -996,7 +996,7 @@ struct ReachabilityMap
       {
         Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
-        if(CurrentDist*CurrentDist<DisTol*DisTol)
+        if((CurrentDist>=0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
         {
           Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
           double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
@@ -1094,4 +1094,30 @@ struct TrajInfo
   std::vector<Config> Traj;
 };
 
+struct SplineInfo
+{
+  SplineInfo(){};
+
+  SplineInfo(const double & _sStart, const double & _sEnd, const Vector3 &_a, const Vector3 &_b, const Vector3 &_c, const Vector3 &_d)
+  {
+    sStart = _sStart;     sEnd = _sEnd;
+    a = _a;    b = _b;    c = _c;    d = _d;
+  };
+
+  Vector3 SplinePosVector(const double & s)
+  {
+    Vector3 Pos = a * s * s * s + b * s * s + c * s + d;
+    return Pos;
+  }
+
+  Vector3 SplineVelVector(const double & s)
+  {
+    Vector3 Vel = 3 * a * s *s + 2 * b * s + c;
+    return Vel;
+  }
+
+  double sStart, sEnd;
+  Vector3 a, b, c, d;
+
+};
 #endif

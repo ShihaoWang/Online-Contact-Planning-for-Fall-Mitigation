@@ -73,6 +73,9 @@ set(GUROBI_LIBRARIES gurobi_c++ gurobi81)
 # Cddlib CMake Properties
 set(Cddlib_LIBRARY cdd)
 
+set(CSL_PATH "src/CppSpline")
+include_directories(${CSL_PATH})
+
 # Main Code Properties
 add_executable(MyApp
                src/Main.cpp
@@ -91,7 +94,10 @@ add_executable(MyApp
 	       src/ConvexPolyhedron.cpp
 	       src/StabilizingControllerContact.cpp
 	       src/TransientTrajectory.cpp
-	       src/TransientOptimization.cpp)
+	       src/TransientOptimization.cpp
+	       src/CppSpline/CatmullRom.cpp
+	       src/CppSpline/Curve.cpp
+	       src/CppSpline/SplineVector.cpp)
 
 target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY})
 #set_property(TARGET MyApp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
