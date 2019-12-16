@@ -4,8 +4,9 @@
 #include "CommonHeader.h"
 #include "NonlinearOptimizerInfo.h"
 #include <ctime>
+#include "Splines.h"
 
-#include "CppSpline/CatmullRom.h"
+using namespace SplineLib;
 
 static Vector3 ContactRelocater(const Vector3 & ContactPoint)
 {
@@ -22,102 +23,6 @@ static Vector3 ContactRelocater(const Vector3 & ContactPoint)
     CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Contact);
   }
   return Contact;
-}
-
-static std::vector<double> CubicCurveCoeff1D(const double & p_init, const double & p_goal, const int & PointNo)
-{
-  // This function is used to generate the single dimenion point with a cubic curve.
-  // f(s) = a*s^3 + b*s^2 + c*s + d
-  double d = p_init;
-  double c = 0.0;
-  double a = 2.0 * (p_init - p_goal);
-  double b = -1.5 * a;
-
-  double sUnit = 1.0/(1.0 * PointNo + 1.0);
-  std::vector<double> OneDValue(PointNo);
-  for (int i = 0; i < PointNo; i++)
-  {
-    double s = (1.0 * i + 1.0) * sUnit;
-    double f_i = a * s * s * s + b * s * s + c * s + d;
-    OneDValue[i] = f_i;
-  }
-  return OneDValue;
-}
-
-static std::vector<Vector3> CubicCurvePos(const Vector3 & PointA, const Vector3 & PointB, const Vector3 & PointC, const int & PointNo)
-{
-  std::vector<Vector3> CubicCurvePoints;
-  CubicCurvePoints.reserve(2 * PointNo + 3);
-  CubicCurvePoints.push_back(PointA);
-
-  std::vector<double> PointA2B_x = CubicCurveCoeff1D(PointA.x, PointB.x, PointNo);
-  std::vector<double> PointA2B_y = CubicCurveCoeff1D(PointA.y, PointB.y, PointNo);
-  std::vector<double> PointA2B_z = CubicCurveCoeff1D(PointA.z, PointB.z, PointNo);
-
-  for (int i = 0; i < PointNo; i++)
-  {
-    CubicCurvePoints.push_back(Vector3(PointA2B_x[i], PointA2B_y[i], PointA2B_z[i]));
-  }
-  CubicCurvePoints.push_back(PointB);
-
-  std::vector<double> PointB2C_x = CubicCurveCoeff1D(PointB.x, PointC.x, PointNo);
-  std::vector<double> PointB2C_y = CubicCurveCoeff1D(PointB.y, PointC.y, PointNo);
-  std::vector<double> PointB2C_z = CubicCurveCoeff1D(PointB.z, PointC.z, PointNo);
-
-  for (int i = 0; i < PointNo; i++)
-  {
-    CubicCurvePoints.push_back(Vector3(PointB2C_x[i], PointB2C_y[i], PointB2C_z[i]));
-  }
-  CubicCurvePoints.push_back(PointC);
-  return CubicCurvePoints;
-}
-
-// static std::vector<Vector3> CubicCurvePos(const Vector3 & PointA, const Vector3 & PointB, const Vector3 & PointC, const int & PointNo)
-// {
-//   // This function is used to calculate the cubic curve
-//
-// }
-
-
-static std::vector<Vector3> TransitionPointGene(const Vector3 & PointA, const Vector3 & PointB, const Vector3 & PointC, const int & PointNo)
-{
-  // This function is used to generate transition points within these three points.
-  double alphaUnit = 1.0/(1.0 * PointNo + 1.0);
-  std::vector<Vector3> TransitionPoints;
-  TransitionPoints.reserve(2 * PointNo + 3);
-  TransitionPoints.push_back(PointA);
-  for (int i = 0; i < PointNo; i++)
-  {
-    double alpha_i = (1.0 * i + 1.0) * alphaUnit;
-    Vector3 TransitionPoint = PointA + alpha_i * (PointB - PointA);
-    if(NonlinearOptimizerInfo::SDFInfo.SignedDistance(TransitionPoint)>-0.005)    // Here 0.005 is defined from Reachability Map function.
-    {
-      TransitionPoints.push_back(TransitionPoint);
-    }
-    else
-    {
-      TransitionPoint = ContactRelocater(TransitionPoint);
-      TransitionPoints.push_back(TransitionPoint);
-    }
-  }
-  TransitionPoints.push_back(PointB);
-  for (int i = 0; i < PointNo; i++)
-  {
-    double alpha_i = (1.0 * i + 1.0) * alphaUnit;
-    Vector3 TransitionPoint = PointB + alpha_i * (PointC - PointB);
-    if(NonlinearOptimizerInfo::SDFInfo.SignedDistance(TransitionPoint)>-0.005)    // Here 0.005 is defined from Reachability Map function.
-    {
-      TransitionPoints.push_back(TransitionPoint);
-    }
-    else
-    {
-      TransitionPoint = ContactRelocater(TransitionPoint);
-      TransitionPoints.push_back(TransitionPoint);
-    }
-  }
-  TransitionPoints.push_back(PointC);
-
-  return TransitionPoints;
 }
 
 static void SplinePiece1DObjGene(const double & sInit, const double & sGoal, const double & PosInit, const double & VelInit, const double & PosGoal, const double & VelGoal, double & a, double & b, double & c, double & d)
@@ -174,17 +79,6 @@ static SplineInfo SplinePiece3DObjGene(const double & sInit, const double & sGoa
   return SplineObj;
 }
 
-static Curve* CurveObjGene(const std::vector<Vector3> & Points, const int & sNumber)
-{
-  Curve* curve = new CatmullRom();
-  curve->set_steps(sNumber);
-  for (int i = 0; i < Points.size(); i++)
-  {
-    curve->add_way_point(SplineVector(Points[i].x, Points[i].y, Points[i].z));
-  }
-  return curve;
-}
-
 static std::vector<SplineInfo> SplineObjGene(const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, const int & PointNo)
 {
   // This function is used to generate the cubic spline for given robot's end effector path.
@@ -196,45 +90,49 @@ static std::vector<SplineInfo> SplineObjGene(const Vector3 & PosInit, const Vect
   Vector3 P1 = BaseSpline.SplinePosVector(0.0);
   Vector3 P2 = BaseSpline.SplinePosVector(0.25);
   Vector3 P3 = BaseSpline.SplinePosVector(0.5);
-  Vector3 P4 = BaseSpline.SplinePosVector(1.0);
-
-
-  // std::cout << "nodes: " << curve->node_count() << std::endl;
-  // std::cout << "total length: " << curve->total_length() << std::endl;
-
-  // for (int i = 0; i < curve->node_count(); ++i)
-  // {
-  //   std::cout << "node #" << i << ": " << curve->node(i).toString() << " (length so far: " << curve->length_from_starting_point(i) << ")" << std::endl;
-  // }
+  Vector3 P4 = BaseSpline.SplinePosVector(0.75);
+  Vector3 P5 = BaseSpline.SplinePosVector(1.0);
 
   std::vector<Vector3> Points;
   Points.push_back(P1);
   Points.push_back(P2);
   Points.push_back(P3);
   Points.push_back(P4);
+  Points.push_back(P5);
 
-  Curve* curve = CurveObjGene(Points, 100);
+  Vec3f points[5];
+  for (int i = 0; i < Points.size(); i++)
+  {
+    Vec3f PointVec(Points[i].x, Points[i].y, Points[i].z);
+    points[i] = PointVec;
+  }
+
+  const int numPoints = sizeof(points) / sizeof(points[0]);
+  cSpline3 splines[numPoints + 1];
+  int numSplines = SplinesFromPoints(numPoints, points, numPoints + 1, splines);
 
   std::vector<Vector3> SplinePointUpdate;
   std::vector<Vector3> SplinePoints;
-  for (int i = 0; i < curve->node_count(); i++)
+  const int GridNo = 10;
+  float sUnit = 1.0/(1.0 * GridNo + 1.0);
+  for (int i = 0; i < numSplines; i++)
   {
-    Vector3 SplinePoint(curve->node(i).x, curve->node(i).y, curve->node(i).z);
-    SplinePoints.push_back(SplinePoint);
-    double SplinePointDis = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SplinePoint);
-    if(SplinePointDis<0)
+    for (int j = 0; j < GridNo; j++)
     {
-      // sUpdate.push_back(s);
-      SplinePointUpdate.push_back(SplinePoint);
+      float s = 1.0 * j * sUnit;
+      Vec3f ps = Position (splines[i], s);
+      Vector3 SplinePoint(ps.x, ps.y, ps.z);
+      SplinePoints.push_back(SplinePoint);
+      double SplinePointDis = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SplinePoint);
+      if(SplinePointDis<0)
+      {
+        // sUpdate.push_back(s);
+        SplinePointUpdate.push_back(SplinePoint);
+      }
     }
   }
   Vector3Writer(SplinePoints, "TransitionPoints");    // Here we have already got the transition points.
-  delete curve;
 
-  // switch (sUpdate)
-  // {
-  //   case /* value */:
-  // }
 }
 
 TrajInfo TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, int & TransFeasFlag)

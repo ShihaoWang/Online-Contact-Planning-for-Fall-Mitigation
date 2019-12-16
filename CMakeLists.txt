@@ -73,8 +73,16 @@ set(GUROBI_LIBRARIES gurobi_c++ gurobi81)
 # Cddlib CMake Properties
 set(Cddlib_LIBRARY cdd)
 
-set(CSL_PATH "src/CppSpline")
-include_directories(${CSL_PATH})
+# Spline Library Properties
+set(SL_PATH "/home/motion/SplineLibrary")
+include_directories(${SL_PATH})
+
+# Qt5 Library Properties
+find_package(Qt5 COMPONENTS Widgets Declarative)
+# The Qt5Widgets_INCLUDES also includes the include directories for
+# dependencies QtCore and QtGui
+include_directories(${Qt5Widgets_INCLUDES})
+add_definitions(${Qt5Widgets_DEFINITIONS})
 
 # Main Code Properties
 add_executable(MyApp
@@ -95,11 +103,9 @@ add_executable(MyApp
 	       src/StabilizingControllerContact.cpp
 	       src/TransientTrajectory.cpp
 	       src/TransientOptimization.cpp
-	       src/CppSpline/CatmullRom.cpp
-	       src/CppSpline/Curve.cpp
-	       src/CppSpline/SplineVector.cpp)
+	       src/Splines.cpp)
 
-target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY})
+target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY} ${Qt5Widgets_LIBRARIES})
 #set_property(TARGET MyApp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 foreach(dir ${dirs})
