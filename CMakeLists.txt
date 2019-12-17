@@ -103,7 +103,8 @@ add_executable(MyApp
 	       src/StabilizingControllerContact.cpp
 	       src/TransientTrajectory.cpp
 	       src/TransientOptimization.cpp
-	       src/Splines.cpp)
+	       src/Splines.cpp
+	       src/ContactController.cpp)
 
 target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY} ${Qt5Widgets_LIBRARIES})
 #set_property(TARGET MyApp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)

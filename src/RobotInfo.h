@@ -1115,6 +1115,11 @@ struct EndPathInfo
         TotalLength += len;
         SplineSumLength.push_back(TotalLength);
     }
+
+    SplineLib::Vec3f GoalPos = Position(SplineObj[SplineNumber-1], 1.0);
+    GoalContactPos.x = GoalPos.x;
+    GoalContactPos.y = GoalPos.y;
+    GoalContactPos.z = GoalPos.z;
   }
   void PosNTang(const double & s, Vector3 & Pos, Vector3 & Tang)
   {
@@ -1176,6 +1181,10 @@ struct EndPathInfo
     Tang.x = vs.x;
     Tang.y = vs.y;
     Tang.z = vs.z;
+    double TangMag = sqrt(Tang.x * Tang.x + Tang.y * Tang.y + Tang.z * Tang.z);
+    Tang.x = Tang.x/TangMag;
+    Tang.y = Tang.y/TangMag;
+    Tang.z = Tang.z/TangMag;
   }
 
   double Pos2s(const Vector3 & Pos)
@@ -1213,6 +1222,7 @@ struct EndPathInfo
   double TotalLength;
   int EndEffectorIndex;
   int SplineNumber;
+  Vector3 GoalContactPos;                 // This saves the goal contact position.
 };
 
 #endif

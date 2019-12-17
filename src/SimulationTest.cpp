@@ -288,8 +288,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     ConeUnitGenerator(ActContactPositions,  NonlinearOptimizerInfo::SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
 
     std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPositions);
-    // std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
-    std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, COMPos, COMVel);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+    // std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, COMPos, COMVel);
     int CPPIPIndex;
     double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
 
@@ -349,7 +349,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
             //   double sPre = EndSplineObj.Pos2s(Position);
             //   std::printf("Real s: %f Predicted s: %f\n", sReal, sPre);
             // }
-            FallControlFlag = true;
+
           }
           break;
         }
@@ -358,16 +358,12 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       default:
       {
         // In this case, the robot conducts fall control.
-
-
-
+        FallControlFlag = true;
+        std::vector<double> qNew = ContactController(SimRobot, EndSplineObj, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo);
+        qDes = qNew;
       }
       break;
     }
-
-
-
-
     TrajAppender(StateTrajNames[0], qActTraj[qActTraj.size()-1], DOF);
     TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
 
