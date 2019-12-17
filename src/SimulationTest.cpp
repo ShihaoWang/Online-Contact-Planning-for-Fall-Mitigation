@@ -266,6 +266,10 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
   double KENow = SimRobot.GetKineticEnergy();
   int StepIndex = 0;
+  EndPathInfo EndSplineObj;
+
+  bool FallControlFlag = false;
+
   while (KENow>=KETol)
   {
     // This loop is used to stabilize the robot
@@ -291,33 +295,61 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
     ContactPolytopeWriter(PIPTotal, EdgeFileNames);
 
-    switch (CPPIPIndex)
+    switch (FallControlFlag)
     {
-      case -1:
+      case false:
       {
-        // Here is for stabilization
-        /*  Controller Input  */
-        switch (ControllerType)
+        // In this case, the robot conducts stabilizing control.
+        switch (CPPIPIndex)
         {
-          case 1:
+          case -1:
           {
-            // In this case, the robot's controller holds a constant initial configuration.
-            std::printf("Using Controller 1: Rigid-body Controller!\n");
+            // Here is for stabilization
+            /*  Controller Input  */
+            switch (ControllerType)
+            {
+              case 1:
+              {
+                // In this case, the robot's controller holds a constant initial configuration.
+                std::printf("Using Controller 1: Rigid-body Controller!\n");
 
-            qActTraj.push_back(SimRobot.q);
-            qdotActTraj.push_back(SimRobot.dq);
-          }
-          break;
-          case 2:
-          {
-            // In this case, the robot's controller would like to stabilize the robot with a QP controller.
-            std::printf("Using Controller 2: QP Stabilizing Controller!\n");
-            std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, StepIndex);
-            qDes = qNew;
+                qActTraj.push_back(SimRobot.q);
+                qdotActTraj.push_back(SimRobot.dq);
+              }
+              break;
+              case 2:
+              {
+                // In this case, the robot's controller would like to stabilize the robot with a QP controller.
+                std::printf("Using Controller 2: QP Stabilizing Controller!\n");
+                std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, StepIndex);
+                qDes = qNew;
+              }
+              break;
+              default:
+              {
+              }
+              break;
+            }
           }
           break;
           default:
           {
+            // Here is for robot's contact modification.
+            std::printf("Critial PIP Index is %d\n", CPPIPIndex);
+            // Now it is time to plan the contact
+            EndSplineObj = EndEffectorPlanner(SimRobot, PIPTotal[CPPIPIndex], CPObjective, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+            //
+            // const int sNumber = 100;
+            // double sUnit = 1.0/(1.0 * sNumber + 1.0);
+            // for (int i = 0; i < sNumber; i++)
+            // {
+            //   Vector3 Position, Tangent;
+            //   double sReal = 1.0 * i * sUnit;
+            //   EndSplineObj.PosNTang(sReal, Position, Tangent);
+            //   double sPre = EndSplineObj.Pos2s(Position);
+            //   std::printf("Real s: %f Predicted s: %f\n", sReal, sPre);
+            // }
+            FallControlFlag = true;
           }
           break;
         }
@@ -325,13 +357,17 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       break;
       default:
       {
-        // Here is for robot's contact modification.
-        std::printf("Critial PIP Index is %d\n", CPPIPIndex);
-        // Now it is time to plan the contact
-        int EndEffector = EndEffectorFixer(SimRobot, PIPTotal[CPPIPIndex], CPObjective, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+        // In this case, the robot conducts fall control.
+
+
+
       }
       break;
     }
+
+
+
+
     TrajAppender(StateTrajNames[0], qActTraj[qActTraj.size()-1], DOF);
     TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
 

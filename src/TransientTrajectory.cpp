@@ -8,7 +8,7 @@
 
 using namespace SplineLib;
 
-static Vector3 ContactShifter(const Vector3 & ContactPoint, int &Flag)
+static Vector3 ContactShifter(const Vector3 & ContactPoint, bool &Flag)
 {
   // This function is used to relocate contact point according to signed distance and contact normal.
   double Margin = 0.025;    //2.5cm
@@ -17,7 +17,7 @@ static Vector3 ContactShifter(const Vector3 & ContactPoint, int &Flag)
   double CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Contact);
 
   Flag = false;
-  const int TotalNo = 10;
+  const int TotalNo = 5;
   int CurrentNo = 0;
   while(CurrentNo<=TotalNo)
   {
@@ -94,7 +94,7 @@ static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector
   // This function is used to generate the cubic spline for given robot's end effector path.
   const double scale = 0.5;
   SplineInfo BaseSpline = SplinePiece3DObjGene(0.0, 1.0, PosInit, scale * NormalInit, PosGoal, -scale * NormalGoal);
-  const int segmentNo = 4;
+  const int segmentNo = 3;
   double sUnit = 1.0/(1.0 * segmentNo);
   std::vector<Vector3> BasePoints(segmentNo+1);
   for (int i = 0; i < segmentNo + 1; i++)
@@ -164,10 +164,10 @@ std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 &
   return SplineObj;
 }
 
-static std::vector<SplineInfo> SplineObjGene(const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, const int & PointNo)
+static std::vector<cSpline3> SplineObjGene(const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, bool & FeasiFlag)
 {
   std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);
-  bool FeasiFlag = false;
+  FeasiFlag = false;
   const int TotalIter = 10;
   int CurrentIter = 0;
   std::vector<cSpline3> SplineObj;
@@ -184,11 +184,25 @@ static std::vector<SplineInfo> SplineObjGene(const Vector3 & PosInit, const Vect
       break;
       default:
       {
+        bool ShiftFlag;
+        PointsToBeShifted = ContactShifter(PointsToBeShifted, ShiftFlag);
+        switch (ShiftFlag)
+        {
+          case false:
+          {
+            break;
+          }
+          break;
+          default:
+          break;
+        }
+
         std::vector<Vector3> NewPoints(Points.size()+1);
         for (int i = 0; i < Points.size(); i++)
         {
           NewPoints[i] = Points[i];
         }
+
         NewPoints[Points.size()] = PointsToBeShifted;
         Points = NewPoints;
       }
@@ -197,31 +211,20 @@ static std::vector<SplineInfo> SplineObjGene(const Vector3 & PosInit, const Vect
     CurrentIter++;
   }
 
-  std::vector<Vector3> SplinePointUpdate;
-  std::vector<Vector3> TransitionPoints;
-  const int GridNo = 10;
-  float sUnit = 1.0/(1.0 * GridNo);
-  for (int i = 0; i < SplineObj.size(); i++)
-  {
-    for (int j = 0; j < GridNo; j++)
-    {
-      float s = 1.0 * j * sUnit;
-      Vec3f ps = Position (SplineObj[i], s);
-      Vector3 SplinePoint(ps.x, ps.y, ps.z);
-      TransitionPoints.push_back(SplinePoint);
-      double SplinePointDis = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SplinePoint);
-      if(SplinePointDis<0)
-      {
-        SplinePointUpdate.push_back(SplinePoint);
-      }
-    }
-  }
+  // Vec3f queryPoint(Points[1].x, Points[1].y, Points[1].z);
+  // cSpline3 splines[SplineObj.size()];
+  // for (int i = 0; i < SplineObj.size(); i++)
+  // {
+  //   splines[i] = SplineObj[i];
+  // }
+  // int index;
+  // float t = FindClosestPoint(queryPoint, SplineObj.size(), splines, &index);
+  // Vec3f cp = Position(splines[index], t);
 
-  Vector3Writer(TransitionPoints, "TransitionPoints");    // Here we have already got the transition points.
-  int a = 1;
+  return SplineObj;
 }
 
-TrajInfo TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, int & TransFeasFlag)
+std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, int & TransFeasFlag)
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   // A Hermite spline is constructed with the information of position and velocity.
@@ -229,49 +232,72 @@ TrajInfo TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, co
   Vector3 NormalInit = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosInit);
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
 
-  const int PointNo = 20;
-  std::vector<SplineInfo> SplineObj = SplineObjGene(PosInit,  NormalInit, PosGoal, NormalGoal, PointNo);
+  bool FeasiFlag;
+  std::vector<cSpline3> SplineObj = SplineObjGene(PosInit, NormalInit, PosGoal, NormalGoal, FeasiFlag);
 
-  // std::vector<Vector3> TransitionPoints =  CubicCurvePos(PosInit, NormalInit, PosGoal, NormalGoal, PointNo);
-  //
-  // Vector3Writer(TransitionPoints, "TransitionPoints");    // Here we have already got the transition points.
-  //
-  // std::vector<double> RefConfig(SimRobot.q.size()), OptConfig(SimRobot.q.size());
-  // for (int i = 0; i < SimRobot.q.size(); i++)
-  // {
-  //   RefConfig[i] = SimRobot.q[i];
-  //   OptConfig[i] = SimRobot.q[i];
-  // }
+  const int SplineNumber = SplineObj.size();
+  const int SplineGrid = 5;
+  std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
 
-  // string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  double sUnit = 1.0/(1.0 * SplineGrid);
+  int TransitionIndex = 0;
+  for (int i = 0; i < SplineNumber; i++)
+  {
+    for (int j = 0; j < SplineGrid; j++)
+    {
+      double s = 1.0 * j * sUnit;
+      Vec3f ps = Position (SplineObj[i], s);
+      Vector3 SplinePoint(ps.x, ps.y, ps.z);
+      TransitionPoints[TransitionIndex] = SplinePoint;
+      TransitionIndex++;
+    }
+  }
+  // The last waypoint
+  Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
+  Vector3 SplinePoint(ps.x, ps.y, ps.z);
+  TransitionPoints[TransitionIndex] = SplinePoint;
+  TransitionIndex++;
+
+  Vector3Writer(TransitionPoints, "TransitionPoints");
+
+  // Path Validation with two concerns: IK and self-collision.
+
+  std::vector<double> RefConfig(SimRobot.q.size()), OptConfig(SimRobot.q.size());
+  for (int i = 0; i < SimRobot.q.size(); i++)
+  {
+    RefConfig[i] = SimRobot.q[i];
+    OptConfig[i] = SimRobot.q[i];
+  }
+
+  string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
   std::vector<Config> TransientTraj;
-  // TransientTraj.reserve(TransitionPoints.size());
+  TransientTraj.reserve(TransitionPoints.size());
+  int TransitionPointIndex = 0;
+  while(TransitionPointIndex<TransitionPoints.size())
+  {
+    Vector3 RefPos = TransitionPoints[TransitionPointIndex];
+    int Res = TransientOptFn(SimRobot, RefConfig, LinkInfoIndex, RefPos, RobotLinkInfo, RMObject, OptConfig, 0);
+    switch(Res)
+    {
+      case -1:
+      {
+        TransFeasFlag = 0;
+        break;
+      }
+      break;
+      default:
+      {
+        TransFeasFlag = 1;
+      }
+      break;
+    }
+    string ConfigName = "TransientConfig" + std::to_string(TransitionPointIndex) +".config";
+    RobotConfigWriter(OptConfig, UserFilePath, ConfigName);
+    RefConfig = OptConfig;
+    TransientTraj.push_back(Config(OptConfig));
+    TransitionPointIndex++;
+  }
 
-  // int TransitionPointIndex = 0;
-  // while(TransitionPointIndex<TransitionPoints.size())
-  // {
-  //   Vector3 RefPos = TransitionPoints[TransitionPointIndex];
-  //   int Res = TransientOptFn(SimRobot, RefConfig, LinkInfoIndex, RefPos, RobotLinkInfo, RMObject, OptConfig, 0);
-  //   switch(Res)
-  //   {
-  //     case -1:
-  //     {
-  //       TransFeasFlag = 0;
-  //       return TrajInfo(TransientTraj);
-  //     }
-  //     break;
-  //     default:
-  //     {
-  //       TransFeasFlag = 1;
-  //     }
-  //     break;
-  //   }
-  //   // string ConfigName = "TransientConfig" + std::to_string(TransitionPointIndex) +".config";
-  //   // RobotConfigWriter(OptConfig, UserFilePath, ConfigName);
-  //   RefConfig = OptConfig;
-  //   TransientTraj.push_back(Config(OptConfig));
-  //   TransitionPointIndex++;
-  // }
+  return SplineObj;
 
-  return TrajInfo(TransientTraj);
 }

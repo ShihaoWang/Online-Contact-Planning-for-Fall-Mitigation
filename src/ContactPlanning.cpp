@@ -122,7 +122,7 @@ static std::vector<std::pair<Vector3, double>> ContactFreeInfoFn(const Robot & S
   return ContactFreeInfo;
 }
 
-static TrajInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
+static EndPathInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
 {
   /*
     This function is used to plan single contact: _RobotContactInfo keeps the robot presumably contact status.
@@ -225,7 +225,7 @@ static TrajInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkIn
   // Only one trajectory is needed actually.
 
   int FeasiFlag = 0;
-  TrajInfo TransientTraj;
+  std::vector<SplineLib::cSpline3> SplineObj;
   for (int i = 0; i < OptimalContact.size(); i++)
   {
     std::vector<double>   GoalConfig;
@@ -236,7 +236,7 @@ static TrajInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkIn
       case 1:
       {
         beginTime = std::clock();
-        TransientTraj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, OptimalContact[i], RMObject, FeasiFlag);
+        SplineObj = TransientTrajGene(SimRobot, LinkInfoIndex, RobotLinkInfo, RefConfig, RefContact, OptimalContact[i], RMObject, FeasiFlag);
         endTime = std::clock();
         elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
         std::printf("TransientTrajGene function takes: %f ms\n", 1000.0 * elapsed_secs);
@@ -244,7 +244,7 @@ static TrajInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkIn
         {
           case 1:
           {
-            return TransientTraj;
+            return EndPathInfo(SplineObj, LinkInfoIndex);
           }
           break;
           default:
@@ -259,11 +259,11 @@ static TrajInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkIn
       break;
     }
   }
-  return TransientTraj;
+  return EndPathInfo(SplineObj, LinkInfoIndex);
 }
-static std::vector<TrajInfo> TransitionTrajGenerator(const PIPInfo & PIPObj, const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+static std::vector<EndPathInfo> TransitionTrajGenerator(const PIPInfo & PIPObj, const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  std::vector<TrajInfo> TransitionTrajs;
+  std::vector<EndPathInfo> TransitionTrajs;
   switch (ContactModiInfoIndices.size())
   {
     case 0:
@@ -274,32 +274,37 @@ static std::vector<TrajInfo> TransitionTrajGenerator(const PIPInfo & PIPObj, con
     {
       for (int i = 0; i < ContactModiInfoIndices.size(); i++)
       {
-        TrajInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+        EndPathInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
         TransitionTrajs.push_back(TransitionTraj);
       }
     }
     break;
   }
-  switch (ContactAddInfoIndices.size())
-  {
-    case 0:
-    {
-    }
-    break;
-    default:
-    {
-      for (int i = 0; i < ContactAddInfoIndices.size(); i++)
-      {
-        TrajInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-        TransitionTrajs.push_back(TransitionTraj);
-      }
-    }
-    break;
-  }
+
+  /*
+    Here we focus on the foot contact only before moving to hand contact.
+  */
+  // switch (ContactAddInfoIndices.size())
+  // {
+  //   case 0:
+  //   {
+  //   }
+  //   break;
+  //   default:
+  //   {
+  //     for (int i = 0; i < ContactAddInfoIndices.size(); i++)
+  //     {
+  //       EndPathInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+  //       TransitionTrajs.push_back(TransitionTraj);
+  //     }
+  //   }
+  //   break;
+  // }
+
   return TransitionTrajs;
 }
 
-int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
   // This function is used to fix the end effector whose contact should not be modified.
   // First the job is to figure out whether this edge belongs to a certain end effector
@@ -362,7 +367,7 @@ int EndEffectorFixer(Robot & SimRobot, const PIPInfo & PIPObj, const double & Re
     }
     break;
   }
-  std::vector<TrajInfo> TransitionTrajs = TransitionTrajGenerator(PIPObj, ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-  int a = 1;
-  return 1;
+  std::vector<EndPathInfo> TransitionTrajs = TransitionTrajGenerator(PIPObj, ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+
+  return TransitionTrajs[0];
 }
