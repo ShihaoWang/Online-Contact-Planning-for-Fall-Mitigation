@@ -122,7 +122,7 @@ static std::vector<std::pair<Vector3, double>> ContactFreeInfoFn(const Robot & S
   return ContactFreeInfo;
 }
 
-static EndPathInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
+static EndPathInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & LinkInfoIndex, const int & Type, const Robot & _SimRobot, const double & RefFailureMetric, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, ReachabilityMap & RMObject)
 {
   /*
     This function is used to plan single contact: _RobotContactInfo keeps the robot presumably contact status.
@@ -261,113 +261,28 @@ static EndPathInfo SingleContactPlanning(const PIPInfo & PIPObj, const int & Lin
   }
   return EndPathInfo(SplineObj, LinkInfoIndex);
 }
-static std::vector<EndPathInfo> TransitionTrajGenerator(const PIPInfo & PIPObj, const std::vector<int> & ContactModiInfoIndices, const std::vector<int> & ContactAddInfoIndices, const Robot & SimRobot, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+
+EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & dt)
 {
-  std::vector<EndPathInfo> TransitionTrajs;
-  switch (ContactModiInfoIndices.size())
-  {
-    case 0:
-    {
+  std::vector<Vector3> ModiCOMPosTraj, ModiCOMVelTraj;
+  int FixedContactIndex;
+  double ContactModiColTime = ContactModiPreEstimation(SimRobot, PIPObj, RobotLinkInfo, RobotContactInfo, NonlinearOptimizerInfo::SDFInfo, FixedContactIndex, ModiCOMPosTraj, ModiCOMVelTraj, dt);
+  std::vector<int> ContactModiInfoIndices;
+  for (int i = 0; i < RobotLinkInfo.size(); i++){
+    switch (RobotContactInfo[i].LocalContactStatus[0]){
+      case 1: if(i != FixedContactIndex) ContactModiInfoIndices.push_back(i);
+      break;
+      default:
+      break;
     }
-    break;
-    default:
-    {
-      for (int i = 0; i < ContactModiInfoIndices.size(); i++)
-      {
-        EndPathInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactModiInfoIndices[i], 0, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-        TransitionTrajs.push_back(TransitionTraj);
-      }
-    }
-    break;
   }
 
   /*
-    Here we focus on the foot contact only before moving to hand contact.
+  Two types of Control Strategies:
+      1. Using Inverted Pendulum for Centroidal Dynamics Estimation and Compute Control Law
+      2. Using Current Robot's Information and Only Control the Swing Limb.
   */
-  // switch (ContactAddInfoIndices.size())
-  // {
-  //   case 0:
-  //   {
-  //   }
-  //   break;
-  //   default:
-  //   {
-  //     for (int i = 0; i < ContactAddInfoIndices.size(); i++)
-  //     {
-  //       EndPathInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactAddInfoIndices[i], 1, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-  //       TransitionTrajs.push_back(TransitionTraj);
-  //     }
-  //   }
-  //   break;
-  // }
+  EndPathInfo TransitionTraj = SingleContactPlanning(PIPObj, ContactModiInfoIndices[0], 0, SimRobot, RefFailureMetric, RobotLinkInfo, RobotContactInfo, RMObject);
 
-  return TransitionTrajs;
-}
-
-EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const Vector3 & COMVel, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
-{
-  // This function is used to fix the end effector whose contact should not be modified.
-  // First the job is to figure out whether this edge belongs to a certain end effector
-  double ContactModiColTime = -1.0;
-  double ContactAddColTime = -1.0;
-  // Evaluation of the current contact status for contact addition consideration.
-  std::vector<int> ContactAddInfoIndices;
-  for (int i = 0; i < RobotLinkInfo.size(); i++)
-  {
-    switch (RobotContactInfo[i].LocalContactStatus[0])
-    {
-      case 0:
-      {
-        // This indicates that there are potentially available end effector to make contact.
-        ContactAddInfoIndices.push_back(i);
-      }
-      break;
-      default:
-      {}
-      break;
-    }
-  }
-  // This part is to figure out what contact can be changed.
-  std::vector<Vector3> ModiCOMPosTraj, ModiCOMVelTraj;
-  int FixedContactIndex;;
-  ContactModiColTime = ContactModiPreEstimation(SimRobot, PIPObj, RobotLinkInfo, RobotContactInfo, NonlinearOptimizerInfo::SDFInfo, FixedContactIndex, ModiCOMPosTraj, ModiCOMVelTraj);
-  std::vector<int> ContactModiInfoIndices;
-  for (int i = 0; i < RobotLinkInfo.size(); i++)
-  {
-    switch (RobotContactInfo[i].LocalContactStatus[0])
-    {
-      case 1:
-      {
-        // This indicates that there are potentially available end effector(s) to make contact.
-        if(i == FixedContactIndex)
-        {
-
-        }
-        else
-        {
-          ContactModiInfoIndices.push_back(i);
-        }
-      }
-      break;
-      default:
-      break;
-    }
-  }
-  switch (ContactAddInfoIndices.size())
-  {
-    case 0:
-    {
-      // This means that all current contacts are active so no additional contact can be added!
-    }
-    break;
-    default:
-    {
-      std::vector<Vector3> AddCOMPosTraj, AddCOMVelTraj;
-      ContactAddColTime = ContactAddPreEstimation(SimRobot, PIPObj, NonlinearOptimizerInfo::SDFInfo, AddCOMPosTraj, AddCOMVelTraj);
-    }
-    break;
-  }
-  std::vector<EndPathInfo> TransitionTrajs = TransitionTrajGenerator(PIPObj, ContactModiInfoIndices, ContactAddInfoIndices, SimRobot, RefFailureMetric, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
-
-  return TransitionTrajs[0];
+  return TransitionTraj;
 }

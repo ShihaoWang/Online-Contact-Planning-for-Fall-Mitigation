@@ -183,9 +183,9 @@ struct NonlinearOptimizerInfo
 
   // The following variables are used as internal variables.
   // Robot SimRobotObj;
-  // std::vector<LinkInfo> RobotLinkInfo;
+  static std::vector<LinkInfo> RobotLinkInfo;
   // std::vector<ContactStatusInfo> RobotContactInfo;
-  // std::vector<double> RobotConfigRef;                // This serves as a reference for robot configurations
+  // static std::vector<double> RobotConfigRef;                // This serves as a reference for robot configurations
   // std::vector<double> RobotVelocityRef;              // This serves as a reference for robot velocities.
 
   static SignedDistanceFieldInfo SDFInfo;

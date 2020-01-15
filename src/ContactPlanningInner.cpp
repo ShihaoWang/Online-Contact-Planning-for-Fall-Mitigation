@@ -201,7 +201,7 @@ int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, cons
   return OptRes;
 }
 
-static void StepIntegrator(double & Theta, double & Thetadot, Vector3 & COMPos, Vector3 & COMVel, const PIPInfo & PIPObj, double & dt)
+static void StepIntegrator(double & Theta, double & Thetadot, Vector3 & COMPos, Vector3 & COMVel, const PIPInfo & PIPObj, const double & dt)
 {
   // This function is used to integrate robot's PIP dynamics.
   double L = PIPObj.L;
@@ -218,17 +218,16 @@ static void StepIntegrator(double & Theta, double & Thetadot, Vector3 & COMPos, 
 }
 
 // This file saves functions needed for contact planning.
-double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex)
+double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex, const double & dt)
 {
   // This function is used to estimate the collision time for the robot.
   PIPInfo PIPObj = PIPGeneratorInner(EdgeA, EdgeB, COMPos, COMVel);
   // Then the robot is assumed to be rotating along PIP motion.
   // Whose equation of motion should be thetaddot = g*/L * sin(theta)
 
-  // According to the observation, the robot's at most takes 2s to fall to the ground.
-  double MaximumTime = 2.0;
+  // According to the observation, the robot's at most takes 2.5s to fall to the ground.
+  double MaximumTime = 2.5;
   double CollisionTime = 0.0;
-  double dt = 0.05;      // Each time step takes 0.025s.
   double Theta = PIPObj.theta;
   double Thetadot = PIPObj.thetadot;
   int MaximumDataPoint = floor(MaximumTime/dt);
@@ -258,7 +257,7 @@ double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, cons
   return CollisionTime;
 }
 
-double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj)
+double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, const double & dt)
 {
   Vector3 EdgeA = PIPObj.EdgeA;
   Vector3 EdgeB = PIPObj.EdgeB;
@@ -307,29 +306,8 @@ double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const 
   CentroidalState(SimRobot, COMPos, COMVel);
   std::vector<Vector3> PredCOMPosTraj, PredCOMVelTraj;
   int CollisionIndex;
-  double CollisionTime = CollisionTimeEstimator(RotEdgeOri, RotEdgeGoal, COMPos, COMVel, SDFInfo, PredCOMPosTraj, PredCOMVelTraj, CollisionIndex);
+  double CollisionTime = CollisionTimeEstimator(RotEdgeOri, RotEdgeGoal, COMPos, COMVel, SDFInfo, PredCOMPosTraj, PredCOMVelTraj, CollisionIndex, dt);
 
-  COMPosTraj.reserve(CollisionIndex);
-  COMVelTraj.reserve(CollisionIndex);
-  for (int i = 0; i < CollisionIndex; i++)
-  {
-    COMPosTraj.push_back(PredCOMPosTraj[i]);
-    COMVelTraj.push_back(PredCOMVelTraj[i]);
-  }
-  return CollisionTime;
-}
-
-double ContactAddPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj)
-{
-  Vector3 EdgeA = PIPObj.EdgeA;
-  Vector3 EdgeB = PIPObj.EdgeB;
-
-  /* Robot's COMPos and COMVel */
-  Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
-  CentroidalState(SimRobot, COMPos, COMVel);
-  std::vector<Vector3> PredCOMPosTraj, PredCOMVelTraj;
-  int CollisionIndex;
-  double CollisionTime = CollisionTimeEstimator(EdgeA, EdgeB, COMPos, COMVel, SDFInfo, PredCOMPosTraj, PredCOMVelTraj, CollisionIndex);
   COMPosTraj.reserve(CollisionIndex);
   COMVelTraj.reserve(CollisionIndex);
   for (int i = 0; i < CollisionIndex; i++)

@@ -7,41 +7,7 @@
 #include <ode/ode.h>
 
 SignedDistanceFieldInfo NonlinearOptimizerInfo::SDFInfo;
-
-static void InitParaGenerator(double & KEInit, Vector3& CentDirection)
-{
-  // The robot's initial kinetic energy will be sampled from a distribution.
-  // In addition, its centroidal direction will also be sampled.
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  // Scenario 1
-  double KELow = 0.0;
-  double KEUpp = 50.0;
-
-  std::uniform_real_distribution<> KEDis(KELow, KEUpp);
-  KEInit = KEDis(gen);
-
-  // These three terms will not be changed.
-  double xLimit = 0.25;
-  double yLimit = 0.25;
-  double zLimit = 0.25;
-
-  std::uniform_real_distribution<> xDirectionDis(-xLimit, xLimit);
-  std::uniform_real_distribution<> yDirectionDis(-yLimit, yLimit);
-  std::uniform_real_distribution<> zDirectionDis(-zLimit, zLimit);
-
-  double xDirectionInit = xDirectionDis(gen);
-  double yDirectionInit = yDirectionDis(gen);
-  double zDirectionInit = zDirectionDis(gen);
-
-  double DirectionInitNorm = sqrt(xDirectionInit * xDirectionInit + yDirectionInit * yDirectionInit + zDirectionInit * zDirectionInit);
-  CentDirection.x = xDirectionInit/DirectionInitNorm;
-  CentDirection.y = yDirectionInit/DirectionInitNorm;
-  CentDirection.z = zDirectionInit/DirectionInitNorm;
-
-  return;
-}
+std::vector<LinkInfo>   NonlinearOptimizerInfo::RobotLinkInfo;
 
 int main()
 {
@@ -60,83 +26,62 @@ int main()
     std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
     return -1;
   }
+  Robot SimRobot = *world.robots[0];
 
   /* 1. Load the Contact Link file */
   const std::string UserFilePath = FolderPath + "user/hrp2/";
   const std::string ContactLinkPath = UserFilePath + "ContactLink.txt";
   int NumberOfContactPoints;
-  std::vector<LinkInfo> RobotLinkInfo = ContactInfoLoader(ContactLinkPath, NumberOfContactPoints);
-
+  NonlinearOptimizerInfo::RobotLinkInfo = ContactInfoLoader(ContactLinkPath, NumberOfContactPoints);
   const std::string TorsoLinkFilePath = UserFilePath + "TorsoLink.txt";
   std::vector<int> TorsoLink = TorsoLinkReader(TorsoLinkFilePath);
-
 
   /* 2. Load the Contact Status file */
   const std::string ContactStatusPath = UserFilePath + "InitContact.txt";
   std::vector<ContactStatusInfo> RobotContactInfo = ContactStatusInfoLoader(ContactStatusPath);
 
-  /* 3. Environment Geometry */
-  Meshing::PointCloud3D PointCloudObj = PointCloudGene(world);
+  /* 3. Environment Geometry and Reachability Map*/
   const int GridsNo = 251;
   // NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
   NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
+  ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
 
   /* 4. Robot State Loader */
-  Robot SimRobot = *world.robots[0];
-  ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, RobotLinkInfo, TorsoLink);
   RobotConfigLoader(SimRobot, UserFilePath, "SampleTest.config");
 
-  std::vector<double> InitRobotConfig(SimRobot.q.size()), InitRobotVelocity(SimRobot.q.size()), ZeroRobotVelocity(SimRobot.q.size());
-  std::vector<double> RobotConfigRef(SimRobot.q.size());
-  for (int i = 0; i < SimRobot.q.size(); i++)
+  const int DOF = SimRobot.q.size();
+  std::vector<double> InitRobotConfig(DOF), InitRobotVelocity(DOF, 0);
+  std::vector<double> RobotConfigRef(DOF);
+  for (int i = 0; i < DOF; i++)
   {
-    double scale = 3.0;
-    InitRobotVelocity[i] = RandomValue(scale);
-    RobotConfigRef[i] =   SimRobot.q[i];
-    InitRobotConfig[i] =  SimRobot.q[i];
+    RobotConfigRef[i] = SimRobot.q[i];
   }
+  SimRobot.UpdateConfig(Config(RobotConfigRef));
   SimRobot.dq = InitRobotVelocity;
 
-  /* 5. Initial State Optimization */
-  double KEInit;
-  Vector3 CentDirection;
-  InitParaGenerator(KEInit, CentDirection);
-  bool ConfigOptFlag = true;
-  bool VelocityOptFlag = true;
-  bool InitFlag = InitialStateOptFn(SimRobot, RobotLinkInfo, RobotContactInfo, RobotConfigRef, KEInit, CentDirection, InitRobotConfig, InitRobotVelocity, ConfigOptFlag, VelocityOptFlag);
-  switch (InitFlag)
-  {
-    case false:
-    {
-      return false;
-    }
-    break;
-    default:
-    {
-      printf("Initial Optimization Finished! \n");
-    }
-    break;
-  }
+  /* 5. Initial Optimization Optimization (only for this project) */
+  InitRobotConfig = InitialConfigurationOptimization(SimRobot, RobotContactInfo, RobotConfigRef);
   RobotConfigWriter(InitRobotConfig, UserFilePath, "InitConfig.config");
-
   SimRobot.UpdateConfig(Config(InitRobotConfig));
   SimRobot.dq = InitRobotVelocity;
-  std::cout<<SimRobot.GetKineticEnergy()<<" J"<<std::endl;
-
+  bool SelfCollisionTest = SimRobot.SelfCollision();
+  if(SelfCollisionTest == true)
+  {
+    std::cerr<<"Initial configuration failed due to self-collision!\n";
+    exit(1);
+  }
 
   //  Given the optimized result to be the initial state
-  Config InitRobotConfigNew(InitRobotConfig);
-  Sim.world->robots[0]->UpdateConfig(InitRobotConfigNew);
-  Sim.world->robots[0]->dq = ZeroRobotVelocity;
+  Sim.world->robots[0]->UpdateConfig(Config(InitRobotConfig));
+  Sim.world->robots[0]->dq = InitRobotVelocity;
 
-  Config InitRobotVelocityNew(ZeroRobotVelocity);
-  Sim.controlSimulators[0].oderobot->SetConfig(InitRobotConfigNew);
-  Sim.controlSimulators[0].oderobot->SetVelocities(InitRobotVelocityNew);
+  Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
+  Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
 
   /* 6. Projected Inverted Pendulum Plot */
   std::vector<Vector3> ActContactPositions, ActVelocities;
   std::vector<Matrix> ActJacobians;
-  std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, NonlinearOptimizerInfo::SDFInfo);
+  std::vector<int> ActStatus = ActContactNJacobian(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, NonlinearOptimizerInfo::SDFInfo);
 
   std::vector<Vector3> CPVertex, CPEdgeA, CPEdgeB;
   std::vector<FacetInfo> FacetInfoObj = ContactHullGeneration(ActContactPositions, CPVertex, CPEdgeA, CPEdgeB);      // This function output is only used for visualization purpose.
@@ -151,24 +96,19 @@ int main()
   double t_imp = 2.0;
 
   // Here first we would like to run the simulation for a certain amount of time to ensure the contact is well established.
-  double  dt          = 0.025;
+  double  TimeStep          = 0.025;
   int FileIndex = FileIndexFinder();
   string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";
   const char *stateTrajFile_Name = stateTrajFile.c_str();
   while(Sim.time <= t_imp)
   {
-    Sim.Advance(dt);
+    Sim.Advance(TimeStep);
     Sim.UpdateModel();
     Backend.DoStateLogging_LinearPath(0, stateTrajFile_Name);
   }
 
-  // // It depends on what sort of disturbances to be added to the robot!
-  // Sim.world->robots[0]->dq = InitRobotVelocity;
-  // Config InitRobotVelocityImpl(InitRobotVelocity);
-  // Sim.controlSimulators[0].oderobot->SetVelocities(InitRobotVelocityImpl);
-
   /* 8. Internal Experimentation */
-  SimulationTest(Sim, RobotLinkInfo, RobotContactInfo, RMObject, Backend, dt, FileIndex);
+  SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, Backend, TimeStep, FileIndex);
 
   return true;
 }

@@ -96,6 +96,7 @@ add_executable(MyApp
                src/RobotStateFiler.cpp
                src/RobotUtils.cpp
 	       src/InitialStateOptimization.cpp
+	       src/InitialConfigurationOptimization.cpp
                src/NonlinearOptimizerInfo.h
                src/SimulationTest.cpp
 	       src/ViabilityKernelLoader.cpp

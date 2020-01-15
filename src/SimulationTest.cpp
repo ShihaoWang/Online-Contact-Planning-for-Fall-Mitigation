@@ -63,39 +63,6 @@ static Vector3 ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   return F_t;
 }
 
-static void SimSmoother(const int & ControllerType, WorldSimulation & Sim, const std::vector<Config> & qdotDesTraj, const int & DOF)
-{
-  // This function is used to smoothen the weird oscillatory motion at certain robot actuators.
-  switch (ControllerType)
-  {
-    case 1:
-    {
-
-    }
-    break;
-    default:
-    {
-      // A weird problem with actuators at ankles have been observed. Here we assume that these two motors behave in an ideal way.
-      std::vector<double> RealVelocities(DOF);
-      for (int i = 0; i < DOF; i++)
-      {
-        RealVelocities[i] = Sim.world->robots[0]->dq[i];
-      }
-      // Four actuators are compensated with ideal values.
-      RealVelocities[10] = qdotDesTraj[qdotDesTraj.size()-1][10];
-      RealVelocities[11] = qdotDesTraj[qdotDesTraj.size()-1][11];
-      RealVelocities[16] = qdotDesTraj[qdotDesTraj.size()-1][16];
-      RealVelocities[17] = qdotDesTraj[qdotDesTraj.size()-1][17];
-
-      Sim.world->robots[0]->dq = RealVelocities;
-      Config RealVelocitiesSet(RealVelocities);
-      Sim.controlSimulators[0].oderobot->SetVelocities(RealVelocitiesSet);
-    }
-    break;
-  }
-  return;
-}
-
 void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
 {
   /* Simulation parameters */
@@ -104,7 +71,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   int DOF = Sim.world->robots[0]->q.size();
   double  t_last          = 2.0 * dt;
   double  t_impul         = Sim.time + t_last;                      // The impulse lasts for 2.0 * dt.
-  double  t_final         = 10.0;                      // The impulse lasts for 2.0 * dt.
+  double  t_final         = 10.0;                                   // Simulation lasts for 10s.
   t_final+=Sim.time;
 
   double Fx_t, Fy_t, Fz_t;
@@ -193,7 +160,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   Robot SimRobot = *Sim.world->robots[0];
   while(Sim.time <t_impul)
   {
-    SimSmoother(ControllerType, Sim, qdotDesTraj, DOF);
     SimRobot = *Sim.world->robots[0];
     // The impulse is given to the robot's torso
     switch (ControllerType)
@@ -273,7 +239,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   while (KENow>=KETol)
   {
     // This loop is used to stabilize the robot
-    SimSmoother(ControllerType, Sim, qdotDesTraj, DOF);
     SimRobot = *Sim.world->robots[0];
     KENow = SimRobot.GetKineticEnergy();
 
@@ -337,7 +302,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
             // Here is for robot's contact modification.
             std::printf("Critial PIP Index is %d\n", CPPIPIndex);
             // Now it is time to plan the contact
-            EndSplineObj = EndEffectorPlanner(SimRobot, PIPTotal[CPPIPIndex], CPObjective, COMVel, RobotLinkInfo, RobotContactInfo, RMObject);
+            EndSplineObj = EndEffectorPlanner(SimRobot, PIPTotal[CPPIPIndex], CPObjective, RobotLinkInfo, RobotContactInfo, RMObject, dt);
             //
             // const int sNumber = 100;
             // double sUnit = 1.0/(1.0 * sNumber + 1.0);
@@ -349,7 +314,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
             //   double sPre = EndSplineObj.Pos2s(Position);
             //   std::printf("Real s: %f Predicted s: %f\n", sReal, sPre);
             // }
-
+            FallControlFlag = true;
           }
           break;
         }
@@ -358,8 +323,12 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       default:
       {
         // In this case, the robot conducts fall control.
-        FallControlFlag = true;
-        std::vector<double> qNew = ContactController(SimRobot, EndSplineObj, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo);
+        // std::vector<double> qNew = ContactController(SimRobot, EndSplineObj, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo);
+
+        // Let's do one test to see how the global coordinates behave.
+        std::vector<double> qNew = SimRobot.q;
+        qNew[0] = qNew[0] + 0.01;
+
         qDes = qNew;
       }
       break;
@@ -368,6 +337,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
 
     // Send the control command!
+    qDes[0] = qDes[0] + 0.01;
+
     Config qDesired(qDes);
     NewControllerPtr->SetConstant(qDesired);
 
