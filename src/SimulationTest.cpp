@@ -13,7 +13,7 @@ static void ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  double ImpFx = 7500.0;
+  double ImpFx = 5000.0;
   double ImpFy = 7500.0;
   double ImpFz = 1500.0;
 
@@ -55,17 +55,17 @@ static void ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   Fy_t = Sign_y_val * ImpYdis(gen);
   Fz_t = Sign_z_val * ImpZdis(gen);
 
+  Fx_t = ImpFx;
+  Fy_t = ImpFy;
+  Fz_t = ImpFz;
+
   return;
 }
 
 void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep, const int & FileIndex)
 {
   /* Simulation parameters */
-  int     EdgeNumber      = 4;
-  double  FriCoeff        = 1.0;
   int DOF = Sim.world->robots[0]->q.size();
-  Sim.time = 0.0;                                                   // Not really sure about this reset operation.
-
   double  PushPeriod      = 30.0;                                   // Every 30s a push will be given to the robot body.
   double  PushTriTime     = PushPeriod;                             // Initial disturbance is given.
   double  PushDuration    = 0.1;                                    // Push lasts for 0.1s.
@@ -73,6 +73,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
   double  SimTotalTime    = 60.0;                                   // Simulation lasts for 10s.
+  SimTotalTime           += Sim.time;
 
   /* Override the default controller with a PolynomialPathController */
   auto NewControllerPtr = std::make_shared<PolynomialPathController>(*Sim.world->robots[0]);
@@ -80,7 +81,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   NewControllerPtr->SetConstant(Sim.world->robots[0]->q);
 
   double Fx_t, Fy_t, Fz_t;
-  std::vector<const char*> EdgeFileNames = EdgeFileNamesGene(FileIndex);
+  std::vector<string> EdgeFileNames = EdgeFileNamesGene(FileIndex);
   string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";
   const char *stateTrajFile_Name = stateTrajFile.c_str();
 

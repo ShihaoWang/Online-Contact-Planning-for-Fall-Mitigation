@@ -64,7 +64,7 @@ int FallStatusFinder(const std::vector<double> & ObjTraj, const int & CutOffInde
 void ROCAppender(const double & TPR, const double & FPR, const int & CaseNumber, const int & CutOffIndex, const string FallDetector);
 std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath);
 void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName);
-std::vector<const char*>  EdgeFileNamesGene(const int & FileIndex);
+std::vector<string>  EdgeFileNamesGene(const int & FileIndex);
 void StateTrajAppender(const char *stateTrajFile_Name, const double & Time_t, const std::vector<double> & Configuration);
 std::vector<Vector3> ContactPositionFinder(const Robot& SimRobot, const std::vector<LinkInfo>& RobotLinkInfo, const std::vector<ContactStatusInfo>& RobotContactInfo);
 
@@ -80,7 +80,7 @@ double RBGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex);
 double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex);
 double ZMPGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const Vector3 & COMPos, const Vector3 & COMAcc, const double & Margin);
 std::vector<Vector3> FullPIPInterCal(const std::vector<FacetInfo> & FacetInfoObj, const Vector3 & COM);
-void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<const char*> & EdgeFileNames);
+void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<string> & EdgeFileNames);
 std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActContactPositions);
 int Edge2EndEffector(Robot & SimRobot, const Vector3 & EdgePoint, const std::vector<LinkInfo> & RobotLinkInfo);
 double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, Vector3 & Edge1, Vector3 & Edge2);

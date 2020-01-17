@@ -432,6 +432,7 @@ void StateTrajAppender(const char *stateTrajFile_Name, const double & Time_t, co
   StateTrajWriter.open(stateTrajFile_Name, std::ios_base::app);
 
   StateTrajWriter<<std::to_string(Time_t)<<"\t";
+  StateTrajWriter<<std::to_string(Configuration.size())<<"\t";
   for (int i = 0; i < Configuration.size()-1; i++)
   {
     StateTrajWriter<<std::to_string(Configuration[i])<<" ";

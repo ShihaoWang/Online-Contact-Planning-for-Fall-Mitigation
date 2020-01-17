@@ -534,23 +534,28 @@ void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string
   return;
 }
 
-std::vector<const char*>  EdgeFileNamesGene(const int & FileIndex)
+std::vector<string>  EdgeFileNamesGene(const int & FileIndex)
 {
-  std::vector<const char*> EdgeFileNames;
+  std::vector<string> EdgeFileNames;
+  string fEdgeAFile = "EdgeATraj" + std::to_string(FileIndex) + ".txt";
+  // const char *fEdgeAFile_Name = fEdgeAFile.c_str();
+  string fEdgeBFile = "EdgeBTraj" + std::to_string(FileIndex) + ".txt";
+  // const char *fEdgeBFile_Name = fEdgeBFile.c_str();
+  string fEdgeCOMFile = "EdgeCOMTraj" + std::to_string(FileIndex) + ".txt";
+  // const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
+  string fEdgexTrajFile = "EdgexTraj" + std::to_string(FileIndex) + ".txt";
+  // const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
+  string fEdgeyTrajFile = "EdgeyTraj" + std::to_string(FileIndex) + ".txt";
+  // const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
+  string fEdgezTrajFile = "EdgezTraj" + std::to_string(FileIndex) + ".txt";
+  // const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
 
-  string fEdgeAFile = "EdgeATraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeAFile_Name = fEdgeAFile.c_str();
-  string fEdgeBFile = "EdgeBTraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeBFile_Name = fEdgeBFile.c_str();
-  string fEdgeCOMFile = "EdgeCOMTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
-  string fEdgexTrajFile = "EdgexTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
-  string fEdgeyTrajFile = "EdgeyTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
-  string fEdgezTrajFile = "EdgezTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
-
-  EdgeFileNames.push_back(fEdgeAFile_Name);
-  EdgeFileNames.push_back(fEdgeBFile_Name);
-  EdgeFileNames.push_back(fEdgeCOMFile_Name);
-  EdgeFileNames.push_back(fEdgexTrajFile_Name);
-  EdgeFileNames.push_back(fEdgeyTrajFile_Name);
-  EdgeFileNames.push_back(fEdgezTrajFile_Name);
+  EdgeFileNames.push_back(fEdgeAFile);
+  EdgeFileNames.push_back(fEdgeBFile);
+  EdgeFileNames.push_back(fEdgeCOMFile);
+  EdgeFileNames.push_back(fEdgexTrajFile);
+  EdgeFileNames.push_back(fEdgeyTrajFile);
+  EdgeFileNames.push_back(fEdgezTrajFile);
 
   return EdgeFileNames;
 }

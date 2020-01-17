@@ -572,5 +572,5 @@ def main(*arg):
         Robot_Config_Plot(world, DOF, State_Init, Contact_Link_Dictionary, Convex_Edges_List)
 
 if __name__ == "__main__":
-    # main("InitConfig")
-    main("1.path")
+    main("InitConfig")
+    # main("1.path")

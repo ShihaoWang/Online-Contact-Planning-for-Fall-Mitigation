@@ -101,12 +101,12 @@ int main()
   int FileIndex = FileIndexFinder();
   string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";
   const char *stateTrajFile_Name = stateTrajFile.c_str();
-  
+
   while(Sim.time <= t_imp)
   {
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
-    StateTrajAppender(stateTrajFile_Name, Sim.time, SimRobot.q);
+    StateTrajAppender(stateTrajFile_Name, Sim.time, Sim.world->robots[0]->q);
   }
 
   /* 8. Internal Experimentation */

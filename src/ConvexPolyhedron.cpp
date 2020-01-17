@@ -525,14 +525,14 @@ void ConeUnitGenerator(const std::vector<Vector3> & ActContacts, SignedDistanceF
   }
 }
 
-void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<const char*> & EdgeFileNames)
+void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<string> & EdgeFileNames)
 {
-  std::ofstream fEdgeA;         fEdgeA.open(EdgeFileNames[0], std::ios_base::app);
-  std::ofstream fEdgeB;         fEdgeB.open(EdgeFileNames[1], std::ios_base::app);
-  std::ofstream fEdgeCOM;       fEdgeCOM.open(EdgeFileNames[2], std::ios_base::app);
-  std::ofstream fEdgex;         fEdgex.open(EdgeFileNames[3], std::ios_base::app);
-  std::ofstream fEdgey;         fEdgey.open(EdgeFileNames[4], std::ios_base::app);
-  std::ofstream fEdgez;         fEdgez.open(EdgeFileNames[5], std::ios_base::app);
+  std::ofstream fEdgeA;         fEdgeA.open(EdgeFileNames[0].c_str(), std::ios_base::app);
+  std::ofstream fEdgeB;         fEdgeB.open(EdgeFileNames[1].c_str(), std::ios_base::app);
+  std::ofstream fEdgeCOM;       fEdgeCOM.open(EdgeFileNames[2].c_str(), std::ios_base::app);
+  std::ofstream fEdgex;         fEdgex.open(EdgeFileNames[3].c_str(), std::ios_base::app);
+  std::ofstream fEdgey;         fEdgey.open(EdgeFileNames[4].c_str(), std::ios_base::app);
+  std::ofstream fEdgez;         fEdgez.open(EdgeFileNames[5].c_str(), std::ios_base::app);
 
   for (int i = 0; i < PIPTotal.size(); i++)
   {
