@@ -817,3 +817,16 @@ double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink
   }
   return CPObjective;
 }
+
+double FailureMetricEval(Robot & SimRobot, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo)
+{
+  // A direct evaluation of failure metric from robot state, RobotLinkInfo and RobotContactInfo.
+  Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+  CentroidalState(SimRobot, COMPos, COMVel);
+  std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);
+  std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPos);
+  std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+  int CPPIPIndex;
+  double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
+  return CPObjective;
+}

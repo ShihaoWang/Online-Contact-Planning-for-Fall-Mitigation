@@ -411,3 +411,32 @@ std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath)
   }
   return TorsoLinkVec;
 }
+
+void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const int & FileIndex)
+{
+  // This function is used to
+  // This following part is used to save the robot's desired position, velocity and acceleration trajectory
+  std::ofstream PushInfoFileWriter;
+
+  string PushInfoFileStr = "PushInfoFile" + std::to_string(FileIndex) + ".txt";
+  const char *PushInfoFileStr_Name = PushInfoFileStr.c_str();
+  PushInfoFileWriter.open(PushInfoFileStr_Name, std::ios_base::app);
+  PushInfoFileWriter<<std::to_string(SimTime)<<" "<< std::to_string(Fx_t)<<" "<<std::to_string(Fy_t)<<" "<<std::to_string(Fz_t)<<"\n";
+  PushInfoFileWriter.close();
+  return;
+}
+
+void StateTrajAppender(const char *stateTrajFile_Name, const double & Time_t, const std::vector<double> & Configuration)
+{
+  std::ofstream StateTrajWriter;
+  StateTrajWriter.open(stateTrajFile_Name, std::ios_base::app);
+
+  StateTrajWriter<<std::to_string(Time_t)<<"\t";
+  for (int i = 0; i < Configuration.size()-1; i++)
+  {
+    StateTrajWriter<<std::to_string(Configuration[i])<<" ";
+  }
+  StateTrajWriter<<std::to_string(Configuration[Configuration.size()-1])<<"\n";
+  StateTrajWriter.close();
+  return;
+}

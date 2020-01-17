@@ -33,6 +33,7 @@ void SpecsWriter(const Robot & SimRobot, const double & t_final, const double & 
 void CentroidalFailureMetricWriter(const Vector3 & COM, const Vector3 & COMVel, const double & KE, const std::vector<double> FailureMetricVec, const std::vector<const char*> & CentroidalFileNames, const std::vector<const char*> & FailureMetricNames);
 void COMDesWriter(const int & FileIndex, const Vector3 & COMPosdes);
 void IntersectionsWriter(const std::vector<Vector3> & Intersections, const string &user_path, const string &inters_file_name);
+void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const int & FileIndex);
 
 /* 3. Robot Initial State Optimization */
 bool InitialStateOptFn(Robot& _SimRobotObj, const std::vector<LinkInfo> & _RobotLinkInfo, const std::vector<ContactStatusInfo> &  _RobotContactInfo, const std::vector<double>& _RobotConfigRef, const double & _KEInit, const Vector3& _CentDirection, std::vector<double> & RobotConfig, std::vector<double> & RobotVelocity, const bool & ConfigFlag, const bool & VelocityFlag);
@@ -63,6 +64,9 @@ int FallStatusFinder(const std::vector<double> & ObjTraj, const int & CutOffInde
 void ROCAppender(const double & TPR, const double & FPR, const int & CaseNumber, const int & CutOffIndex, const string FallDetector);
 std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath);
 void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName);
+std::vector<const char*>  EdgeFileNamesGene(const int & FileIndex);
+void StateTrajAppender(const char *stateTrajFile_Name, const double & Time_t, const std::vector<double> & Configuration);
+std::vector<Vector3> ContactPositionFinder(const Robot& SimRobot, const std::vector<LinkInfo>& RobotLinkInfo, const std::vector<ContactStatusInfo>& RobotContactInfo);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);
@@ -80,9 +84,10 @@ void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vec
 std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActContactPositions);
 int Edge2EndEffector(Robot & SimRobot, const Vector3 & EdgePoint, const std::vector<LinkInfo> & RobotLinkInfo);
 double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, Vector3 & Edge1, Vector3 & Edge2);
+double FailureMetricEval(Robot & SimRobot, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo);
 
 /* 8. Simulation Test */
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex);
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep, const int & FileIndex);
 
 /* 9. Stabilizing Controller */
 std::vector<double> StabilizingControllerContact(const Robot& SimRobot, const std::vector<Matrix> & _ActJacobians, const std::vector<Vector3>& _ConeAllUnits, const int & _EdgeNo, const int& _DOF, const double& dt, std::vector<Config>& qTrajDes, std::vector<Config> & qdotTrajDes, std::vector<Config> & qTrajAct, std::vector<Config> & qdotTrajAct, std::vector<LinkInfo> & _RobotLinkInfo, std::vector<ContactStatusInfo> & _RobotContactInfo, const std::vector<Vector3> & _ContactPositionsRef, std::vector<Vector3> & _ContactPositions, std::vector<Vector3> & _ContactVelocities, const int & _ContactPointNo, const int & StepIndex);
@@ -94,6 +99,7 @@ EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const d
 double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex, const double & dt);
 double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, const double & dt);
 int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig, std::vector<Vector3> & NewContacts);
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep);
 
 /*  11. Reachability Map */
 ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<int> & TorsoLink);

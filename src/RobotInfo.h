@@ -56,6 +56,13 @@ struct ContactStatusInfo
   ContactStatusInfo(const int &link_index){ LinkIndex = link_index; }
   void AddLocalConactStatus(const int & _contactstatus){ LocalContactStatus.push_back(_contactstatus); }
   ContactStatusInfo Update(const int &link_index){ return ContactStatusInfo(link_index); }
+  void StatusSwitch(const int & Val)
+  {
+    for(int i = 0; i<LocalContactStatus.size(); i++)
+    {
+      LocalContactStatus[i] = Val;
+    }
+  }
   int LinkIndex;
   std::vector<int> LocalContactStatus;
 };
@@ -1223,6 +1230,29 @@ struct EndPathInfo
   int EndEffectorIndex;
   int SplineNumber;
   Vector3 GoalContactPos;                 // This saves the goal contact position.
+};
+
+struct AllContactStatusInfo
+{
+  // This struct saves the information of the contact status of each link end effector
+  AllContactStatusInfo(){};
+  void ContactStatusAppender(std::vector<ContactStatusInfo> & _ContactStatusInfoVec, const int & SwingLimbIndex)
+  {
+    // Here the SwingLimbIndex is the sequence index not the link index.
+    ContactStatusInfoVec.push_back(_ContactStatusInfoVec);
+    SwingLimbIndices.push_back(SwingLimbIndex);
+  };
+  std::vector<std::vector<ContactStatusInfo>> ContactStatusInfoVec;
+  std::vector<int> SwingLimbIndices;
+};
+
+
+struct ControlReferenceInfo
+{
+  ControlReferenceInfo(){};
+  std::vector<Config> ConfigTraj;         // This saves robot's reference trajectory.
+  std::vector<double> TimeTraj;           // This saves the optimal time trajectory.
+  std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector
 };
 
 #endif

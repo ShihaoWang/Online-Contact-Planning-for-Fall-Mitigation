@@ -63,6 +63,7 @@ int main()
   InitRobotConfig = InitialConfigurationOptimization(SimRobot, RobotContactInfo, RobotConfigRef);
   RobotConfigWriter(InitRobotConfig, UserFilePath, "InitConfig.config");
   SimRobot.UpdateConfig(Config(InitRobotConfig));
+  SimRobot.UpdateGeometry();
   SimRobot.dq = InitRobotVelocity;
   bool SelfCollisionTest = SimRobot.SelfCollision();
   if(SelfCollisionTest == true)
@@ -100,15 +101,16 @@ int main()
   int FileIndex = FileIndexFinder();
   string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";
   const char *stateTrajFile_Name = stateTrajFile.c_str();
+  
   while(Sim.time <= t_imp)
   {
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
-    Backend.DoStateLogging_LinearPath(0, stateTrajFile_Name);
+    StateTrajAppender(stateTrajFile_Name, Sim.time, SimRobot.q);
   }
 
   /* 8. Internal Experimentation */
-  SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, Backend, TimeStep, FileIndex);
+  SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TimeStep, FileIndex);
 
   return true;
 }

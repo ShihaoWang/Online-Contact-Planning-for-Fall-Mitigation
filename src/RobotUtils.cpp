@@ -282,6 +282,32 @@ void RobotContactInfoUpdate(std::vector<ContactStatusInfo> & RobotContactInfo, c
   }
 }
 
+std::vector<Vector3> ContactPositionFinder(const Robot& SimRobot, const std::vector<LinkInfo>& RobotLinkInfo, const std::vector<ContactStatusInfo>& RobotContactInfo)
+{
+  // This function finds robot's current active contact
+  std::vector<Vector3> ActContacts;
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      switch (RobotContactInfo[i].LocalContactStatus[j])
+      {
+        case 1:
+        {
+          // This means that current contact is active and we should keep its location and Jacobian.
+          Vector3 LinkiPjPos;
+          SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+          ActContacts.push_back(LinkiPjPos);
+        }
+        break;
+        default:
+        break;
+      }
+    }
+  }
+  return ActContacts;
+}
+
 std::vector<int> ActContactNJacobian(const Robot& SimRobot, const std::vector<LinkInfo>& RobotLinkInfo, const std::vector<ContactStatusInfo>& RobotContactInfo, std::vector<Vector3>& ActContacts, std::vector<Vector3>& ActVelocities, std::vector<Matrix> & ActJacobians, SignedDistanceFieldInfo & SDFInfo)
 {
   // This function is used to get the robot's current active end effector position and Jacobian matrices.
@@ -506,4 +532,25 @@ void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string
   fclose(FlatContactPointsFile);
 
   return;
+}
+
+std::vector<const char*>  EdgeFileNamesGene(const int & FileIndex)
+{
+  std::vector<const char*> EdgeFileNames;
+
+  string fEdgeAFile = "EdgeATraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeAFile_Name = fEdgeAFile.c_str();
+  string fEdgeBFile = "EdgeBTraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeBFile_Name = fEdgeBFile.c_str();
+  string fEdgeCOMFile = "EdgeCOMTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
+  string fEdgexTrajFile = "EdgexTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
+  string fEdgeyTrajFile = "EdgeyTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
+  string fEdgezTrajFile = "EdgezTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
+
+  EdgeFileNames.push_back(fEdgeAFile_Name);
+  EdgeFileNames.push_back(fEdgeBFile_Name);
+  EdgeFileNames.push_back(fEdgeCOMFile_Name);
+  EdgeFileNames.push_back(fEdgexTrajFile_Name);
+  EdgeFileNames.push_back(fEdgeyTrajFile_Name);
+  EdgeFileNames.push_back(fEdgezTrajFile_Name);
+
+  return EdgeFileNames;
 }

@@ -8,7 +8,7 @@
 
 static double KETol = 1e-3;
 
-static Vector3 ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
+static void ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
 {
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -51,300 +51,118 @@ static Vector3 ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
     Sign_z = 1.0;
   }
 
-  std::printf("Sign_x_val: %f\n", Sign_x_val);
-  std::printf("Sign_y_val: %f\n", Sign_y_val);
-  std::printf("Sign_z_val: %f\n", Sign_z_val);
-
   Fx_t = Sign_x_val * ImpXdis(gen);
   Fy_t = Sign_y_val * ImpYdis(gen);
   Fz_t = Sign_z_val * ImpZdis(gen);
 
-  Vector3 F_t(Fx_t, Fy_t, Fz_t);
-  return F_t;
+  return;
 }
 
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SimGUIBackend & Backend, const double & dt, const int & FileIndex)
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep, const int & FileIndex)
 {
   /* Simulation parameters */
   int     EdgeNumber      = 4;
-  double  mu              = 1.0;
+  double  FriCoeff        = 1.0;
   int DOF = Sim.world->robots[0]->q.size();
-  double  t_last          = 2.0 * dt;
-  double  t_impul         = Sim.time + t_last;                      // The impulse lasts for 2.0 * dt.
-  double  t_final         = 10.0;                                   // Simulation lasts for 10s.
-  t_final+=Sim.time;
+  Sim.time = 0.0;                                                   // Not really sure about this reset operation.
 
-  double Fx_t, Fy_t, Fz_t;
-  Vector3 ImpulseForce = ImpulForceGene(Fx_t, Fy_t, Fz_t);
+  double  PushPeriod      = 30.0;                                   // Every 30s a push will be given to the robot body.
+  double  PushTriTime     = PushPeriod;                             // Initial disturbance is given.
+  double  PushDuration    = 0.1;                                    // Push lasts for 0.1s.
+  double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
+  int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
+  int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
+  double  SimTotalTime    = 60.0;                                   // Simulation lasts for 10s.
 
   /* Override the default controller with a PolynomialPathController */
   auto NewControllerPtr = std::make_shared<PolynomialPathController>(*Sim.world->robots[0]);
   Sim.SetController(0, NewControllerPtr);
   NewControllerPtr->SetConstant(Sim.world->robots[0]->q);
 
-  /* Simulation Trajectory */
-  // These two save robot's desired trajectories.
-  std::vector<Config> qDesTraj,       qdotDesTraj;
-  qDesTraj.push_back(Sim.world->robots[0]->q);
-  qdotDesTraj.push_back(Sim.world->robots[0]->dq);
+  double Fx_t, Fy_t, Fz_t;
+  std::vector<const char*> EdgeFileNames = EdgeFileNamesGene(FileIndex);
+  string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";
+  const char *stateTrajFile_Name = stateTrajFile.c_str();
 
-  // These two save robot's actual trajectories.
-  std::vector<Config> qActTraj,       qdotActTraj;
-  qActTraj.push_back(Sim.world->robots[0]->q);
-  qdotActTraj.push_back(Sim.world->robots[0]->dq);
+  std::vector<double> qDes = Sim.world->robots[0]->q;               // This is commanded robot configuration to the controller.
+  Robot SimRobot = *Sim.world->robots[0];
+  ControlReferenceInfo ControlReference;                            // Used for control reference generation.
 
-  // This function is used to get the robot's current active end effector position and Jacobian matrices.
-  std::vector<Vector3> ContactPositionRef;
-  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  while(Sim.time <= SimTotalTime)
   {
-    for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
+    // Main Simulation Loop
+    SimRobot = *Sim.world->robots[0];
+    if(PushTriTime >= PushPeriod)
     {
-      switch (RobotContactInfo[i].LocalContactStatus[j])
+      switch (PushGeneFlag)
       {
-        case 1:
+        case 0:
         {
-          // This means that current contact is active and we should keep its location and Jacobian.
-          Vector3 LinkiPjPos, LinkiPjVel;
-          Sim.world->robots[0]->GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
-          ContactPositionRef.push_back(LinkiPjPos);
+          ImpulForceGene(Fx_t, Fy_t, Fz_t);
+          PushGeneFlag = 1;
         }
         break;
         default:
         break;
       }
-    }
-  }
 
-  // Seven objective trajectories
-  std::vector<double> PVKRBTraj, PVKCPTraj, OETraj, CPTraj;
-
-  int NumberOfActEndEffectorInit;               // This variable describes the number of active end effectors!
-  int NumberOfContactPoints;                    // This variable describes the number of total contact points!
-  ContactNumberFinder(RobotContactInfo, NumberOfActEndEffectorInit, NumberOfContactPoints);
-  SpecsWriter(*Sim.world->robots[0], t_final, t_last, ImpulseForce, NumberOfActEndEffectorInit, FileIndex);
-
-  std::vector<const char*> EdgeFileNames, StateTrajNames;
-  string fEdgeAFile = "EdgeATraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeAFile_Name = fEdgeAFile.c_str();
-  string fEdgeBFile = "EdgeBTraj" + std::to_string(FileIndex) + ".txt";                 const char *fEdgeBFile_Name = fEdgeBFile.c_str();
-  string fEdgeCOMFile = "EdgeCOMTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
-  string fEdgexTrajFile = "EdgexTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
-  string fEdgeyTrajFile = "EdgeyTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
-  string fEdgezTrajFile = "EdgezTraj" + std::to_string(FileIndex) + ".txt";             const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
-
-  EdgeFileNames.push_back(fEdgeAFile_Name);
-  EdgeFileNames.push_back(fEdgeBFile_Name);
-  EdgeFileNames.push_back(fEdgeCOMFile_Name);
-  EdgeFileNames.push_back(fEdgexTrajFile_Name);
-  EdgeFileNames.push_back(fEdgeyTrajFile_Name);
-  EdgeFileNames.push_back(fEdgezTrajFile_Name);
-
-  const string qActTrajFile = "qActTraj" + std::to_string(FileIndex) + ".txt";          const char *qActTrajFile_Name = qActTrajFile.c_str();
-  const string qdotActTrajFile = "qdotActTraj" + std::to_string(FileIndex) + ".txt";    const char *qdotActTrajFile_Name = qdotActTrajFile.c_str();
-  StateTrajNames.push_back(qActTrajFile_Name);
-  StateTrajNames.push_back(qdotActTrajFile_Name);
-
-  string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";             const char *stateTrajFile_Name = stateTrajFile.c_str();
-
-  /*
-    Here we have two types of controller:
-        1. Rigid-body controller
-        2. Whole-body QP stabilizing controller
-  */
-
-  int ControllerType = 2;
-  std::vector<double> qDes = Sim.world->robots[0]->q;   // This is commanded robot configuration to the controller.
-
-  // The simulation will be terminated if robot's current kinetic energy declines to a value lower than the tolerance.
-  // However, initially this simulation has to last until t_impul time has elapsed.
-
-  Robot SimRobot = *Sim.world->robots[0];
-  while(Sim.time <t_impul)
-  {
-    SimRobot = *Sim.world->robots[0];
-    // The impulse is given to the robot's torso
-    switch (ControllerType)
-    {
-      case 2:
+      if(PushDurationMeasure < PushDuration)
       {
-        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
+        // Push should last in this duration.
+        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);     // Body 2
+        PushDurationMeasure+=TimeStep;
+        PushInfoFileAppender(Sim.time, Fx_t, Fy_t, Fz_t, FileIndex);
       }
-      break;
-      default:
+      else
       {
-        // For PID controller, disturbances need to be larger since it is more robust than QP controller.
-        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(18), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
-        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);
+        PushTriTime = 0.0;
+        PushDurationMeasure = 0.0;
+        PushGeneFlag = 0;
       }
-      break;
     }
-    qDesTraj.push_back(Sim.world->robots[0]->q);
-    qdotDesTraj.push_back(Sim.world->robots[0]->dq);
 
     /* Robot's COMPos and COMVel */
     Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
     CentroidalState(SimRobot, COMPos, COMVel);
+    std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);
+    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPos);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+    int CPPIPIndex;
+    double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
+    ContactPolytopeWriter(PIPTotal, EdgeFileNames);
 
-    std::vector<Vector3>  ActContactPositions, ActVelocities;        // A vector of Vector3 points
-    std::vector<Matrix>   ActJacobians;       // A vector of Jacobian matrices
-    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians,  NonlinearOptimizerInfo::SDFInfo);
-
-    std::vector<Vector3> ConeShiftedUnits, ConeUnits;
-    ConeUnitGenerator(ActContactPositions, NonlinearOptimizerInfo::SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
-
-    /*  Controller Input  */
-    switch (ControllerType)
+    switch (PushControlFlag)
     {
       case 1:
       {
-        // In this case, the robot's controller holds a constant initial configuration.
-        std::printf("Using Controller 1: Rigid-body Controller!\n");
+        // This inner control loop should be conducted until robot's end effector makes contact with the environment.
 
-        qActTraj.push_back(SimRobot.q);
-        qdotActTraj.push_back(SimRobot.dq);
-      }
-      break;
-      case 2:
-      {
-        // In this case, the robot's controller would like to stabilize the robot with a QP controller.
-        std::printf("Using Controller 2: QP Stabilizing Controller!\n");
-        std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, 0);
-        qDes = qNew;
       }
       break;
       default:
       {
-      }
-      break;
-    }
-
-    TrajAppender(StateTrajNames[0], qActTraj[qActTraj.size()-1], DOF);
-    TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
-
-    // Send the control command!
-    Config qDesired(qDes);
-    NewControllerPtr->SetConstant(qDesired);
-
-    Sim.Advance(dt);
-    Sim.UpdateModel();
-    Backend.DoStateLogging_LinearPath(0, stateTrajFile_Name);
-
-  }
-
-  double KENow = SimRobot.GetKineticEnergy();
-  int StepIndex = 0;
-  EndPathInfo EndSplineObj;
-
-  bool FallControlFlag = false;
-
-  while (KENow>=KETol)
-  {
-    // This loop is used to stabilize the robot
-    SimRobot = *Sim.world->robots[0];
-    KENow = SimRobot.GetKineticEnergy();
-
-    /* Robot's COMPos and COMVel */
-    Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
-    CentroidalState(SimRobot, COMPos, COMVel);
-
-    std::vector<Vector3>  ActContactPositions, ActVelocities;        // A vector of Vector3 points
-    std::vector<Matrix>   ActJacobians;       // A vector of Jacobian matrices
-    std::vector<int> ActStatus = ActContactNJacobian(SimRobot, RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians,  NonlinearOptimizerInfo::SDFInfo);
-    std::vector<Vector3> ConeShiftedUnits, ConeUnits;
-    ConeUnitGenerator(ActContactPositions,  NonlinearOptimizerInfo::SDFInfo, ConeShiftedUnits, ConeUnits, EdgeNumber, mu);
-
-    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPositions);
-    std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
-    // std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, COMPos, COMVel);
-    int CPPIPIndex;
-    double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
-
-    ContactPolytopeWriter(PIPTotal, EdgeFileNames);
-
-    switch (FallControlFlag)
-    {
-      case false:
-      {
-        // In this case, the robot conducts stabilizing control.
         switch (CPPIPIndex)
         {
           case -1:
-          {
-            // Here is for stabilization
-            /*  Controller Input  */
-            switch (ControllerType)
-            {
-              case 1:
-              {
-                // In this case, the robot's controller holds a constant initial configuration.
-                std::printf("Using Controller 1: Rigid-body Controller!\n");
-
-                qActTraj.push_back(SimRobot.q);
-                qdotActTraj.push_back(SimRobot.dq);
-              }
-              break;
-              case 2:
-              {
-                // In this case, the robot's controller would like to stabilize the robot with a QP controller.
-                std::printf("Using Controller 2: QP Stabilizing Controller!\n");
-                std::vector<double> qNew = StabilizingControllerContact(SimRobot, ActJacobians, ConeUnits, EdgeNumber, DOF, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo, ContactPositionRef, ActContactPositions, ActVelocities, NumberOfContactPoints, StepIndex);
-                qDes = qNew;
-              }
-              break;
-              default:
-              {
-              }
-              break;
-            }
-          }
+          std::printf("Simulation Time: %f\n", Sim.time);
           break;
           default:
           {
-            // Here is for robot's contact modification.
-            std::printf("Critial PIP Index is %d\n", CPPIPIndex);
-            // Now it is time to plan the contact
-            EndSplineObj = EndEffectorPlanner(SimRobot, PIPTotal[CPPIPIndex], CPObjective, RobotLinkInfo, RobotContactInfo, RMObject, dt);
-            //
-            // const int sNumber = 100;
-            // double sUnit = 1.0/(1.0 * sNumber + 1.0);
-            // for (int i = 0; i < sNumber; i++)
-            // {
-            //   Vector3 Position, Tangent;
-            //   double sReal = 1.0 * i * sUnit;
-            //   EndSplineObj.PosNTang(sReal, Position, Tangent);
-            //   double sPre = EndSplineObj.Pos2s(Position);
-            //   std::printf("Real s: %f Predicted s: %f\n", sReal, sPre);
-            // }
-            FallControlFlag = true;
+            // Push recovery controller reference should be computed here.
+            // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
+            ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
+            PushControlFlag = 1;
           }
-          break;
         }
       }
       break;
-      default:
-      {
-        // In this case, the robot conducts fall control.
-        // std::vector<double> qNew = ContactController(SimRobot, EndSplineObj, dt, qDesTraj, qdotDesTraj, qActTraj, qdotActTraj, RobotLinkInfo, RobotContactInfo);
-
-        // Let's do one test to see how the global coordinates behave.
-        std::vector<double> qNew = SimRobot.q;
-        qNew[0] = qNew[0] + 0.01;
-
-        qDes = qNew;
-      }
-      break;
     }
-    TrajAppender(StateTrajNames[0], qActTraj[qActTraj.size()-1], DOF);
-    TrajAppender(StateTrajNames[1], qdotActTraj[qdotActTraj.size()-1], DOF);
-
     // Send the control command!
-    qDes[0] = qDes[0] + 0.01;
-
-    Config qDesired(qDes);
-    NewControllerPtr->SetConstant(qDesired);
-
-    Sim.Advance(dt);
+    NewControllerPtr->SetConstant(Config(qDes));
+    StateTrajAppender(stateTrajFile_Name, Sim.time, SimRobot.q);
+    Sim.Advance(TimeStep);
     Sim.UpdateModel();
-    Backend.DoStateLogging_LinearPath(0, stateTrajFile_Name);
+    PushTriTime+=TimeStep;
   }
 
   return;
