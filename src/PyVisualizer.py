@@ -457,7 +457,7 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # Technically, there are three point clouds to be plotted.
 
     # 1. All Reachable Points
-    IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
+    # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
     # 2. Active Reachable Points
     ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
     # 3. Contact Free Points
@@ -469,7 +469,7 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # 6. Circle Point
     # CirclePointContact_data = ContactDataLoader("CirclePointContact")
     # 7. Transition Points
-    TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     # # 3. Optimal Reachable Points
     # OptimalReachableContacts = ExpName + "build/OptimalReachableContact.bin"
@@ -519,9 +519,9 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
             # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
             # Reachable_Contact_Plot(vis, SupportContacts_data)
-            # Reachable_Contact_Plot(vis, OptimalContact_data)
+            Reachable_Contact_Plot(vis, OptimalContact_data)
             # Reachable_Contact_Plot(vis, CirclePointContact_data)
-            Reachable_Contact_Plot(vis, TransitionPoints_data)
+            # Reachable_Contact_Plot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(delta_t)
@@ -572,5 +572,5 @@ def main(*arg):
         Robot_Config_Plot(world, DOF, State_Init, Contact_Link_Dictionary, Convex_Edges_List)
 
 if __name__ == "__main__":
-    main("InitConfig")
-    # main("1.path")
+    # main("InitConfig")
+    main("1.path")

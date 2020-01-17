@@ -13,9 +13,9 @@ static void ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  double ImpFx = 5000.0;
-  double ImpFy = 7500.0;
-  double ImpFz = 1500.0;
+  double ImpFx = 0.0;
+  double ImpFy = 7000.0;
+  double ImpFz = 0.0;
 
   std::uniform_real_distribution<> ImpXdis(ImpFx/2.0, ImpFx);
   std::uniform_real_distribution<> ImpYdis(ImpFy/2.0, ImpFy);

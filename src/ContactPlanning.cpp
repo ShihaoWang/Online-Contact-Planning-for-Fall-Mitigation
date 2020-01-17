@@ -395,8 +395,8 @@ static AllContactStatusInfo SwingLimbIndices(Robot & SimRobot, const std::vector
               break;
             }
           }
-          int MinEndIndex = std::distance(FMVec.begin(), std::min_element(FMVec.begin(), FMVec.end()));
-          IndicesVec.erase(IndicesVec.begin() + MinEndIndex);
+          int MaxEndIndex = std::distance(FMVec.begin(), std::max_element(FMVec.begin(), FMVec.end()));
+          IndicesVec.erase(IndicesVec.begin() + MaxEndIndex);
           for (int i = 0; i < IndicesVec.size(); i++)
           {
             std::vector<ContactStatusInfo> RobotContactInfoTemp = RobotContactInfo;
@@ -426,8 +426,9 @@ static AllContactStatusInfo SwingLimbIndices(Robot & SimRobot, const std::vector
   return AllContactStatusObj;
 }
 
-static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLinkIndex, const double & RefFailureMetric, int & FailureFlag)
+static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLinkIndex, const double & RefFailureMetric)
 {
+  std::vector<Vector3> OptimalContact;
   // Get all the fixed contact positions.
   std::vector<Vector3> FixedContactPos;
   for (int i = 0; i < RobotLinkInfo.size(); i++)
@@ -458,32 +459,32 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     Data point filtering
   */
   //  0. Reachable with respect to the pivotal joint
-  clock_t beginTime = std::clock();
   std::vector<Vector3> ActiveReachableContact = RMObject.ReachablePointsFinder(SimRobot, SwingLinkIndex, NonlinearOptimizerInfo::SDFInfo);
-  clock_t endTime = std::clock();
-  double elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
-  std::printf("ReachablePointsFinder function takes: %f ms\n", 1000.0 * elapsed_secs);
+  switch (ActiveReachableContact.size()){
+    case 0:return OptimalContact;
+    break;
+    default:
+    break;
+  }
 
   // 1. Self-collision from other end effectors
-  beginTime = std::clock();
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLinkIndex], ActiveReachableContact, ContactFreeInfo);
-  endTime = std::clock();
-  elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
-  std::printf("ContactFreeContact function takes: %f ms\n", 1000.0 * elapsed_secs);
-
+  switch (ContactFreeContact.size()){
+    case 0:return OptimalContact;
+    break;
+    default:
+    break;
+  }
   // 2. Supportive
-  beginTime = std::clock();
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
-  endTime = std::clock();
-  elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
-  std::printf("SupportContactFinder function takes: %f ms\n", 1000.0 * elapsed_secs);
-
+  switch (SupportContact.size()){
+    case 0:return OptimalContact;
+    break;
+    default:
+    break;
+  }
   // 3. Optimal Contact
-  beginTime = std::clock();
-  std::vector<Vector3> OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
-  endTime = std::clock();
-  elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
-  std::printf("OptimalContactFinder function takes: %f ms\n", 1000.0 * elapsed_secs);
+  OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
 
   Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
   Vector3Writer(ContactFreeContact, "ContactFreeContact");
@@ -495,12 +496,36 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
 
 ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLinkIndex, const double & RefFailureMetric, double & Impulse, int & FailureFlag)
 {
+  // Here each planning I can at most give 100ms!
+
+  ControlReferenceInfo ControlReferenceObj;
 
   Vector3 RefContact;       // This is the position of the reference contact for robot's active end effector.
   SimRobot.GetWorldPosition(RobotLinkInfo[SwingLinkIndex].AvgLocalContact, RobotLinkInfo[SwingLinkIndex].LinkIndex, RefContact);
   FailureFlag = 0;
-  std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLinkIndex, RefFailureMetric, FailureFlag);
 
+  clock_t beginTime = std::clock();
+  std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLinkIndex, RefFailureMetric);
+  clock_t endTime = std::clock();
+  double elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
+  // std::printf("OptimalContactSearcher function takes: %f ms\n", 1000.0 * elapsed_secs);
+
+  switch (OptimalContact.size())
+  {
+    case 0:
+    {
+      FailureFlag = 1;
+      return ControlReferenceObj;
+    }
+    break;
+    default:
+    {
+      FailureFlag = 0;
+      std::random_shuffle(OptimalContact.begin(), OptimalContact.end());
+
+    }
+    break;
+  }
 }
 
 ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep)
