@@ -14,7 +14,7 @@ static void ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   std::mt19937 gen(rd());
 
   double ImpFx = 0.0;
-  double ImpFy = 7000.0;
+  double ImpFy = 10000.0;
   double ImpFz = 0.0;
 
   std::uniform_real_distribution<> ImpXdis(ImpFx/2.0, ImpFx);
@@ -55,9 +55,9 @@ static void ImpulForceGene(double & Fx_t, double & Fy_t, double & Fz_t)
   Fy_t = Sign_y_val * ImpYdis(gen);
   Fz_t = Sign_z_val * ImpZdis(gen);
 
-  Fx_t = ImpFx;
+  Fx_t = Sign_x_val * ImpFx;
   Fy_t = ImpFy;
-  Fz_t = ImpFz;
+  Fz_t = Sign_z_val * ImpFz;
 
   return;
 }
@@ -107,11 +107,12 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         break;
       }
 
-      if(PushDurationMeasure < PushDuration)
+      if(PushDurationMeasure <= PushDuration)
       {
         // Push should last in this duration.
-        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), Fx_t, Fy_t, Fz_t, 0.0, 0.0, 0.0);     // Body 2
         PushDurationMeasure+=TimeStep;
+        double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
+        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), ImpulseScale * Fx_t, ImpulseScale * Fy_t, ImpulseScale * Fz_t, 0.0, 0.0, 0.0);     // Body 2
         PushInfoFileAppender(Sim.time, Fx_t, Fy_t, Fz_t, FileIndex);
       }
       else

@@ -1128,6 +1128,51 @@ struct EndPathInfo
     GoalContactPos.y = GoalPos.y;
     GoalContactPos.z = GoalPos.z;
   }
+  void s2Pos(const double & s, Vector3 & Pos)
+  {
+    // Here this function is used to get the corresponding position given the total s.
+    double sLength = s * TotalLength;
+    // Enumerate SplineSumLength to get the segment index
+    if(sLength>TotalLength)
+    {
+      sLength = TotalLength;
+    }
+    if(s<0)
+    {
+      sLength = 0.0;
+    }
+
+    int SegmentNo = 0;
+    while (SegmentNo<SplineNumber-1)
+    {
+      if(SplineSumLength[SegmentNo]>=sLength)
+      {
+        break;
+      }
+      SegmentNo++;
+    }
+
+    double ResLength = 0.0;
+    switch (SegmentNo)
+    {
+      case 0:
+      {
+        ResLength = sLength;
+      }
+      break;
+      default:
+      {
+        ResLength = sLength - SplineSumLength[SegmentNo-1];
+      }
+      break;
+    }
+
+    float sLength_i = ResLength/SplineIndLength[SegmentNo];
+    SplineLib::Vec3f ps = Position(SplineObj[SegmentNo], sLength_i);
+    Pos.x = ps.x;
+    Pos.y = ps.y;
+    Pos.z = ps.z;
+  }
   void PosNTang(const double & s, Vector3 & Pos, Vector3 & Tang)
   {
     // Here this function is used to get the corresponding position given the total s.
@@ -1249,10 +1294,11 @@ struct AllContactStatusInfo
 
 struct ControlReferenceInfo
 {
-  ControlReferenceInfo(){};
+  ControlReferenceInfo(){ControlReferenceFlag = false;};
   std::vector<Config> ConfigTraj;         // This saves robot's reference trajectory.
   std::vector<double> TimeTraj;           // This saves the optimal time trajectory.
   std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector
+  bool ControlReferenceFlag;
 };
 
 #endif

@@ -8,13 +8,14 @@
 
 using namespace SplineLib;
 
-static Vector3 ContactShifter(const Vector3 & ContactPoint, bool &Flag)
+static Vector3 ShiftPointFunc(const Vector3 & ShiftPoint, bool & Flag)
 {
   // This function is used to relocate contact point according to signed distance and contact normal.
-  double Margin = 0.025;    //2.5cm
-  Vector3 ContactPointNormal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ContactPoint);
-  Vector3 Contact = ContactPoint + Margin * ContactPointNormal;
-  double CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Contact);
+  // Here the signed distance of shift point should be negative.
+  double Margin = -NonlinearOptimizerInfo::SDFInfo.SignedDistance(ShiftPoint);
+  Vector3 ShiftPointNew = ShiftPoint;
+  Vector3 ShiftPointNormal;
+  double CurDist = 0.0;
 
   Flag = false;
   const int TotalNo = 5;
@@ -22,17 +23,17 @@ static Vector3 ContactShifter(const Vector3 & ContactPoint, bool &Flag)
   while(CurrentNo<=TotalNo)
   {
     // This inner function conducts an iterative "push" of this contact accoding to signed distance normal.
-    ContactPointNormal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ContactPoint);
-    Contact = ContactPoint + Margin * ContactPointNormal;
-    CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Contact);
-    if(CurDist>=Margin)
+    ShiftPointNormal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ShiftPointNew);
+    ShiftPointNew = ShiftPointNew + Margin * ShiftPointNormal;
+    CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(ShiftPointNew);
+    if(CurDist>0.0)
     {
       Flag = true;
       break;
     }
     CurrentNo++;
   }
-  return Contact;
+  return ShiftPointNew;
 }
 
 static void SplinePiece1DObjGene(const double & sInit, const double & sGoal, const double & PosInit, const double & VelInit, const double & PosGoal, const double & VelGoal, double & a, double & b, double & c, double & d)
@@ -106,7 +107,7 @@ static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector
   return BasePoints;
 }
 
-std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 & PointToBeShifted, bool & FeasibleFlag)
+std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 & ShiftPoint, bool & FeasibleFlag)
 {
   Vec3f SplinePoints[Points.size()];
   for (int i = 0; i < Points.size(); i++)
@@ -114,13 +115,15 @@ std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 &
     Vec3f PointVec(Points[i].x, Points[i].y, Points[i].z);
     SplinePoints[i] = PointVec;
   }
-
   const int numPoints = sizeof(SplinePoints) / sizeof(SplinePoints[0]);
   cSpline3 splines[numPoints + 1];
   int numSplines = SplinesFromPoints(numPoints, SplinePoints, numPoints + 1, splines);
+  std::vector<cSpline3> SplineObj;
+  SplineObj.reserve(numSplines);
 
-  std::vector<Vector3> SplinePointUpdate;
-  std::vector<Vector3> TransitionPoints;
+  std::vector<Vector3> ShiftPointVec;
+  std::vector<double> ShiftPointDisVec;
+  // std::vector<Vector3> TransitionPoints;
   const int GridNo = 10;
   float sUnit = 1.0/(1.0 * GridNo);
   for (int i = 0; i < numSplines; i++)
@@ -130,36 +133,34 @@ std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 &
       float s = 1.0 * j * sUnit;
       Vec3f ps = Position (splines[i], s);
       Vector3 SplinePoint(ps.x, ps.y, ps.z);
-      TransitionPoints.push_back(SplinePoint);
       double SplinePointDis = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SplinePoint);
       if(SplinePointDis<0)
       {
-        SplinePointUpdate.push_back(SplinePoint);
+        ShiftPointVec.push_back(SplinePoint);
+        ShiftPointDisVec.push_back(SplinePointDis);
       }
     }
   }
 
-  switch (SplinePointUpdate.size())
+  switch (ShiftPointVec.size())
   {
     case 0:
     {
       FeasibleFlag = true;
+      for (int i = 0; i < numSplines; i++)
+      {
+        SplineObj.push_back(splines[i]);
+      }
     }
     break;
     default:
     {
+      // Choose the point with the largest penetration.
       FeasibleFlag = false;
-      int MaxIndex = SplinePointUpdate.size()-1;
-      int RandomIndex = (rand() % static_cast<int>(MaxIndex + 1));
-      PointToBeShifted = Points[RandomIndex];
+      int ShiftPointIndex = std::distance(ShiftPointDisVec.begin(), std::min_element(ShiftPointDisVec.begin(), ShiftPointDisVec.end()));
+      ShiftPoint = ShiftPointVec[ShiftPointIndex];
     }
     break;
-  }
-  std::vector<cSpline3> SplineObj;
-  SplineObj.reserve(numSplines);
-  for (int i = 0; i < numSplines; i++)
-  {
-    SplineObj.push_back(splines[i]);
   }
   return SplineObj;
 }
@@ -173,130 +174,73 @@ static std::vector<cSpline3> SplineObjGene(const Vector3 & PosInit, const Vector
   std::vector<cSpline3> SplineObj;
   while((FeasiFlag == false)&&(CurrentIter<=TotalIter))
   {
-    Vector3 PointsToBeShifted;
-    SplineObj = cSplineGene(Points, PointsToBeShifted, FeasiFlag);
+    Vector3 ShiftPoint;
+    SplineObj = cSplineGene(Points, ShiftPoint, FeasiFlag);
     switch (FeasiFlag)
     {
       case true:
-      {
-
-      }
       break;
       default:
       {
         bool ShiftFlag;
-        PointsToBeShifted = ContactShifter(PointsToBeShifted, ShiftFlag);
+        ShiftPoint = ShiftPointFunc(ShiftPoint, ShiftFlag);
         switch (ShiftFlag)
         {
           case false:
           {
-            break;
+            // If ShiftFlag turns out to be failure, then we need to terminate the whole loop
+            return SplineObj;
           }
           break;
           default:
           break;
         }
-
         std::vector<Vector3> NewPoints(Points.size()+1);
         for (int i = 0; i < Points.size(); i++)
         {
           NewPoints[i] = Points[i];
         }
-
-        NewPoints[Points.size()] = PointsToBeShifted;
+        NewPoints[Points.size()] = ShiftPoint;
         Points = NewPoints;
       }
       break;
     }
     CurrentIter++;
   }
-
-  // Vec3f queryPoint(Points[1].x, Points[1].y, Points[1].z);
-  // cSpline3 splines[SplineObj.size()];
-  // for (int i = 0; i < SplineObj.size(); i++)
-  // {
-  //   splines[i] = SplineObj[i];
-  // }
-  // int index;
-  // float t = FindClosestPoint(queryPoint, SplineObj.size(), splines, &index);
-  // Vec3f cp = Position(splines[index], t);
-
   return SplineObj;
 }
 
-std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<double> & InitConfig, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, int & TransFeasFlag)
+std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, bool & TransFeasFlag)
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   // A Hermite spline is constructed with the information of position and velocity.
 
   Vector3 NormalInit = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosInit);
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
+  std::vector<cSpline3> SplineObj = SplineObjGene(PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 
-  bool FeasiFlag;
-  std::vector<cSpline3> SplineObj = SplineObjGene(PosInit, NormalInit, PosGoal, NormalGoal, FeasiFlag);
-
-  const int SplineNumber = SplineObj.size();
-  const int SplineGrid = 5;
-  std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
-
-  double sUnit = 1.0/(1.0 * SplineGrid);
-  int TransitionIndex = 0;
-  for (int i = 0; i < SplineNumber; i++)
-  {
-    for (int j = 0; j < SplineGrid; j++)
-    {
-      double s = 1.0 * j * sUnit;
-      Vec3f ps = Position (SplineObj[i], s);
-      Vector3 SplinePoint(ps.x, ps.y, ps.z);
-      TransitionPoints[TransitionIndex] = SplinePoint;
-      TransitionIndex++;
-    }
-  }
-  // The last waypoint
-  Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
-  Vector3 SplinePoint(ps.x, ps.y, ps.z);
-  TransitionPoints[TransitionIndex] = SplinePoint;
-  TransitionIndex++;
-
-  Vector3Writer(TransitionPoints, "TransitionPoints");
-
-  // Path Validation with two concerns: IK and self-collision.
-
-  std::vector<double> RefConfig(SimRobot.q.size()), OptConfig(SimRobot.q.size());
-  for (int i = 0; i < SimRobot.q.size(); i++)
-  {
-    RefConfig[i] = SimRobot.q[i];
-    OptConfig[i] = SimRobot.q[i];
-  }
-
-  string UserFilePath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  std::vector<Config> TransientTraj;
-  TransientTraj.reserve(TransitionPoints.size());
-  int TransitionPointIndex = 0;
-  while(TransitionPointIndex<TransitionPoints.size())
-  {
-    Vector3 RefPos = TransitionPoints[TransitionPointIndex];
-    int Res = TransientOptFn(SimRobot, RefConfig, LinkInfoIndex, RefPos, RobotLinkInfo, RMObject, OptConfig, 0);
-    switch(Res)
-    {
-      case -1:
-      {
-        TransFeasFlag = 0;
-        break;
-      }
-      break;
-      default:
-      {
-        TransFeasFlag = 1;
-      }
-      break;
-    }
-    string ConfigName = "TransientConfig" + std::to_string(TransitionPointIndex) +".config";
-    RobotConfigWriter(OptConfig, UserFilePath, ConfigName);
-    RefConfig = OptConfig;
-    TransientTraj.push_back(Config(OptConfig));
-    TransitionPointIndex++;
-  }
+  // const int SplineNumber = SplineObj.size();
+  // const int SplineGrid = 5;
+  // std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
+  //
+  // double sUnit = 1.0/(1.0 * SplineGrid);
+  // int TransitionIndex = 0;
+  // for (int i = 0; i < SplineNumber; i++)
+  // {
+  //   for (int j = 0; j < SplineGrid; j++)
+  //   {
+  //     double s = 1.0 * j * sUnit;
+  //     Vec3f ps = Position (SplineObj[i], s);
+  //     Vector3 SplinePoint(ps.x, ps.y, ps.z);
+  //     TransitionPoints[TransitionIndex] = SplinePoint;
+  //     TransitionIndex++;
+  //   }
+  // }
+  // // The last waypoint
+  // Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
+  // Vector3 SplinePoint(ps.x, ps.y, ps.z);
+  // TransitionPoints[TransitionIndex] = SplinePoint;
+  // Vector3Writer(TransitionPoints, "TransitionPoints");
 
   return SplineObj;
 
