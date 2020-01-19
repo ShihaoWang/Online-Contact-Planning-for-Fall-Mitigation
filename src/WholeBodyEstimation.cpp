@@ -76,8 +76,12 @@ static std::vector<double> GlobalFrameConfigUpdate(Robot & SimRobot, const doubl
   // This function is used to update robot's configuration for global frame..
   // First part is frame's Euclidean position.
 
-  Vector3 FramePos;
-  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, -0.708), 2, FramePos);   // This gets robot's position of global frame.
+  Vector3 FramePos, FramePos1;
+  std::cout<<SimRobot.q<<endl;
+  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 0, FramePos);   // This gets robot's position of global frame.
+  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 1, FramePos);   // This gets robot's position of global frame
+  // SimRobot.GetWorldPosition(Vector3(0.0, 0.0, -0.708), 2, FramePos);   // This gets robot's position of global frame.
+  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 2, FramePos);   // This gets robot's position of global frame.
 
   Vector3 FrameOri, FrameXaxis, FrameYaxis, FrameZaxis;
   SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 5, FrameOri);       // This gets robot's position of global frame.
@@ -87,22 +91,21 @@ static std::vector<double> GlobalFrameConfigUpdate(Robot & SimRobot, const doubl
 
   Vector3 FramePosNew = RigidBodyRotation(FramePos, -ThetaOffset, RotAxis, AxisOri);
 
-  Vector3 FrameOriNew = RigidBodyRotation(FrameOri, -ThetaOffset, RotAxis, AxisOri);
-  Vector3 FrameXaxisNew = RigidBodyRotation(FrameXaxis, -ThetaOffset, RotAxis, AxisOri);
-  Vector3 FrameYaxisNew = RigidBodyRotation(FrameYaxis, -ThetaOffset, RotAxis, AxisOri);
-  Vector3 FrameZaxisNew = RigidBodyRotation(FrameZaxis, -ThetaOffset, RotAxis, AxisOri);
-
   Vector3 x_axis, y_axis, z_axis;
-  x_axis = FrameXaxisNew - FrameOriNew;
-  y_axis = FrameYaxisNew - FrameOriNew;
-  z_axis = FrameZaxisNew - FrameOriNew;
-
+  x_axis = FrameXaxis - FrameOri;
+  y_axis = FrameYaxis - FrameOri;
+  z_axis = FrameZaxis - FrameOri;
   x_axis.setNormalized(x_axis);
   y_axis.setNormalized(y_axis);
   z_axis.setNormalized(z_axis);
 
   Matrix3 RotMat(z_axis, y_axis, x_axis);
-  Vector3 EulerAngle = RotMat2EulerAngles(RotMat);    // Reverse order to update frame's yaw, pitch and roll.
+  AngleAxisRotation RotMatrix(-ThetaOffset, RotAxis);
+  Matrix3 NewRotMat;
+  RotMatrix.getMatrix(NewRotMat);
+
+  NewRotMat.mul(NewRotMat, RotMat);
+  Vector3 EulerAngle = RotMat2EulerAngles(NewRotMat);    // Reverse order to update frame's yaw, pitch and roll.
 
   double FrameConfig[] = {FramePosNew.x, FramePosNew.y, FramePosNew.z, EulerAngle.z , EulerAngle.y, EulerAngle.x};
   std:;vector<double> FrameConfigVec(FrameConfig, FrameConfig + 6);
@@ -130,11 +133,9 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
   double ThetaOffset = InvertedPendulumObj.Theta - ThetaInit;
 
   // The most interesting part is as follows.
-  std::cout<<SimRobot.q<<endl;
+  // std::cout<<SimRobot.q<<endl;
   std::vector<double> UpdateConfig = GlobalFrameConfigUpdate(SimRobot, ThetaOffset, RotAxis, PIPObj.EdgeA);
-
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-
   string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";
   RobotConfigWriter(_OptConfig, ConfigPath, _OptConfigFile);
   std::vector<double> OptConfig = _OptConfig;
