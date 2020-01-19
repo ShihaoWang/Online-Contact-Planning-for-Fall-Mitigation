@@ -162,25 +162,10 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     case true:
     {
       OptFlag = false;
-      return OptConfig;
     }
     break;
     default:
     break;
-  }
-
-  std::vector<double> Fcon(neF-1);
-  for (int i = 0; i < neF-1; i++)
-  {
-    Vector3 LinkiPjPos;
-    SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LocalContacts[i], NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LinkIndex, LinkiPjPos);
-    double SDF_i = NonlinearOptimizerInfo::SDFInfo.SignedDistance(LinkiPjPos);
-    Fcon[i] = SDF_i * SDF_i;
-  }
-  double Fconval = *std::max_element(Fcon.begin(),Fcon.end());
-  if(Fconval>1e-8)
-  {
-    OptFlag = false;
   }
   return OptConfig;
 }

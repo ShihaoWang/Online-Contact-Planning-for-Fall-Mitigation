@@ -1301,4 +1301,21 @@ struct ControlReferenceInfo
   bool ControlReferenceFlag;
 };
 
+struct InvertedPendulumInfo
+{
+  InvertedPendulumInfo(){};
+  InvertedPendulumInfo(const double & _Theta, const double & _Thetadot, const Vector3 & _COMPos, const Vector3 & _COMVel)
+  {
+    Theta = _Theta;
+    Thetadot = _Thetadot;
+    COMPos = _COMPos;
+    COMVel = _COMVel;
+  };
+
+  double Theta;
+  double Thetadot;
+  Vector3 COMPos;
+  Vector3 COMVel;
+};
+
 #endif

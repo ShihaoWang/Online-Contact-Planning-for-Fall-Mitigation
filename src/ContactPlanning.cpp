@@ -502,7 +502,7 @@ static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLi
     double ConfigDiff = qGoal[SwingLimbChain[i]] - qInit[SwingLimbChain[i]];
     ExecutationTime[i] = abs(ConfigDiff/SimRobot.velMax(SwingLimbChain[i]));
   }
-  return *std::min_element(ExecutationTime.begin(), ExecutationTime.end());
+  return *std::max_element(ExecutationTime.begin(), ExecutationTime.end());
 }
 
 ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric, double & Impulse)
@@ -513,6 +513,10 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
 
   Vector3 ContactInit;       // This is the position of the reference contact for robot's active end effector.
   SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, ContactInit);
+
+  Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+  CentroidalState(SimRobot, COMPos, COMVel);
+  InvertedPendulumInfo InvertedPendulumObj(PIPObj.theta, PIPObj.thetadot, COMPos, COMVel);
 
   // clock_t beginTime = std::clock();
   std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLimbIndex, RefFailureMetric);
@@ -550,7 +554,7 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
               4. Based on that time, robot's whole-body configuration is updated with inverted pendulum model.
               5. The whole algorithm terminates when robot's self-collision has been triggered or no feasible IK solution can be found.
             */
-            const int sNumber = 11;                 // 10 sampled points will be extracted from EndPathObj.
+            const int sNumber = 21;                 // 10 sampled points will be extracted from EndPathObj.
             int sIndex = 1;
             double sDiff = 1.0/(1.0 * sNumber - 1.0);
             double sVal = 0.0;
@@ -588,9 +592,11 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
                 {
                   // Minimum Time Estimation.
                   double CurrentTime_i = MinimumTimeEstimation(SimRobot, RMObject.EndEffectorLink2Pivotal[SwingLimbIndex], CurrentConfig, Config(OptConfig));
+                  Config asdf  = WholeBodyDynamicsIntegrator(SimRobot, PIPObj, InvertedPendulumObj, CurrentTime_i);
+
                   CurrentTime+=CurrentTime_i;
 
-                  ConfigTraj.push_back(CurrentConfig);
+                  ConfigTraj.push_back(Config(OptConfig));
                   TimeTraj.push_back(CurrentTime);
                   SwingLimbTraj.push_back(CurrentContactPos);
 
