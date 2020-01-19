@@ -112,6 +112,6 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
 std::vector<double> ContactController(const Robot & SimRobot, EndPathInfo & EndSplineObj, const double& dt, std::vector<Config>& qTrajDes, std::vector<Config> & qdotTrajDes, std::vector<Config> & qTrajAct, std::vector<Config> & qdotTrajAct, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo);
 
 /* 14. Whole-body Estimation*/
-Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const PIPInfo & PIPObj, InvertedPendulumInfo & InvertedPendulumObj, const double & TimeDuration);
+Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> & _OptConfig, const PIPInfo & PIPObj, InvertedPendulumInfo & InvertedPendulumObj, const double & TimeDuration, const int & StepIndex);
 
 #endif

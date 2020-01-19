@@ -592,7 +592,6 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
                 {
                   // Minimum Time Estimation.
                   double CurrentTime_i = MinimumTimeEstimation(SimRobot, RMObject.EndEffectorLink2Pivotal[SwingLimbIndex], CurrentConfig, Config(OptConfig));
-                  Config asdf  = WholeBodyDynamicsIntegrator(SimRobot, PIPObj, InvertedPendulumObj, CurrentTime_i);
 
                   CurrentTime+=CurrentTime_i;
 
@@ -601,12 +600,13 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
                   SwingLimbTraj.push_back(CurrentContactPos);
 
                   // Then we should update the robot's CurrentConfig based on CurrentTime_i.
-
+                  Config UpdatedConfig  = WholeBodyDynamicsIntegrator(SimRobot, OptConfig, PIPObj, InvertedPendulumObj, CurrentTime_i, sIndex);
+                  SimRobot.UpdateConfig(UpdatedConfig);
                 }
                 break;
               }
+              sIndex++;
             }
-            sIndex++;
           }
           break;
           default:

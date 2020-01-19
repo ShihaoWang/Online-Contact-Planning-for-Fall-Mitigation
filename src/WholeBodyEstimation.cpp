@@ -34,12 +34,13 @@ static Vector3 RotMat2EulerAngles(Matrix3 & RotMat)
   return Vector3(x, y, z);
 }
 
-static Vector3 RigidBodyRotation(const Vector3 & RigidBodyPoint, const double & RotAngle, const Vector3 & RotAxis)
+static Vector3 RigidBodyRotation(const Vector3 & RigidBodyPoint, const double & RotAngle, const Vector3 & RotAxis, const Vector3 & AxisOri)
 {
   // This function is used to calcualte the new RigidBodyPoint after the rotation around EdgeA->EdgeB axis for Angle degree.
   AngleAxisRotation RotMatrix(RotAngle, RotAxis);
   Vector3 RigidBodyPointNew;
-  RotMatrix.transformPoint(RigidBodyPoint, RigidBodyPointNew);
+  RotMatrix.transformPoint(RigidBodyPoint - AxisOri, RigidBodyPointNew);
+  RigidBodyPointNew+=AxisOri;
   return RigidBodyPointNew;
 }
 
@@ -57,11 +58,11 @@ static void StepIntegrator(InvertedPendulumInfo & InvertedPendulumObj, const PIP
   double ThetaNew = InvertedPendulumObj.Theta + ThetaOffset;
   double ThetadotNew = InvertedPendulumObj.Thetadot + ThetadotOffset;
 
-  Vector3 COMPosNew = RigidBodyRotation(InvertedPendulumObj.COMPos, ThetaOffset, RotAxis);
+  Vector3 COMPosNew = RigidBodyRotation(InvertedPendulumObj.COMPos, -ThetaOffset, RotAxis, PIPObj.EdgeA);
   Vector3 COMPosOnEdge = PIPObj.EdgeA + RotAxis.dot(COMPosNew - PIPObj.EdgeA) * RotAxis;
   Vector3 COMVelDir;
   COMVelDir.setNormalized(cross(COMPosNew - COMPosOnEdge, RotAxis));
-  Vector3 COMVelNew = ThetadotNew * COMVelDir;
+  Vector3 COMVelNew = L * ThetadotNew * COMVelDir;
 
   InvertedPendulumObj.Theta =  ThetaNew;
   InvertedPendulumObj.Thetadot =  ThetadotNew;
@@ -70,7 +71,45 @@ static void StepIntegrator(InvertedPendulumInfo & InvertedPendulumObj, const PIP
   return;
 }
 
-Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const PIPInfo & PIPObj, InvertedPendulumInfo & InvertedPendulumObj, const double & TimeDuration)
+static std::vector<double> GlobalFrameConfigUpdate(Robot & SimRobot, const double & ThetaOffset, const Vector3 & RotAxis, const Vector3 & AxisOri)
+{
+  // This function is used to update robot's configuration for global frame..
+  // First part is frame's Euclidean position.
+
+  Vector3 FramePos;
+  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, -0.708), 2, FramePos);   // This gets robot's position of global frame.
+
+  Vector3 FrameOri, FrameXaxis, FrameYaxis, FrameZaxis;
+  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 5, FrameOri);       // This gets robot's position of global frame.
+  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 1.0), 5, FrameXaxis);
+  SimRobot.GetWorldPosition(Vector3(0.0, 1.0, 0.0), 5, FrameYaxis);
+  SimRobot.GetWorldPosition(Vector3(1.0, 0.0, 0.0), 5, FrameZaxis);
+
+  Vector3 FramePosNew = RigidBodyRotation(FramePos, -ThetaOffset, RotAxis, AxisOri);
+
+  Vector3 FrameOriNew = RigidBodyRotation(FrameOri, -ThetaOffset, RotAxis, AxisOri);
+  Vector3 FrameXaxisNew = RigidBodyRotation(FrameXaxis, -ThetaOffset, RotAxis, AxisOri);
+  Vector3 FrameYaxisNew = RigidBodyRotation(FrameYaxis, -ThetaOffset, RotAxis, AxisOri);
+  Vector3 FrameZaxisNew = RigidBodyRotation(FrameZaxis, -ThetaOffset, RotAxis, AxisOri);
+
+  Vector3 x_axis, y_axis, z_axis;
+  x_axis = FrameXaxisNew - FrameOriNew;
+  y_axis = FrameYaxisNew - FrameOriNew;
+  z_axis = FrameZaxisNew - FrameOriNew;
+
+  x_axis.setNormalized(x_axis);
+  y_axis.setNormalized(y_axis);
+  z_axis.setNormalized(z_axis);
+
+  Matrix3 RotMat(z_axis, y_axis, x_axis);
+  Vector3 EulerAngle = RotMat2EulerAngles(RotMat);    // Reverse order to update frame's yaw, pitch and roll.
+
+  double FrameConfig[] = {FramePosNew.x, FramePosNew.y, FramePosNew.z, EulerAngle.z , EulerAngle.y, EulerAngle.x};
+  std:;vector<double> FrameConfigVec(FrameConfig, FrameConfig + 6);
+  return FrameConfigVec;
+}
+
+Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> & _OptConfig, const PIPInfo & PIPObj, InvertedPendulumInfo & InvertedPendulumObj, const double & TimeDuration, const int & StepIndex)
 {
   // This function is used to update robot's whole-body configuration based on inverted pendulum model
   // SimRobot should have already been updated with the previous optimized configuration.
@@ -88,49 +127,25 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const PIPInfo & PIPObj, Inv
   }
   // Here the integration has been finished.
   // Let's compute the robot's new configuration.
-
   double ThetaOffset = InvertedPendulumObj.Theta - ThetaInit;
 
   // The most interesting part is as follows.
   std::cout<<SimRobot.q<<endl;
-  Vector3 FramePos1, FramePos2, FramePos3;
-  Vector3 FramePos4, FramePos5, FramePos6;
-  Vector3 FramePosO;
-  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, -0.708), 0, FramePos1);
-  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, -0.708), 1, FramePos2);
-  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, -0.708), 2, FramePos3);   // This gets robot's position of global frame.
-
-  Vector3 FramePos3New = RigidBodyRotation(FramePos3, ThetaOffset, RotAxis);
-
-  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 5, FramePosO);   // This gets robot's position of global frame.
-
-  SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 1.0), 5, FramePos4);
-  SimRobot.GetWorldPosition(Vector3(0.0, 1.0, 0.0), 5, FramePos5);
-  SimRobot.GetWorldPosition(Vector3(1.0, 0.0, 0.0), 5, FramePos6);   // This gets robot's position of global frame.
-
-  Vector3 x_axis, y_axis, z_axis;
-  x_axis = FramePos4 - FramePosO;
-  y_axis = FramePos5 - FramePosO;
-  z_axis = FramePos6 - FramePosO;
-
-  x_axis.setNormalized(x_axis);
-  y_axis.setNormalized(y_axis);
-  z_axis.setNormalized(z_axis);
-
-  std::cout<<x_axis<<endl;
-  std::cout<<y_axis<<endl;
-  std::cout<<z_axis<<endl;
-
-  // Matrix3 RotMat(x_axis, y_axis, z_axis);
-  Matrix3 RotMat(z_axis, y_axis, x_axis);
-
-  Vector3 EulerAngle = RotMat2EulerAngles(RotMat);    // Reverse order to update frame's yaw, pitch and roll.
-
-  std::vector<double> UpdateConfig;
+  std::vector<double> UpdateConfig = GlobalFrameConfigUpdate(SimRobot, ThetaOffset, RotAxis, PIPObj.EdgeA);
 
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
 
-  RobotConfigWriter(UpdateConfig, ConfigPath, "UpdateConfig.config");
+  string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";
+  RobotConfigWriter(_OptConfig, ConfigPath, _OptConfigFile);
+  std::vector<double> OptConfig = _OptConfig;
+  OptConfig[0] = UpdateConfig[0];
+  OptConfig[1] = UpdateConfig[1];
+  OptConfig[2] = UpdateConfig[2];
+  OptConfig[3] = UpdateConfig[3];
+  OptConfig[4] = UpdateConfig[4];
+  OptConfig[5] = UpdateConfig[5];
 
-  std::cout<<endl;
+  string OptConfigFile = "UpdateOptConfig" + std::to_string(StepIndex) + ".config";
+  RobotConfigWriter(OptConfig, ConfigPath, OptConfigFile);
+  return Config(OptConfig);
 }
