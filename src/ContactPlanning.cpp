@@ -505,7 +505,7 @@ static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLi
   return *std::max_element(ExecutationTime.begin(), ExecutationTime.end());
 }
 
-ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric, double & Impulse)
+static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric)
 {
   // Here each planning I can at most give 100ms!
 
@@ -575,8 +575,8 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
             TimeTraj.push_back(CurrentTime);
             SwingLimbTraj.push_back(CurrentContactPos);
 
-            bool OptFlag;
-            while(sIndex<sNumber)
+            bool OptFlag = true;
+            while((sIndex<sNumber)&&(OptFlag == true))
             {
               sVal = 1.0 * sIndex * sDiff;
               EndPathObj.s2Pos(sVal, CurrentContactPos);
@@ -609,7 +609,24 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
               sIndex++;
             }
             // Here the inner optimiztion loop has been finished!
-            std::cout<<"I am here!"<<endl;
+            switch (OptFlag)
+            {
+              case true:
+              {
+                /* This means that the current trajectories have been tested to be valid!
+                        std::vector<Config> ConfigTraj;
+                        std::vector<double> TimeTraj;
+                        std::vector<Vector3> SwingLimbTraj;
+                */
+                ControlReferenceObj.TrajectoryUpdate(ConfigTraj, TimeTraj, SwingLimbTraj);
+                // Then we need to estimate robot's impulse based on centroidal velocity.
+                CollisionImpulseFunc(SimRobot, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
+                return ControlReferenceObj;
+              }
+              break;
+              default:
+              break;
+            }
           }
           break;
           default:
@@ -620,6 +637,7 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
     }
     break;
   }
+  return ControlReferenceObj;
 }
 
 ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep)
@@ -635,16 +653,32 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
   allowd_time = 0.25;                 // 250ms
 
   start_time = std::clock();          // get current time
-  duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
-
   int ContactStatusOption = 0;
+  std::vector<ControlReferenceInfo> RobotTrajVec;
+  std::vector<double> ImpulseVec;
   while((duration_time < allowd_time) && (ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size()))
   {
     std::vector<ContactStatusInfo> RobotContactInfo = AllContactStatusObj.ContactStatusInfoVec[ContactStatusOption];
     int SwingLimbIndex = AllContactStatusObj.SwingLimbIndices[ContactStatusOption];
-    double Impulse = 0.0;
-    ControlReferenceInfo RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPObj, RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric, Impulse);
+    ControlReferenceInfo RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPObj, RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
     duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
+    std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
+    start_time = std::clock();          // get current time
+
+    switch (RobotTraj.ControlReferenceFlag)
+    {
+      case true:
+      {
+        RobotTrajVec.push_back(RobotTraj);
+        ImpulseVec.push_back(RobotTraj.Impulse);
+      }
+      break;
+      default:
+      break;
+    }
+    ContactStatusOption++;
   }
+
+  std::cout<<"I am here!"<<endl;
 
 }

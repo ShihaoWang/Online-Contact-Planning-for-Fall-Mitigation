@@ -138,7 +138,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
 
   // Here we would like allow much more time to be spent on IK
   TransientOptProblem.NonlinearProb.setIntParameter("Iterations limit", 100);
-  TransientOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 10);
+  TransientOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 15);
   TransientOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
   TransientOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
   /*

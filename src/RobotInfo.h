@@ -1295,10 +1295,21 @@ struct AllContactStatusInfo
 struct ControlReferenceInfo
 {
   ControlReferenceInfo(){ControlReferenceFlag = false;};
+  void TrajectoryUpdate(const std::vector<Config> & _ConfigTraj, const std::vector<double> & _TimeTraj, const std::vector<Vector3> & _SwingLimbTraj)
+  {
+    // The three trajectories have been provided.
+    ConfigTraj = _ConfigTraj;
+    TimeTraj = _TimeTraj;
+    SwingLimbTraj = _SwingLimbTraj;
+    ControlReferenceFlag = true;
+  }
   std::vector<Config> ConfigTraj;         // This saves robot's reference trajectory.
   std::vector<double> TimeTraj;           // This saves the optimal time trajectory.
   std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector
   bool ControlReferenceFlag;
+  std::vector<ContactStatusInfo> InitContactInfo;
+  std::vector<ContactStatusInfo> GoalContactInfo;
+  double Impulse;
 };
 
 struct InvertedPendulumInfo

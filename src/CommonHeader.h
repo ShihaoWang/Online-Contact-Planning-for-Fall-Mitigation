@@ -113,5 +113,6 @@ std::vector<double> ContactController(const Robot & SimRobot, EndPathInfo & EndS
 
 /* 14. Whole-body Estimation*/
 Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> & _OptConfig, const PIPInfo & PIPObj, InvertedPendulumInfo & InvertedPendulumObj, const double & TimeDuration, const int & StepIndex);
+void CollisionImpulseFunc(Robot& SimRobot, const std::vector<ContactStatusInfo> & InitContactInfo, const int & SwingLimbIndex, ControlReferenceInfo & ControlReferenceObj);
 
 #endif
