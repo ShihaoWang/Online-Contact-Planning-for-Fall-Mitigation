@@ -486,10 +486,10 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
 
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
-  Vector3Writer(SupportContact, "SupportContact");
-  Vector3Writer(OptimalContact, "OptimalContact");
+  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  // Vector3Writer(SupportContact, "SupportContact");
+  // Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }
@@ -516,7 +516,6 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
 
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
-  InvertedPendulumInfo InvertedPendulumObj(PIPObj.theta, PIPObj.thetadot, COMPos, COMVel);
 
   // clock_t beginTime = std::clock();
   std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLimbIndex, RefFailureMetric);
@@ -547,6 +546,8 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
           case true:
           {
             EndPathInfo EndPathObj(SplineObj, SwingLimbIndex);
+            InvertedPendulumInfo InvertedPendulumObj(PIPObj.theta, PIPObj.thetadot, COMPos, COMVel);
+
             /*
               1. At each sampled waypoints along the end effector trajectory, an end effector position is evaluated from path.
               2. Based on robot's current configuration, an IK problem is solved to get robot's swing limb configuration.
@@ -554,7 +555,7 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
               4. Based on that time, robot's whole-body configuration is updated with inverted pendulum model.
               5. The whole algorithm terminates when robot's self-collision has been triggered or no feasible IK solution can be found.
             */
-            const int sNumber = 21;                 // 10 sampled points will be extracted from EndPathObj.
+            const int sNumber = 11;                 // 10 sampled points will be extracted from EndPathObj.
             int sIndex = 1;
             double sDiff = 1.0/(1.0 * sNumber - 1.0);
             double sVal = 0.0;
@@ -607,6 +608,8 @@ ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIP
               }
               sIndex++;
             }
+            // Here the inner optimiztion loop has been finished!
+            std::cout<<"I am here!"<<endl;
           }
           break;
           default:
