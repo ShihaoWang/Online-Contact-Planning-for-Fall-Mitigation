@@ -143,10 +143,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // This inner control loop should be conducted until robot's end effector makes contact with the environment.
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
-
-        std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-        string OptConfigFile = "PushConfig" + std::to_string(CurTime) + ".config";
-        RobotConfigWriter(qDes, ConfigPath, OptConfigFile);
+        // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+        // string OptConfigFile = "PushConfig" + std::to_string(CurTime) + ".config";
+        // RobotConfigWriter(qDes, ConfigPath, OptConfigFile);
       }
       break;
       default:
