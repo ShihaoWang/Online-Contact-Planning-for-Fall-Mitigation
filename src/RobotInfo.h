@@ -1303,6 +1303,55 @@ struct ControlReferenceInfo
     SwingLimbTraj = _SwingLimbTraj;
     ControlReferenceFlag = true;
   }
+
+  void TimeBound(const double & Time, int & InitIndex, int & EndIndex)
+  {
+    // This function finds the index for Time within TimeTraj.
+    for(int i = 0; i<TimeTraj.size(); i++)
+    {
+      if(TimeTraj[i]>Time)
+      {
+        InitIndex = i - 1;
+        EndIndex = i;
+        break;
+      }
+    }
+  }
+
+  std::vector<double> ConfigReference(const double & InitTime, const double & CurTime)
+  {
+    // This function is used to generate robot's current reference based on its trajetories.
+    double TimeDur = CurTime - InitTime;
+    if(CurTime<InitTime)
+    {
+      return ConfigTraj[0];
+    }
+    else
+    {
+      double MaxTime = *std::max_element(TimeTraj.begin(), TimeTraj.end());
+      if((CurTime - InitTime)>MaxTime)
+      {
+        return ConfigTraj[ConfigTraj.size()-1];
+      }
+      else
+      {
+        int InitIndex, EndIndex;
+        TimeBound(TimeDur, InitIndex, EndIndex);
+        // Then a linear interpolation will be conducted to get robot's current configuration reference.
+        double TimeDurRef = TimeTraj[EndIndex] - TimeTraj[InitIndex];
+
+        std::vector<double> ConfigVec(ConfigTraj[0].size());
+        for(int i = 0; i < ConfigTraj[0].size(); i++)
+        {
+          double slope = (ConfigTraj[EndIndex][i] - ConfigTraj[InitIndex][i])/TimeDurRef;
+          double ConfigVec_i = slope * (TimeDur - TimeTraj[InitIndex]) + ConfigTraj[InitIndex][i];
+          ConfigVec[i] = ConfigVec_i;
+        }
+        return ConfigVec;
+      }
+    }
+  }
+
   std::vector<Config> ConfigTraj;         // This saves robot's reference trajectory.
   std::vector<double> TimeTraj;           // This saves the optimal time trajectory.
   std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector

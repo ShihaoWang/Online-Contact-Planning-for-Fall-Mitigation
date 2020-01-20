@@ -52,7 +52,8 @@ static void StepIntegrator(InvertedPendulumInfo & InvertedPendulumObj, const PIP
 
   // Integration with the assumption that robot's acceleration remains to be constant during TimeStep.
   double Thetaddot = g/L * sin(InvertedPendulumObj.Theta);
-  double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep + 0.5 * Thetaddot * TimeStep * TimeStep;
+  // double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep + 0.5 * Thetaddot * TimeStep * TimeStep;
+  double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep;
   double ThetadotOffset = Thetaddot * TimeStep;
 
   double ThetaNew = InvertedPendulumObj.Theta + ThetaOffset;
@@ -76,6 +77,7 @@ static std::vector<double> GlobalFrameConfigUpdate(Robot & SimRobot, const doubl
   // This function is used to update robot's configuration for global frame..
   // First part is frame's Euclidean position.
 
+  // std::cout<<SimRobot.q<<endl;
   Vector3 FramePos, FramePos1;
   SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 0, FramePos);   // This gets robot's position of global frame.
   SimRobot.GetWorldPosition(Vector3(0.0, 0.0, 0.0), 1, FramePos);   // This gets robot's position of global frame
@@ -135,9 +137,10 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
   // std::cout<<SimRobot.q<<endl;
   std::vector<double> UpdateConfig = GlobalFrameConfigUpdate(SimRobot, ThetaOffset, RotAxis, PIPObj.EdgeA);
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  // string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";
-  // RobotConfigWriter(_OptConfig, ConfigPath, _OptConfigFile);
+  string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";
+  RobotConfigWriter(_OptConfig, ConfigPath, _OptConfigFile);
   std::vector<double> OptConfig = _OptConfig;
+
   OptConfig[0] = UpdateConfig[0];
   OptConfig[1] = UpdateConfig[1];
   OptConfig[2] = UpdateConfig[2];
@@ -145,7 +148,7 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
   OptConfig[4] = UpdateConfig[4];
   OptConfig[5] = UpdateConfig[5];
 
-  string OptConfigFile = "UpdateOptConfig" + std::to_string(StepIndex) + ".config";
-  RobotConfigWriter(OptConfig, ConfigPath, OptConfigFile);
+  // string OptConfigFile = "UpdateOptConfig" + std::to_string(StepIndex) + ".config";
+  // RobotConfigWriter(OptConfig, ConfigPath, OptConfigFile);
   return Config(OptConfig);
 }

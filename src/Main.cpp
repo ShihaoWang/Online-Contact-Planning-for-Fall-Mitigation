@@ -42,8 +42,8 @@ int main()
 
   /* 3. Environment Geometry and Reachability Map*/
   const int GridsNo = 251;
-  NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
-  // NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
+  // NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
+  NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
   ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
 
   /* 4. Robot State Loader */

@@ -608,6 +608,51 @@ double RBGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex)
   return FailureMetricRB;
 }
 
+int PIPIndexFinder(const std::vector<PIPInfo> & PIPTotal, const Vector3 & RefPos)
+{
+  std::vector<double> CP_Pos(PIPTotal.size());
+  std::vector<double> RefPosCMP(PIPTotal.size());
+  for (int i = 0; i < PIPTotal.size(); i++)
+  {
+    double L = PIPTotal[i].L;
+    double theta = PIPTotal[i].theta;
+    double thetadot = PIPTotal[i].thetadot;
+    double g = PIPTotal[i].g;
+
+    double CP_x = L * sin(theta);
+    double CP_xdot = L * thetadot * cos(theta);
+    double CP_L = L * cos(theta);
+
+    if(CP_L<=0)
+    {
+      CP_Pos[i] = 0.0;
+    }
+    else
+    {
+      double CP_g = g;
+      double CP_xbar = CP_x + CP_xdot/sqrt(CP_g/CP_L);
+      CP_Pos[i] = CP_xbar;
+    }
+
+    Vector3 EdgeA2Ref = RefPos - PIPTotal[i].EdgeA;
+    Vector3 EdgeA2B = PIPTotal[i].EdgeB - PIPTotal[i].EdgeA;                      // x
+    double t = EdgeA2Ref.dot(PIPTotal[i].x_unit);
+    Vector3 COMOnEdge = PIPTotal[i].EdgeA + t * PIPTotal[i].x_unit;
+    Vector3 COMOnEdge2COM = RefPos - COMOnEdge;              // y
+    double RefPosCMPVal = COMOnEdge2COM.norm();
+    if(CP_Pos[i]>0)
+    {
+      RefPosCMP[i] = RefPosCMPVal;
+    }
+    else
+    {
+      RefPosCMP[i] = -RefPosCMPVal;
+    }
+  }
+  int PIPIndex = std::distance(RefPosCMP.begin(), std::min_element(RefPosCMP.begin(), RefPosCMP.end()));
+  return PIPIndex;
+}
+
 double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex)
 {
   std::vector<double> CP_Pos(PIPTotal.size());

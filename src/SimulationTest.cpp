@@ -89,6 +89,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   Robot SimRobot = *Sim.world->robots[0];
   ControlReferenceInfo ControlReference;                            // Used for control reference generation.
 
+  double InitTime = Sim.time;
+  double CurTime = Sim.time;
+
   while(Sim.time <= SimTotalTime)
   {
     // Main Simulation Loop
@@ -138,7 +141,12 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       case 1:
       {
         // This inner control loop should be conducted until robot's end effector makes contact with the environment.
+        CurTime = Sim.time;
+        qDes = ControlReference.ConfigReference(InitTime, CurTime);
 
+        std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+        string OptConfigFile = "PushConfig" + std::to_string(CurTime) + ".config";
+        RobotConfigWriter(qDes, ConfigPath, OptConfigFile);
       }
       break;
       default:
@@ -150,10 +158,14 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           break;
           default:
           {
+            InitTime = Sim.time;
             // Push recovery controller reference should be computed here.
             // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
             ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
-            PushControlFlag = 1;
+            if(ControlReference.ControlReferenceFlag == true)
+            {
+              PushControlFlag = 1;
+            }
           }
         }
       }
@@ -161,7 +173,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     }
     // Send the control command!
     NewControllerPtr->SetConstant(Config(qDes));
-    StateTrajAppender(stateTrajFile_Name, Sim.time, SimRobot.q);
+    StateTrajAppender(stateTrajFile_Name, Sim.time, Sim.world->robots[0]->q);
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
     PushTriTime+=TimeStep;

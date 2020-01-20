@@ -85,6 +85,7 @@ std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActConta
 int Edge2EndEffector(Robot & SimRobot, const Vector3 & EdgePoint, const std::vector<LinkInfo> & RobotLinkInfo);
 double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, Vector3 & Edge1, Vector3 & Edge2);
 double FailureMetricEval(Robot & SimRobot, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo);
+int PIPIndexFinder(const std::vector<PIPInfo> & PIPTotal, const Vector3 & RefPos);
 
 /* 8. Simulation Test */
 void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep, const int & FileIndex);

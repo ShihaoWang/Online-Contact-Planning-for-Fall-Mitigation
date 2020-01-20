@@ -555,7 +555,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, co
               4. Based on that time, robot's whole-body configuration is updated with inverted pendulum model.
               5. The whole algorithm terminates when robot's self-collision has been triggered or no feasible IK solution can be found.
             */
-            const int sNumber = 11;                 // 10 sampled points will be extracted from EndPathObj.
+            const int sNumber = 6;                 // 10 sampled points will be extracted from EndPathObj.
             int sIndex = 1;
             double sDiff = 1.0/(1.0 * sNumber - 1.0);
             double sVal = 0.0;
@@ -640,7 +640,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, co
   return ControlReferenceObj;
 }
 
-ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep)
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & _PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep)
 {
   // The whole planning algorithm should be written here.
   // The high-level idea is to plan individual end effector's configuration trajectory.
@@ -660,7 +660,18 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
   {
     std::vector<ContactStatusInfo> RobotContactInfo = AllContactStatusObj.ContactStatusInfoVec[ContactStatusOption];
     int SwingLimbIndex = AllContactStatusObj.SwingLimbIndices[ContactStatusOption];
-    ControlReferenceInfo RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPObj, RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
+
+    Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
+    CentroidalState(SimRobot, COMPos, COMVel);
+    std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);
+    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPos);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+    Vector3 RefPos;
+    SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, RefPos);
+
+    int PIPIndex = PIPIndexFinder(PIPTotal, RefPos);
+
+    ControlReferenceInfo RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPTotal[PIPIndex], RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
     duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
     start_time = std::clock();          // get current time
@@ -678,7 +689,9 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     }
     ContactStatusOption++;
   }
+  // Based on the value of the impulse, let's select the one with the lowest impulse.
 
-  std::cout<<"I am here!"<<endl;
+  int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
+  return RobotTrajVec[RobotTrajIndex];
 
 }
