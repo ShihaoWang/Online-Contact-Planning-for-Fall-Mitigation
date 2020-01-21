@@ -1004,7 +1004,8 @@ struct ReachabilityMap
       {
         Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
-        if((CurrentDist>=0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
+        // if((CurrentDist>=0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
+        if(CurrentDist*CurrentDist<DisTol*DisTol)
         {
           Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
           double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
@@ -1302,6 +1303,7 @@ struct ControlReferenceInfo
     TimeTraj = _TimeTraj;
     SwingLimbTraj = _SwingLimbTraj;
     ControlReferenceFlag = true;
+    Impulse = 0.0;
   }
 
   void TimeBound(const double & Time, int & InitIndex, int & EndIndex)
@@ -1328,8 +1330,7 @@ struct ControlReferenceInfo
     }
     else
     {
-      double MaxTime = *std::max_element(TimeTraj.begin(), TimeTraj.end());
-      if((CurTime - InitTime)>MaxTime)
+      if((CurTime - InitTime)>TimeTraj[TimeTraj.size()-1])
       {
         return ConfigTraj[ConfigTraj.size()-1];
       }
@@ -1352,13 +1353,14 @@ struct ControlReferenceInfo
     }
   }
 
+  int SwingLimbIndex;
   std::vector<Config> ConfigTraj;         // This saves robot's reference trajectory.
   std::vector<double> TimeTraj;           // This saves the optimal time trajectory.
   std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector
   bool ControlReferenceFlag;
+  double Impulse;
   std::vector<ContactStatusInfo> InitContactInfo;
   std::vector<ContactStatusInfo> GoalContactInfo;
-  double Impulse;
 };
 
 struct InvertedPendulumInfo

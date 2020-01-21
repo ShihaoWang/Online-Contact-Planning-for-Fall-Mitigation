@@ -10,6 +10,7 @@ static int SwingLimbIndex;
 static std::vector<int> SwingLimbChain;
 static Vector3 PosGoal;
 static std::vector<double> RefConfig;
+static double PosGoalDist;
 
 struct TransientOpt: public NonlinearOptimizerInfo
 {
@@ -74,7 +75,7 @@ struct TransientOpt: public NonlinearOptimizerInfo
     for (int i = 0; i < NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
     {
       SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts[i], NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
-      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos);
+      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos) - PosGoalDist;
       ConstraintIndex = ConstraintIndex + 1;
     }
     return F;
@@ -88,6 +89,8 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   SwingLimbIndex = _SwingLimbIndex;
   SwingLimbChain = RMObject.EndEffectorLink2Pivotal[_SwingLimbIndex];
   PosGoal = _PosGoal;
+  PosGoalDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(PosGoal);
+  PosGoalDist = max(0.0, PosGoalDist);
   RefConfig = SimRobot.q;
   OptFlag = true;
 

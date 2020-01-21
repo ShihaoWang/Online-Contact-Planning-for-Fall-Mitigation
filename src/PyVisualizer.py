@@ -459,13 +459,13 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     # 1. All Reachable Points
     # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
     # 2. Active Reachable Points
-    ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # 3. Contact Free Points
-    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # 4. Supportive Points
-    SupportContacts_data = ContactDataLoader("SupportContact")
-    # 5. Optimal Point
-    OptimalContact_data = ContactDataLoader("OptimalContact")
+    # ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
+    # # 3. Contact Free Points
+    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # # 4. Supportive Points
+    # SupportContacts_data = ContactDataLoader("SupportContact")
+    # # 5. Optimal Point
+    # OptimalContact_data = ContactDataLoader("OptimalContact")
     # 6. Circle Point
     # CirclePointContact_data = ContactDataLoader("CirclePointContact")
     # 7. Transition Points
@@ -486,7 +486,7 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             config_i = state_traj[i + RedundantTrajLength]
             sim_robot.setConfig(config_i[0:DOF])
             COM_Pos = sim_robot.getCom()
-            Robot_COM_Plot(sim_robot, vis)
+            # Robot_COM_Plot(sim_robot, vis)
             EdgeAList_i = EdgeAList[i]
             EdgeBList_i = EdgeBList[i]
             EdgeCOMList_i = EdgeCOMList[i]
@@ -519,7 +519,7 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
             # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
             # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
             # Reachable_Contact_Plot(vis, SupportContacts_data)
-            Reachable_Contact_Plot(vis, OptimalContact_data)
+            # Reachable_Contact_Plot(vis, OptimalContact_data)
             # Reachable_Contact_Plot(vis, CirclePointContact_data)
             # Reachable_Contact_Plot(vis, TransitionPoints_data)
 
@@ -573,4 +573,4 @@ def main(*arg):
 
 if __name__ == "__main__":
     # main("InitConfig")
-    main("1.path")
+    main("3.path")

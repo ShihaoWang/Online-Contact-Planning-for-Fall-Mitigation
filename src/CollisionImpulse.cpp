@@ -130,8 +130,6 @@ void CollisionImpulseFunc(Robot& SimRobot, const std::vector<ContactStatusInfo> 
     cout << "Exception during optimization" << endl;
   }
 
-
-
   ControlReferenceObj.Impulse = Impulse;
   return;
 }

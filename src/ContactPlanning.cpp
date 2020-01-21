@@ -664,14 +664,12 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
     CentroidalState(SimRobot, COMPos, COMVel);
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);
-    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPos);
-    std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
-    Vector3 RefPos;
-    SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, RefPos);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
 
-    int PIPIndex = PIPIndexFinder(PIPTotal, RefPos);
-
+    int PIPIndex;
+    double RefFailureMetric = CapturePointGenerator(PIPTotal, PIPIndex);
     ControlReferenceInfo RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPTotal[PIPIndex], RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
+    RobotTraj.SwingLimbIndex = SwingLimbIndex;
     duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
     start_time = std::clock();          // get current time
@@ -692,6 +690,28 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
   // Based on the value of the impulse, let's select the one with the lowest impulse.
 
   int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
+  std::printf("Robot Trajectory Index: %d\n", RobotTrajIndex);
   return RobotTrajVec[RobotTrajIndex];
 
+}
+
+double PresumeContactMinDis(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo)
+{
+  // This function is used to calcualte the minimum distance of the presumably active contact.
+
+  double Dis = 10000.0;
+  for (int i = 0; i < RobotContactInfo.size(); i++)
+  {
+    for (int j = 0; j < NonlinearOptimizerInfo::RobotLinkInfo[i].LocalContacts.size(); j++)
+    {
+      Vector3 ContactPos;
+      SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[i].LocalContacts[j], RobotContactInfo[i].LinkIndex, ContactPos);
+      double RefPosDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(ContactPos);
+      if(Dis>RefPosDist)
+      {
+        Dis = RefPosDist;
+      }
+    }
+  }
+  return Dis;
 }

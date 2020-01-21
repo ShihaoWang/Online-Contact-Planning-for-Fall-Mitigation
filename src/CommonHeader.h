@@ -67,6 +67,7 @@ void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string
 std::vector<string>  EdgeFileNamesGene(const int & FileIndex);
 void StateTrajAppender(const char *stateTrajFile_Name, const double & Time_t, const std::vector<double> & Configuration);
 std::vector<Vector3> ContactPositionFinder(const Robot& SimRobot, const std::vector<LinkInfo>& RobotLinkInfo, const std::vector<ContactStatusInfo>& RobotContactInfo);
+double PresumeContactMinDis(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);

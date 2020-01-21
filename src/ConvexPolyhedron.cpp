@@ -869,8 +869,7 @@ double FailureMetricEval(Robot & SimRobot, std::vector<LinkInfo> & RobotLinkInfo
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
   std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);
-  std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPos);
-  std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+  std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
   int CPPIPIndex;
   double CPObjective = CapturePointGenerator(PIPTotal, CPPIPIndex);
   return CPObjective;

@@ -130,8 +130,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
     CentroidalState(SimRobot, COMPos, COMVel);
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);
-    std::vector<Vector3> ProjActContactPos = ProjActContactPosGene(ActContactPos);
-    std::vector<PIPInfo> PIPTotal = PIPGenerator(ProjActContactPos, COMPos, COMVel);
+    std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     ContactPolytopeWriter(PIPTotal, EdgeFileNames);
@@ -146,6 +145,28 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
         // string OptConfigFile = "PushConfig" + std::to_string(CurTime) + ".config";
         // RobotConfigWriter(qDes, ConfigPath, OptConfigFile);
+
+        // Here we need to turn off Push Control Flag at some point.
+        // double EndEffectorDist = 10000.0;
+        // for(int i = 0; i< RobotContactInfo[ControlReference.SwingLimbIndex].LocalContactStatus.size(); i++)
+        // {
+        //   Vector3 RefPos;
+        //   SimRobot.GetWorldPosition(RobotLinkInfo[ControlReference.SwingLimbIndex].LocalContacts[i], RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, RefPos);
+        //   double RefPosDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(RefPos);
+        //   if(EndEffectorDist>RefPosDist)
+        //   {
+        //     EndEffectorDist = RefPosDist;
+        //   }
+        // }
+
+        double EndEffectorDist = PresumeContactMinDis(SimRobot, ControlReference.GoalContactInfo);
+        if(((CurTime - InitTime)>ControlReference.TimeTraj[ControlReference.TimeTraj.size()-1])&&(EndEffectorDist<0.005))
+        {
+          // Turn off PushControlFlag
+          RobotContactInfo = ControlReference.GoalContactInfo;
+          PushControlFlag = 0;
+          InitTime = Sim.time;
+        }
       }
       break;
       default:

@@ -52,8 +52,8 @@ static void StepIntegrator(InvertedPendulumInfo & InvertedPendulumObj, const PIP
 
   // Integration with the assumption that robot's acceleration remains to be constant during TimeStep.
   double Thetaddot = g/L * sin(InvertedPendulumObj.Theta);
-  // double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep + 0.5 * Thetaddot * TimeStep * TimeStep;
-  double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep;
+  double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep + 0.5 * Thetaddot * TimeStep * TimeStep;
+  // double ThetaOffset = InvertedPendulumObj.Thetadot * TimeStep;
   double ThetadotOffset = Thetaddot * TimeStep;
 
   double ThetaNew = InvertedPendulumObj.Theta + ThetaOffset;
