@@ -21,7 +21,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
   double  SimTotalTime    = 5.0;                                   // Simulation lasts for 10s.
 
-  int FileIndex = FileIndexFinder(true);
+  int FileIndex = FileIndexFinder(false);
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(FileIndex);
   // Three types of trajectories should be saved for visualization purpose.
   string FailureStateTrajStr = "FailureStateTraj" + std::to_string(FileIndex) + ".path";
@@ -66,8 +66,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double InitTime = Sim.time;
   double CurTime = Sim.time;
 
-  string FailureSimStateString;
-  while((Sim.time <= SimTotalTime)&&(COMDist>=0.35))
+  FailureStateInfo FailureStateObj;
+
+  while(Sim.time <= SimTotalTime)
   {
     /*
       This main loop will be terminated if the simulation time has passed or robot falls to the environment.
@@ -114,6 +115,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     ContactPolytopeWriter(PIPTotal, EdgeFileNames);
 
+    std::cout<<"RefFailureMetric: "<<RefFailureMetric<<endl;
+
     switch (PushControlFlag)
     {
       case 1:
@@ -121,7 +124,10 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
         double EndEffectorDist = PresumeContactMinDis(SimRobot, ControlReference.GoalContactInfo);
-        if(((CurTime - InitTime)>ControlReference.TimeTraj[ControlReference.TimeTraj.size()-1])&&(EndEffectorDist<0.005))
+        std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
+        std::cout<<"PushControlFlag: "<<PushControlFlag<<endl;
+
+        if(((CurTime - InitTime)>ControlReference.TimeTraj[ControlReference.TimeTraj.size()-1])&&(EndEffectorDist<=0.005))
         {
           // Turn off PushControlFlag
           RobotContactInfo = ControlReference.GoalContactInfo;
@@ -140,13 +146,17 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           default:
           {
             InitTime = Sim.time;
+            if(FailureStateObj.FailureInitFlag == false)
+            {
+              FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
+            }
+
             // Push recovery controller reference should be computed here.
             // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
             ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
             if(ControlReference.ControlReferenceFlag == true)
             {
               PushControlFlag = 1;
-              Sim.WriteState(FailureSimStateString);
             }
           }
         }
@@ -178,8 +188,18 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   PlanStateTrajFile.close();
 
   // Then we gonna have to simulate the robot's falling trajectory
-  Sim.ReadState(FailureSimStateString);
-  NewControllerPtr->SetConstant(Sim.world->robots[0]->q);
+
+  //  Given the optimized result to be the initial state
+
+  Sim.time = FailureStateObj.FailureTime;
+
+  Sim.world->robots[0]->UpdateConfig(FailureStateObj.FailureConfig);
+  Sim.world->robots[0]->dq = FailureStateObj.FailureVelocity;
+
+  Sim.controlSimulators[0].oderobot->SetConfig(FailureStateObj.FailureConfig);
+  Sim.controlSimulators[0].oderobot->SetVelocities(FailureStateObj.FailureVelocity);
+
+  NewControllerPtr->SetConstant(FailureStateObj.FailureConfig);
 
   while(Sim.time <= CtrlStateTraj.EndTime())
   {

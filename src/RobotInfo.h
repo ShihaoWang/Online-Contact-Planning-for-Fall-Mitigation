@@ -1380,4 +1380,23 @@ struct InvertedPendulumInfo
   Vector3 COMVel;
 };
 
+struct FailureStateInfo
+{
+  FailureStateInfo()
+  {
+    FailureTime = 0.0;
+    FailureInitFlag = false;
+  };
+  void FailureStateUpdate(const double & _FailureTime, const Config & _FailureConfig, const Config & _FailureVelocity)
+  {
+    FailureTime = _FailureTime;
+    FailureConfig = _FailureConfig;
+    FailureVelocity = _FailureVelocity;
+    FailureInitFlag = true;
+  };
+  double FailureTime;
+  Config FailureConfig;
+  Config FailureVelocity;
+  bool FailureInitFlag;
+};
 #endif

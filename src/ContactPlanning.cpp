@@ -487,10 +487,10 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
 
-  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
-  // Vector3Writer(SupportContact, "SupportContact");
-  // Vector3Writer(OptimalContact, "OptimalContact");
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  Vector3Writer(SupportContact, "SupportContact");
+  Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }
@@ -513,9 +513,11 @@ static bool operator<(std::pair<Vector3, double> & a, std::pair<Vector3, double>
   return true;
 }
 
-static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric)
+static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric)
 {
   // Here each planning I can at most give 100ms!
+
+  Robot SimRobot = _SimRobot;
 
   ControlReferenceInfo ControlReferenceObj;
 
@@ -540,26 +542,58 @@ static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, co
     break;
     default:
     {
+      // Select the contact point such that COM projection has the highest distance to edge.
+      std::vector<Vector3> SPVertices;
+      for (int i = 0; i < RobotLinkInfo.size(); i++)
+      {
+        int LinkiPNo = RobotLinkInfo[i].LocalContacts.size();
+        for (int j = 0; j < LinkiPNo; j++)
+        {
+          switch (FixedRobotContactInfo[i].LocalContactStatus[j])
+          {
+            case 0:
+            break;
+            case 1:
+            {
+              Vector3 LinkiPjPos;
+              SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+              LinkiPjPos.z = 0.0;
+              SPVertices.push_back(LinkiPjPos);
+            }
+            break;
+            default:
+            break;
+          }
+        }
+      }
+      Vector3 COM_Pos = SimRobot.GetCOM();
+      int FacetFlag = 0;
+
       std::priority_queue<std::pair<Vector3, double>, std::vector<std::pair<Vector3, double>>, less<std::pair<Vector3, double>> > OptimalContactQueue;
 
       for (int i = 0; i < OptimalContact.size(); i++)
       {
-        Vector3 ContactCompare = OptimalContact[i] - ContactInit;
-        double ContactDis = ContactCompare.x * ContactCompare.x + ContactCompare.y * ContactCompare.y + ContactCompare.z * ContactCompare.z;
-        std::pair<Vector3, double> ContactPointPair(OptimalContact[i], ContactDis);
+        // Vector3 ContactCompare = OptimalContact[i] - ContactInit;
+        // double ContactDis = ContactCompare.x * ContactCompare.x + ContactCompare.y * ContactCompare.y + ContactCompare.z * ContactCompare.z;
+        std::vector<Vector3> NewSPVertices = SPVertices;
+        NewSPVertices.push_back(OptimalContact[i]);
+        FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
+        COM_Pos.z = 0.0;
+        double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);
+        std::pair<Vector3, double> ContactPointPair(OptimalContact[i], COMDist);
         OptimalContactQueue.push(ContactPointPair);
       }
 
-      std::pair<Vector3, double> ContactPair = OptimalContactQueue.top();
+      std::pair<Vector3, double> ContactPair;
 
       // Now too early to assume that FailureFlag is true.
-      std::random_shuffle(OptimalContact.begin(), OptimalContact.end());
       bool FeasiFlag;
       std::vector<SplineLib::cSpline3> SplineObj;
-      int OptimalContactIndex = 0;
-      while(OptimalContactIndex<OptimalContact.size())
+      while(OptimalContactQueue.size()>0)
       {
-        Vector3 ContactGoal = OptimalContact[OptimalContactIndex];
+        ContactPair = OptimalContactQueue.top();
+        OptimalContactQueue.pop();
+        Vector3 ContactGoal = ContactPair.first;
         SplineObj = TransientTrajGene(SimRobot, SwingLimbIndex, RobotLinkInfo, ContactInit, ContactGoal, RMObject, FeasiFlag);
         switch (FeasiFlag)
         {
@@ -638,6 +672,13 @@ static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, co
                         std::vector<double> TimeTraj;
                         std::vector<Vector3> SwingLimbTraj;
                 */
+                // Here I would like to introduce another configuration to make sure that the contact can be firmly estabilished at the end.
+                // std::vector<double> FinalRobotConfig = ContactFinalConfigOptimization(SimRobot, SwingLimbIndex, FixedRobotContactInfo, ConfigTraj[ConfigTraj.size()-1]);
+
+                // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+                // string _OptConfigFile = "OptConfig" + std::to_string(sNumber) + ".config";
+                // RobotConfigWriter(FinalRobotConfig, ConfigPath, _OptConfigFile);
+
                 ControlReferenceObj.TrajectoryUpdate(ConfigTraj, TimeTraj, SwingLimbTraj);
                 // Then we need to estimate robot's impulse based on centroidal velocity.
                 CollisionImpulseFunc(SimRobot, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
@@ -652,7 +693,6 @@ static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, co
           default:
           break;
         }
-        OptimalContactIndex++;
       }
     }
     break;
@@ -721,7 +761,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     default:
     {
       int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
-      std::printf("Planning successfully finds a feasible solution! \nRobot Trajectory Index: %d\n", RobotTrajIndex);
+      std::printf("Planning successfully finds a feasible solution! \nRobot Limb Index: %d\n", RobotTrajVec[RobotTrajIndex].SwingLimbIndex);
       RobotTraj = RobotTrajVec[RobotTrajIndex];
     }
     break;
@@ -731,21 +771,35 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
 
 double PresumeContactMinDis(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo)
 {
-  // This function is used to calcualte the minimum distance of the presumably active contact.
+  // This function calculates the maximum distance of minimum end effectors.
 
-  double Dis = 10000.0;
+  double Dis = 0.0;
+  double ContactDist;
+  std::vector<double> ContactDisVec;
   for (int i = 0; i < RobotContactInfo.size(); i++)
   {
-    for (int j = 0; j < NonlinearOptimizerInfo::RobotLinkInfo[i].LocalContacts.size(); j++)
+    switch (RobotContactInfo[i].LocalContactStatus[0])
     {
-      Vector3 ContactPos;
-      SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[i].LocalContacts[j], RobotContactInfo[i].LinkIndex, ContactPos);
-      double RefPosDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(ContactPos);
-      if(Dis>RefPosDist)
+      case 1:
       {
-        Dis = RefPosDist;
+        ContactDist = 100000.0;
+        for(int j = 0; j < NonlinearOptimizerInfo::RobotLinkInfo[i].LocalContacts.size(); j++)
+        {
+          Vector3 ContactPos;
+          SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[i].LocalContacts[j], RobotContactInfo[i].LinkIndex, ContactPos);
+          double RefPosDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(ContactPos);
+          if(ContactDist>RefPosDist)
+          {
+            ContactDist = RefPosDist;
+          }
+        }
       }
+      break;
+      default:
+      ContactDist = 0.0;
+      break;
     }
+    ContactDisVec.push_back(ContactDist);
   }
-  return Dis;
+  return *max_element(ContactDisVec.begin(), ContactDisVec.end());
 }

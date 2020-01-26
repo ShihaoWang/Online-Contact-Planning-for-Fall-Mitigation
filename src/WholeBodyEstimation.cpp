@@ -148,7 +148,5 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
   OptConfig[4] = UpdateConfig[4];
   OptConfig[5] = UpdateConfig[5];
 
-  // string OptConfigFile = "UpdateOptConfig" + std::to_string(StepIndex) + ".config";
-  // RobotConfigWriter(OptConfig, ConfigPath, OptConfigFile);
   return Config(OptConfig);
 }
