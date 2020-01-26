@@ -94,23 +94,8 @@ int main()
   std::vector<Vector3> FullPIPInters = FullPIPInterCal(FacetInfoObj, InitCOM);
   IntersectionsWriter(FullPIPInters, UserFilePath, "InitConfigIntersections.txt");
 
-  double t_imp = 2.0;
-
-  // Here first we would like to run the simulation for a certain amount of time to ensure the contact is well established.
-  double  TimeStep          = 0.025;
-  int FileIndex = FileIndexFinder();
-  string stateTrajFile = "stateTraj" + std::to_string(FileIndex) + ".path";
-  const char *stateTrajFile_Name = stateTrajFile.c_str();
-
-  while(Sim.time <= t_imp)
-  {
-    Sim.Advance(TimeStep);
-    Sim.UpdateModel();
-    StateTrajAppender(stateTrajFile_Name, Sim.time, Sim.world->robots[0]->q);
-  }
-
   /* 8. Internal Experimentation */
-  SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TimeStep, FileIndex);
+  SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject);
 
   return true;
 }

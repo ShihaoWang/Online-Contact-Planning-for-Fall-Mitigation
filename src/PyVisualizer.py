@@ -329,7 +329,7 @@ def Robot_Config_Plot(world, DOF, state_ref, contact_link_dictionary, convex_edg
         vis.lock()
         sim_robot.setConfig(state_ref[0:DOF])
         Convex_Edges_Plot(sim_robot, convex_edges_list, vis)
-        Robot_COM_Plot(sim_robot, vis)
+        # Robot_COM_Plot(sim_robot, vis)
         vis.unlock()
         time.sleep(delta_t)
 
@@ -572,5 +572,5 @@ def main(*arg):
         Robot_Config_Plot(world, DOF, State_Init, Contact_Link_Dictionary, Convex_Edges_List)
 
 if __name__ == "__main__":
-    # main("InitConfig")
-    main("3.path")
+    main("InitConfig")
+    # main("3.path")

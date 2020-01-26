@@ -372,7 +372,7 @@ void ContactNumberFinder(const std::vector<ContactStatusInfo> & RobotContactInfo
   }
 }
 
-int FileIndexFinder()
+int FileIndexFinder(bool UpdateFlag)
 {
   // This function is used to read the current File Index to make sure that the file is ranged according to the number.
   string FileIndexName = "FileIndex.txt";         // This file should be located in the "build" folder.
@@ -390,12 +390,20 @@ int FileIndexFinder()
   else cout << "Unable to open FileIndex file";
 
   // The second step is to update the next element value to be +1
-  const char *FileIndexWriter_Name = FileIndexName.c_str();
-  std::ofstream FileIndexWriter;
-  FileIndexWriter.open(FileIndexWriter_Name);
-  FileIndexWriter<<std::to_string(FileIndex + 1)<<"\n";
-  FileIndexWriter.close();
-
+  switch (UpdateFlag)
+  {
+    case true:
+    {
+      const char *FileIndexWriter_Name = FileIndexName.c_str();
+      std::ofstream FileIndexWriter;
+      FileIndexWriter.open(FileIndexWriter_Name);
+      FileIndexWriter<<std::to_string(FileIndex + 1)<<"\n";
+      FileIndexWriter.close();
+    }
+    break;
+    default:
+    break;
+  }
   return FileIndex;
 }
 
@@ -558,4 +566,57 @@ std::vector<string>  EdgeFileNamesGene(const int & FileIndex)
   EdgeFileNames.push_back(fEdgezTrajFile);
 
   return EdgeFileNames;
+}
+
+Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double & ImpFz)
+{
+  // Default: ImpFx = 0.0, ImpFy = 10000.0, ImpFz = 0.0;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  std::uniform_real_distribution<> ImpXdis(ImpFx/2.0, ImpFx);
+  std::uniform_real_distribution<> ImpYdis(ImpFy/2.0, ImpFy);
+  std::uniform_real_distribution<> ImpZdis(ImpFz/2.0, ImpFz);
+
+  double Sign_x_val = ((double) rand() / (RAND_MAX));
+  double Sign_y_val = ((double) rand() / (RAND_MAX));
+  double Sign_z_val = ((double) rand() / (RAND_MAX));
+
+  double Sign_x, Sign_y, Sign_z;
+  if(Sign_x_val<=0.5)
+  {
+    Sign_x = -1.0;
+  }
+  else
+  {
+    Sign_x = 1.0;
+  }
+  if(Sign_y_val<=0.5)
+  {
+    Sign_y = -1.0;
+  }
+  else
+  {
+    Sign_y = 1.0;
+  }
+  if(Sign_z_val<=0.5)
+  {
+    Sign_z = -1.0;
+  }
+  else
+  {
+    Sign_z = 1.0;
+  }
+
+  double Fx_t, Fy_t, Fz_t;
+
+  Fx_t = Sign_x_val * ImpXdis(gen);
+  Fy_t = Sign_y_val * ImpYdis(gen);
+  Fz_t = Sign_z_val * ImpZdis(gen);
+
+  Fx_t = Sign_x_val * ImpFx;
+  Fy_t = ImpFy;
+  Fz_t = Sign_z_val * ImpFz;
+
+  return Vector3(Fx_t, Fy_t, Fz_t);
 }

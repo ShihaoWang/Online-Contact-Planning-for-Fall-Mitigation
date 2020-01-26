@@ -6,6 +6,7 @@
 #include <ctime>
 #include <algorithm>
 #include <random>
+#include <queue>
 
 static double Tol = 1e-5;
 
@@ -505,6 +506,13 @@ static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLi
   return *std::max_element(ExecutationTime.begin(), ExecutationTime.end());
 }
 
+static bool operator<(std::pair<Vector3, double> & a, std::pair<Vector3, double> & b)
+{
+  if( a.second> b.second)
+  return false;
+  return true;
+}
+
 static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric)
 {
   // Here each planning I can at most give 100ms!
@@ -532,6 +540,18 @@ static ControlReferenceInfo ControlReferenceGenerationInner(Robot & SimRobot, co
     break;
     default:
     {
+      std::priority_queue<std::pair<Vector3, double>, std::vector<std::pair<Vector3, double>>, less<std::pair<Vector3, double>> > OptimalContactQueue;
+
+      for (int i = 0; i < OptimalContact.size(); i++)
+      {
+        Vector3 ContactCompare = OptimalContact[i] - ContactInit;
+        double ContactDis = ContactCompare.x * ContactCompare.x + ContactCompare.y * ContactCompare.y + ContactCompare.z * ContactCompare.z;
+        std::pair<Vector3, double> ContactPointPair(OptimalContact[i], ContactDis);
+        OptimalContactQueue.push(ContactPointPair);
+      }
+
+      std::pair<Vector3, double> ContactPair = OptimalContactQueue.top();
+
       // Now too early to assume that FailureFlag is true.
       std::random_shuffle(OptimalContact.begin(), OptimalContact.end());
       bool FeasiFlag;
@@ -655,6 +675,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
   start_time = std::clock();          // get current time
   int ContactStatusOption = 0;
   std::vector<ControlReferenceInfo> RobotTrajVec;
+  ControlReferenceInfo RobotTraj;
   std::vector<double> ImpulseVec;
   while((duration_time < allowd_time) && (ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size()))
   {
@@ -668,7 +689,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
 
     int PIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, PIPIndex);
-    ControlReferenceInfo RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPTotal[PIPIndex], RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
+    RobotTraj = ControlReferenceGenerationInner(SimRobot, PIPTotal[PIPIndex], RMObject, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
     RobotTraj.SwingLimbIndex = SwingLimbIndex;
     duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
@@ -688,11 +709,24 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     ContactStatusOption++;
   }
   // Based on the value of the impulse, let's select the one with the lowest impulse.
-
-  int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
-  std::printf("Robot Trajectory Index: %d\n", RobotTrajIndex);
-  return RobotTrajVec[RobotTrajIndex];
-
+  switch (RobotTrajVec.size())
+  {
+    case 0:
+    {
+      std::printf("Planning fails to find a feasible solution! \n");
+      // Planning fails to find a feasible solution!
+      return RobotTraj;
+    }
+    break;
+    default:
+    {
+      int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
+      std::printf("Planning successfully finds a feasible solution! \nRobot Trajectory Index: %d\n", RobotTrajIndex);
+      RobotTraj = RobotTrajVec[RobotTrajIndex];
+    }
+    break;
+  }
+  return RobotTraj;
 }
 
 double PresumeContactMinDis(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo)
