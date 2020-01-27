@@ -106,27 +106,23 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       }
 
     }
-
     /* Robot's COMPos and COMVel */
     CentroidalState(SimRobot, COMPos, COMVel);
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);
     std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
+    // std::cout<<"RefFailureMetric: "<<RefFailureMetric<<endl;
+    double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
+    // std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
+
     ContactPolytopeWriter(PIPTotal, EdgeFileNames);
-
-    std::cout<<"RefFailureMetric: "<<RefFailureMetric<<endl;
-
     switch (PushControlFlag)
     {
       case 1:
       {
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
-        double EndEffectorDist = PresumeContactMinDis(SimRobot, ControlReference.GoalContactInfo);
-        std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
-        std::cout<<"PushControlFlag: "<<PushControlFlag<<endl;
-
         if(((CurTime - InitTime)>ControlReference.TimeTraj[ControlReference.TimeTraj.size()-1])&&(EndEffectorDist<=0.005))
         {
           // Turn off PushControlFlag
@@ -141,7 +137,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         switch (CPPIPIndex)
         {
           case -1:
-          std::printf("Simulation Time: %f\n", Sim.time);
+          std::printf("Simulation Time: %f and Failure Metric: %f\n", Sim.time, RefFailureMetric);
           break;
           default:
           {
@@ -150,7 +146,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
             {
               FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
             }
-
             // Push recovery controller reference should be computed here.
             // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
             ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
