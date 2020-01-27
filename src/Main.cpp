@@ -37,7 +37,10 @@ int main()
   std::vector<int> TorsoLink = TorsoLinkReader(TorsoLinkFilePath);
 
   /* 2. Load the Contact Status file */
-  const std::string ContactStatusPath = UserFilePath + "InitContact.txt";
+  const std::string ExpName = "flat/";
+  const std::string ContactType = "1Contact/";
+  const std::string SpecificPath = FolderPath + "result/" + ExpName + ContactType;
+  const std::string ContactStatusPath = SpecificPath + "ContactStatus.txt";
   std::vector<ContactStatusInfo> RobotContactInfo = ContactStatusInfoLoader(ContactStatusPath);
 
   /* 3. Environment Geometry and Reachability Map*/
@@ -47,7 +50,7 @@ int main()
   ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
 
   /* 4. Robot State Loader */
-  RobotConfigLoader(SimRobot, UserFilePath, "SampleTest.config");
+  RobotConfigLoader(SimRobot, SpecificPath, "SampleTest.config");
 
   const int DOF = SimRobot.q.size();
   std::vector<double> InitRobotConfig(DOF), InitRobotVelocity(DOF, 0);
@@ -60,8 +63,10 @@ int main()
   SimRobot.dq = InitRobotVelocity;
 
   /* 5. Initial Optimization Optimization (only for this project) */
+  // RobotConfigLoader(SimRobot, SpecificPath, "InitConfig.config");
+  // InitRobotConfig = SimRobot.q;
   InitRobotConfig = InitialConfigurationOptimization(SimRobot, RobotContactInfo, RobotConfigRef);
-  RobotConfigWriter(InitRobotConfig, UserFilePath, "InitConfig.config");
+  RobotConfigWriter(InitRobotConfig, SpecificPath, "InitConfig.config");
   SimRobot.UpdateConfig(Config(InitRobotConfig));
   SimRobot.UpdateGeometry();
   SimRobot.dq = InitRobotVelocity;
@@ -86,16 +91,32 @@ int main()
 
   std::vector<Vector3> CPVertex, CPEdgeA, CPEdgeB;
   std::vector<FacetInfo> FacetInfoObj = ContactHullGeneration(ActContactPositions, CPVertex, CPEdgeA, CPEdgeB);      // This function output is only used for visualization purpose.
-  ConvexEdgesWriter(FacetInfoObj, UserFilePath, "InitConfigCHEdges.txt");
+  ConvexEdgesWriter(FacetInfoObj, SpecificPath, "InitConfigCHEdges.txt");
 
   Vector3 InitCOM = SimRobot.GetCOM();
   std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, InitCOM, InitCOM);   // SP denotes SP projection approach.
-  PIPsWriter(PIPTotal, UserFilePath, "InitConfigPIPs.txt");
+  PIPsWriter(PIPTotal, SpecificPath, "InitConfigPIPs.txt");
   std::vector<Vector3> FullPIPInters = FullPIPInterCal(FacetInfoObj, InitCOM);
-  IntersectionsWriter(FullPIPInters, UserFilePath, "InitConfigIntersections.txt");
+  IntersectionsWriter(FullPIPInters, SpecificPath, "InitConfigIntersections.txt");
 
-  /* 8. Internal Experimentation */
-  SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject);
+  /*  7. Load Impulse Force Magnitude*/
+  Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
-  return true;
+  /* 8. Internal Experimentation Loop*/
+  int FileIndex = 0;
+  int TotalNumber = 25;
+  while(FileIndex<=TotalNumber)
+  {
+    FileIndex = FileIndexFinder(false);
+    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
+    switch (SimFlag)
+    {
+      case false:
+      break;
+      default:
+      FileIndex = FileIndexFinder(true);
+      break;
+    }
+  }
+  return 1;
 }

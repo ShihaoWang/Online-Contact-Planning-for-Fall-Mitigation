@@ -542,20 +542,20 @@ void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string
   return;
 }
 
-std::vector<string>  EdgeFileNamesGene(const int & FileIndex)
+std::vector<string>  EdgeFileNamesGene(const string & SpecificPath, const int & FileIndex)
 {
   std::vector<string> EdgeFileNames;
-  string fEdgeAFile = "EdgeATraj" + std::to_string(FileIndex) + ".txt";
+  string fEdgeAFile = SpecificPath + std::to_string(FileIndex) + "/EdgeATraj.txt";
   // const char *fEdgeAFile_Name = fEdgeAFile.c_str();
-  string fEdgeBFile = "EdgeBTraj" + std::to_string(FileIndex) + ".txt";
+  string fEdgeBFile = SpecificPath + std::to_string(FileIndex) + "/EdgeBTraj.txt";
   // const char *fEdgeBFile_Name = fEdgeBFile.c_str();
-  string fEdgeCOMFile = "EdgeCOMTraj" + std::to_string(FileIndex) + ".txt";
+  string fEdgeCOMFile = SpecificPath + std::to_string(FileIndex) + "/EdgeCOMTraj.txt";
   // const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
-  string fEdgexTrajFile = "EdgexTraj" + std::to_string(FileIndex) + ".txt";
+  string fEdgexTrajFile = SpecificPath + std::to_string(FileIndex) + "/EdgexTraj.txt";
   // const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
-  string fEdgeyTrajFile = "EdgeyTraj" + std::to_string(FileIndex) + ".txt";
+  string fEdgeyTrajFile = SpecificPath + std::to_string(FileIndex) + "/EdgeyTraj.txt";
   // const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
-  string fEdgezTrajFile = "EdgezTraj" + std::to_string(FileIndex) + ".txt";
+  string fEdgezTrajFile = SpecificPath + std::to_string(FileIndex) + "/EdgezTraj.txt";
   // const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
 
   EdgeFileNames.push_back(fEdgeAFile);
@@ -574,9 +574,9 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  std::uniform_real_distribution<> ImpXdis(ImpFx/2.0, ImpFx);
-  std::uniform_real_distribution<> ImpYdis(ImpFy/2.0, ImpFy);
-  std::uniform_real_distribution<> ImpZdis(ImpFz/2.0, ImpFz);
+  std::uniform_real_distribution<> ImpXdis(0.75 * ImpFx, 1.25 * ImpFx);
+  std::uniform_real_distribution<> ImpYdis(0.75 * ImpFy, 1.25 * ImpFy);
+  std::uniform_real_distribution<> ImpZdis(0.75 * ImpFz, 1.25 * ImpFz);
 
   double Sign_x_val = ((double) rand() / (RAND_MAX));
   double Sign_y_val = ((double) rand() / (RAND_MAX));
@@ -614,9 +614,34 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
   Fy_t = Sign_y_val * ImpYdis(gen);
   Fz_t = Sign_z_val * ImpZdis(gen);
 
-  Fx_t = Sign_x_val * ImpFx;
-  Fy_t = ImpFy;
-  Fz_t = Sign_z_val * ImpFz;
-
   return Vector3(Fx_t, Fy_t, Fz_t);
+}
+
+Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileName)
+{
+  Vector3 IFMax(0.0, 0.0, 0.0);
+  ifstream IFMaxFile (SpecificPath + IFFileName);
+  std::vector<double> IFVec;
+  if (IFMaxFile.is_open())
+  {
+    string str_line;
+    while (getline (IFMaxFile, str_line) )
+    {
+      double ForceMag = 1.0 * stod(str_line);
+      IFVec.push_back(ForceMag);
+    }
+    IFMaxFile.close();
+  }
+  else std::cerr << "\nUnable to open file " <<SpecificPath+IFFileName<<" does not exist!\n";
+
+  if (IFVec.size() == 0)
+  {
+    std::cerr<<"\nImpulse Force Info failed to be loaded!"<<"\n";
+  }
+  IFMax.x = IFVec[0];
+  IFMax.y = IFVec[1];
+  IFMax.z = IFVec[2];
+
+  return IFMax;
+
 }

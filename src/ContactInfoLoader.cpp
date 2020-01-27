@@ -97,11 +97,11 @@ std::vector<ContactStatusInfo> ContactStatusInfoLoader(const string & ContactSta
     }
     contactstatusinfofile.close();
   }
-  else cout << "Unable to open file";
+  else cout << "\nUnable to open file";
 
   if (ContactStatusInfoVec.size() == 0)
   {
-    std::cerr<<"Robot Contact Status Info failed to be loaded!"<<"\n";
+    std::cerr<<"\nRobot Contact Status Info failed to be loaded!"<<"\n";
   }
   return ContactStatusInfoVec;
 }

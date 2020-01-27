@@ -6,29 +6,28 @@
 #include "Control/JointTrackingController.h"
 #include "NonlinearOptimizerInfo.h"
 
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const string & SpecificPath, const int & FileIndex, const Vector3 & ImpulseForceMax)
 {
   /* Simulation parameters */
   double  TimeStep          = 0.025;
   int DOF = Sim.world->robots[0]->q.size();
   double  COMFailureDist  = 0.35;
   double  InitDuration    = 2.0;
-  double  PushPeriod      = 5.0;                                   // Every 10s a push will be given to the robot body.
+  double  PushPeriod      = 5.0;                                    // Every 10s a push will be given to the robot body.
   double  PushTriTime     = PushPeriod;                             // Initial disturbance is given.
   double  PushDuration    = 0.1;                                    // Push lasts for 0.1s.
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  SimTotalTime    = 5.0;                                   // Simulation lasts for 10s.
+  double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
 
-  int FileIndex = FileIndexFinder(false);
-  std::vector<string> EdgeFileNames = EdgeFileNamesGene(FileIndex);
+  std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath, FileIndex);
   // Three types of trajectories should be saved for visualization purpose.
-  string FailureStateTrajStr = "FailureStateTraj" + std::to_string(FileIndex) + ".path";
+  string FailureStateTrajStr = SpecificPath + std::to_string(FileIndex) + "/FailureStateTraj.path";
   const char *FailureStateTrajStr_Name = FailureStateTrajStr.c_str();
-  string CtrlStateTrajStr = "CtrlStateTraj" + std::to_string(FileIndex) + ".path";
+  string CtrlStateTrajStr = SpecificPath + std::to_string(FileIndex) + "/CtrlStateTraj.path";
   const char *CtrlStateTrajStr_Name = CtrlStateTrajStr.c_str();
-  string PlanStateTrajFileStr = "PlanStateTraj" + std::to_string(FileIndex) + ".path";
+  string PlanStateTrajFileStr = SpecificPath + std::to_string(FileIndex) + "/PlanStateTraj.path";
   const char *PlanStateTrajStr_Name = PlanStateTrajFileStr.c_str();
 
   /* Override the default controller with a PolynomialPathController */
@@ -80,8 +79,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         case 0:
         {
-          // Case 1
-          double FxBnd = 0.0, FyBnd = 10000.0, FzBnd = 0.0;
+          // Flat:
+          // 1Contact
+          double FxBnd = ImpulseForceMax.x, FyBnd = ImpulseForceMax.y, FzBnd = ImpulseForceMax.z;
           ImpulseForce = ImpulForceGene(FxBnd, FyBnd, FzBnd);
           PushGeneFlag = 1;
         }
@@ -112,9 +112,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
-    // std::cout<<"RefFailureMetric: "<<RefFailureMetric<<endl;
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
-    // std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
+
+    std::printf("Simulation Time: %f and Failure Metric: %f\n", Sim.time, RefFailureMetric);
 
     ContactPolytopeWriter(PIPTotal, EdgeFileNames);
     switch (PushControlFlag)
@@ -137,14 +137,17 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         switch (CPPIPIndex)
         {
           case -1:
-          std::printf("Simulation Time: %f and Failure Metric: %f\n", Sim.time, RefFailureMetric);
           break;
           default:
           {
             InitTime = Sim.time;
-            if(FailureStateObj.FailureInitFlag == false)
+            switch (FailureStateObj.FailureInitFlag)
             {
+              case false:
               FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
+              break;
+              default:
+              break;
             }
             // Push recovery controller reference should be computed here.
             // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
@@ -167,6 +170,18 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
     StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
 
+    switch (FailureStateObj.FailureInitFlag)
+    {
+      case false:
+      {
+        FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
+        StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+      }
+      break;
+      default:
+      break;
+    }
+
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
     PushTriTime+=TimeStep;
@@ -183,9 +198,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   PlanStateTrajFile.close();
 
   // Then we gonna have to simulate the robot's falling trajectory
-
-  //  Given the optimized result to be the initial state
-
   Sim.time = FailureStateObj.FailureTime;
 
   Sim.world->robots[0]->UpdateConfig(FailureStateObj.FailureConfig);
@@ -210,5 +222,5 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   FailureStateTraj.Save(FailureStateTrajFile);
   FailureStateTrajFile.close();
 
-  return;
+  return true;
 }

@@ -13,8 +13,12 @@ import math
 import numpy as np
 import random
 
-ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/"
-
+ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
+ContactType = "/1Contact"
+ExpNo = 1
+EnviName = "Envi1"
+# There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
+VisMode = 0
 # This function is used solely for the visualization of online contact planning.
 
 class MyGLPlugin(vis.GLPluginInterface):
@@ -36,7 +40,7 @@ class MyGLPlugin(vis.GLPluginInterface):
         return False
 
     def keyboardfunc(self, c, x, y):
-        print("Pressed",c)
+        print("Pressed", c)
         return True
 
     def click_world(self, x, y):
@@ -112,47 +116,11 @@ def State_Loader_fn(*args):
             raise RuntimeError("Input name should be either one config file or two txt files!")
     return DOF, Config_Init, Velocity_Init
 
-def Traj_Loader(robot_traj_path):
-    with open(robot_traj_path,'r') as robot_traj_file:
-        robot_traj_tot = robot_traj_file.readlines()
-    return robot_traj_tot
-
-def Traj_Loader_fn(*args):
-    # This function is used to read in the traj file for visualization
-    robot_traj_path = ""
-
-    if len(args)==1:
-        robot_traj_path = ExpName + "build/CtrlStateTraj" + args[0] + ".path"
-    else:
-        raise RuntimeError("Only one path file avaiable at one time!")
-
-    # Load trajectories one by one
-    robot_traj_tot = Traj_Loader(robot_traj_path)
-    robot_traj = []
-    time_count = 0;
-    for robot_traj_i in robot_traj_tot:
-        # Duration time
-        delta_t_index = robot_traj_i.find('\t')
-        if time_count ==0:
-            delta_t = float(robot_traj_i[0:delta_t_index])
-        time_count = 1
-        robot_traj_i = robot_traj_i[delta_t_index + 1:]
-        DOF_index = robot_traj_i.find('\t')
-        DOF = int(robot_traj_i[0:DOF_index])
-        robot_traj_i = robot_traj_i[DOF_index+1:]
-        end_index = robot_traj_i.find('\n')
-        robot_traj_i = robot_traj_i[0:end_index]
-        robot_traj_i = robot_traj_i.split(" ")
-        robot_traj_i = String_List_to_Number_List(robot_traj_i[0:DOF],"float")
-        robot_traj.append(robot_traj_i)
-
-    return delta_t, DOF, robot_traj
-
-def Contact_Link_Reader(File_Name, Path_Name):
+def ContactLinkReader(File_Name, Path_Name):
     # This function is used to read-in the formation of the certain link and its associated contact points
     # The output of this function is a dictionary of several keys with multiple list values
     # File_Name = "./User_File/Contact_Link.txt"
-    Contact_Link_Dictionary = dict()
+    ContactLinkDictionary = dict()
     # The format of this function should be an integet with a list of contact points
     Link_Number_i = -1
     File_Path_Name = Path_Name +File_Name
@@ -165,15 +133,15 @@ def Contact_Link_Reader(File_Name, Path_Name):
                 # Then the next few points would be the local coordinates of the contact extremities
                 Txt_File_Str_i = Txt_File_Str_i.translate(None, 'Link')     # This step is to get the link number out
                 Link_Number_i = int(Txt_File_Str_i)
-                Contact_Link_Dictionary[Link_Number_i] = []
+                ContactLinkDictionary[Link_Number_i] = []
                 continue
             if Link_Number_i>=0:
                 # Here the Txt_File_Str_i is a string of 'a, b, c' format
                 Txt_File_Str_i = Txt_File_Str_i.split(",")
                 del Txt_File_Str_i[-1]
                 Txt_File_Flt_i = String_List_to_Number_List(Txt_File_Str_i,"float")
-                Contact_Link_Dictionary[Link_Number_i].append(Txt_File_Flt_i)
-    return Contact_Link_Dictionary
+                ContactLinkDictionary[Link_Number_i].append(Txt_File_Flt_i)
+    return ContactLinkDictionary
 
 def Contact_Status_Reader(File_Name, Path_Name):
     # This function is used to read-in the formation of the certain link and its associated contact points
@@ -212,7 +180,7 @@ def Convex_Edge_Reader(File_Name, Path_Name):
             Convex_Edge_List.append(Txt_File_Flt_i)
     return Convex_Edge_List
 
-def PIP_Traj_Reader(index):
+def PIPTrajReader(file_path):
 
     PIPList = []
     EdgeAList = []
@@ -222,7 +190,7 @@ def PIP_Traj_Reader(index):
     EdgeyList = []
     EdgezList = []
 
-    EdgeA_path = ExpName + "build/EdgeATraj" + index + ".txt"
+    EdgeA_path = file_path + "/EdgeATraj.txt"
     with open(EdgeA_path,'r') as EdgeA_path_file:
         EdgeA_tot = EdgeA_path_file.readlines()
         for i in range(0, len(EdgeA_tot)):
@@ -233,7 +201,7 @@ def PIP_Traj_Reader(index):
                 EdgeAList_i.append(EdgeAString[3*j:3*j+3])
             EdgeAList.append(EdgeAList_i)
 
-    EdgeB_path = ExpName + "build/EdgeBTraj" + index + ".txt"
+    EdgeB_path = file_path + "/EdgeBTraj.txt"
     with open(EdgeB_path,'r') as EdgeB_path_file:
         EdgeB_tot = EdgeB_path_file.readlines()
         for i in range(0, len(EdgeB_tot)):
@@ -244,7 +212,7 @@ def PIP_Traj_Reader(index):
                 EdgeBList_i.append(EdgeBString[3*j:3*j+3])
             EdgeBList.append(EdgeBList_i)
 
-    EdgeCOM_path = ExpName + "build/EdgeCOMTraj" + index + ".txt"
+    EdgeCOM_path = file_path + "/EdgeCOMTraj.txt"
     with open(EdgeCOM_path,'r') as EdgeCOM_path_file:
         EdgeCOM_tot = EdgeCOM_path_file.readlines()
         for i in range(0, len(EdgeCOM_tot)):
@@ -255,7 +223,7 @@ def PIP_Traj_Reader(index):
                 EdgeCOMList_i.append(EdgeCOMString[3*j:3*j+3])
             EdgeCOMList.append(EdgeCOMList_i)
 
-    Edgex_path = ExpName + "build/EdgexTraj" + index + ".txt"
+    Edgex_path = file_path + "/EdgexTraj.txt"
     with open(Edgex_path,'r') as Edgex_path_file:
         Edgex_tot = Edgex_path_file.readlines()
         for i in range(0, len(Edgex_tot)):
@@ -266,7 +234,7 @@ def PIP_Traj_Reader(index):
                 EdgexList_i.append(EdgexString[3*j:3*j+3])
             EdgexList.append(EdgexList_i)
 
-    Edgey_path = ExpName + "build/EdgeyTraj" + index + ".txt"
+    Edgey_path = file_path + "/EdgeyTraj.txt"
     with open(Edgey_path,'r') as Edgey_path_file:
         Edgey_tot = Edgey_path_file.readlines()
         for i in range(0, len(Edgey_tot)):
@@ -277,7 +245,7 @@ def PIP_Traj_Reader(index):
                 EdgeyList_i.append(EdgeyString[3*j:3*j+3])
             EdgeyList.append(EdgeyList_i)
 
-    Edgez_path = ExpName + "build/EdgezTraj" + index + ".txt"
+    Edgez_path = file_path + "/EdgezTraj.txt"
     with open(Edgez_path,'r') as Edgez_path_file:
         Edgez_tot = Edgez_path_file.readlines()
         for i in range(0, len(Edgez_tot)):
@@ -295,9 +263,9 @@ def PIP_Traj_Reader(index):
     PIPList.append(EdgezList)
     return PIPList
 
-def Convex_Edges_Plot(sim_robot, convex_edges_list, vis):
+def Convex_Edges_Plot(SimRobot, convex_edges_list, vis):
     Convex_Edges_Number = len(convex_edges_list)/2
-    COM_Pos = sim_robot.getCom()
+    COM_Pos = SimRobot.getCom()
     for i in range(0, Convex_Edges_Number):
         EdgeA = convex_edges_list[2*i]
         EdgeB = convex_edges_list[2*i + 1]
@@ -319,17 +287,17 @@ def Robot_Config_Plot(world, DOF, state_ref, contact_link_dictionary, convex_edg
     vis.add("world", world)
     vis.show()
 
-    sim_robot = world.robot(0)
-    sim_robot.setConfig(state_ref[0:DOF])
+    SimRobot = world.robot(0)
+    SimRobot.setConfig(state_ref[0:DOF])
 
     contact_link_list = contact_link_dictionary.keys()
 
     while vis.shown():
         # This is the main plot program
         vis.lock()
-        sim_robot.setConfig(state_ref[0:DOF])
-        Convex_Edges_Plot(sim_robot, convex_edges_list, vis)
-        # Robot_COM_Plot(sim_robot, vis)
+        SimRobot.setConfig(state_ref[0:DOF])
+        Convex_Edges_Plot(SimRobot, convex_edges_list, vis)
+        # RobotCOMPlot(SimRobot, vis)
         vis.unlock()
         time.sleep(0.025)
 
@@ -384,28 +352,21 @@ def PIP_Remove(i, vis):
     vis.remove("PIPEdgey:" + Edge_Index)
     vis.remove("PIPEdgez:" + Edge_Index)
 
-def Robot_COM_Plot(sim_robot, vis):
-    COMPos_start = sim_robot.getCom()
+def RobotCOMPlot(SimRobot, vis):
+    COMPos_start = SimRobot.getCom()
     COMPos_end = COMPos_start[:]
     COMPos_end[2] = COMPos_end[2] - 7.50
     vis.add("COM", Trajectory([0, 1], [COMPos_start, COMPos_end]))
     vis.hideLabel("COM",True)
     vis.setColor("COM", 0.0, 204.0/255.0, 0.0, 1.0)
-    vis.setAttribute("COM",'width', 7.5)
+    vis.setAttribute("COM",'width', 5.0)
 
-def Reachable_Contact_Plot(vis, ReachableContacts_data):
-
+def ContactDataPlot(vis, ReachableContacts_data):
     RowNo, ColumnNo = ReachableContacts_data.shape
     RowStart = 0
     RowEnd = RowNo
-    # RowStart = 100000
-    # RowEnd = 110000
-    PointTol = 0.001;
-    print RowEnd
     for i in range(RowStart, RowEnd):
         point_start = [0.0, 0.0, 0.0]
-        point_end = [0.0, 0.0, 0.0]
-
         ReachableContact_i = ReachableContacts_data[i]
         point_start[0] = ReachableContact_i[0]
         point_start[1] = ReachableContact_i[1]
@@ -415,14 +376,6 @@ def Reachable_Contact_Plot(vis, ReachableContacts_data):
         vis.hideLabel("Point:" + str(i), True)
         vis.setColor("Point:" + str(i),65.0/255.0, 199.0/255.0, 244.0/255.0, 1.0)
 
-        # point_end[0] = ReachableContact_i[0] + PointTol * random.uniform(0, 1)
-        # point_end[1] = ReachableContact_i[1] + PointTol * random.uniform(0, 1)
-        # point_end[2] = ReachableContact_i[2] + PointTol * random.uniform(0, 1)
-        #
-        # vis.add("Point:" + str(i), Trajectory([0, 1], [point_start, point_end]))
-        # vis.hideLabel("Point:" + str(i), True)
-        # vis.setAttribute("Point:" + str(i),'width', 7.5)
-
 def ContactDataLoader(IdealReachableContact):
     IdealReachableContacts = ExpName + "build/" + IdealReachableContact + ".bin"
     f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
@@ -430,8 +383,7 @@ def ContactDataLoader(IdealReachableContact):
     IdealReachableContacts_data = IdealReachableContacts_data.reshape((IdealReachableContacts_data.size/3, 3))
     return IdealReachableContacts_data
 
-
-def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
+def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTraj, FailureStateTraj, PIPInfoList, StartTime, EndTime, ImpulForce):
     # Initialize the robot motion viewer
     robot_viewer = MyGLPlugin(world)
 
@@ -440,126 +392,129 @@ def Traj_Vis(world, DOF, robot_traj, PIP_traj, delta_t=0.5):
     vis.add("world", world)
     vis.show()
 
-    state_traj = robot_traj
-    sim_robot = world.robot(0)
-    EdgeAList = PIP_traj[0]
-    EdgeBList = PIP_traj[1]
-    EdgeCOMList = PIP_traj[2]
-    EdgexList = PIP_traj[3]
-    EdgeyList = PIP_traj[4]
-    EdgezList = PIP_traj[5]
+    SimRobot = world.robot(0)
+    EdgeAList = PIPInfoList[0]
+    EdgeBList = PIPInfoList[1]
+    EdgeCOMList = PIPInfoList[2]
+    EdgexList = PIPInfoList[3]
+    EdgeyList = PIPInfoList[4]
+    EdgezList = PIPInfoList[5]
 
-    TotalTrajLength = len(state_traj)
-    EffectiveTrajLength = len(EdgeAList)
-    RedundantTrajLength = TotalTrajLength - EffectiveTrajLength
+    TimeStep = PlanStateTraj.times[1] - PlanStateTraj.times[0]
+    StateTrajLength = len(PlanStateTraj)
+    PIPTrajLength = len(EdgeAList)
 
     # Here we would like to read point cloud for visualization of planning.
-    # Technically, there are three point clouds to be plotted.
+    # # 1. All Reachable Points
+    # # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
+    # # 2. Active Reachable Points
+    # ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
+    # # 3. Contact Free Points
+    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # # 4. Supportive Points
+    # SupportContacts_data = ContactDataLoader("SupportContact")
+    # # 5. Optimal Point
+    # OptimalContact_data = ContactDataLoader("OptimalContact")
 
-    # 1. All Reachable Points
-    # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
-    # 2. Active Reachable Points
-    ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # 3. Contact Free Points
-    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # 4. Supportive Points
-    SupportContacts_data = ContactDataLoader("SupportContact")
-    # 5. Optimal Point
-    OptimalContact_data = ContactDataLoader("OptimalContact")
-    # 6. Circle Point
-    # CirclePointContact_data = ContactDataLoader("CirclePointContact")
-    # 7. Transition Points
-    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
-
-    # # 3. Optimal Reachable Points
-    # OptimalReachableContacts = ExpName + "build/OptimalReachableContact.bin"
-    # f_OptimalReachableContacts = open(OptimalReachableContacts, 'rb')
-    # OptimalReachableContacts_data = np.fromfile(f_OptimalReachableContacts, dtype=np.double)
-
-    ReachablePoint = [0.0, 0.0, 0.0]
+    PlanStateTraj.getLinkTrajectory
 
     while vis.shown():
         # This is the main plot program
-        InfeasiFlag = 0
-        for i in range(0, EffectiveTrajLength):
-            vis.lock()
-            config_i = state_traj[i + RedundantTrajLength]
-            sim_robot.setConfig(config_i[0:DOF])
-            COM_Pos = sim_robot.getCom()
-            Robot_COM_Plot(sim_robot, vis)
-            EdgeAList_i = EdgeAList[i]
-            EdgeBList_i = EdgeBList[i]
-            EdgeCOMList_i = EdgeCOMList[i]
-            EdgexList_i = EdgexList[i]
-            EdgeyList_i = EdgeyList[i]
-            EdgezList_i = EdgezList[i]
+        for i in range(0, len(PlanStateTraj.times)):
+            pass
+        vis.lock()
+        config_i = state_traj[i + RedundantTrajLength]
+        SimRobot.setConfig(config_i[0:DOF])
+        COM_Pos = SimRobot.getCom()
+        RobotCOMPlot(SimRobot, vis)
+        EdgeAList_i = EdgeAList[i]
+        EdgeBList_i = EdgeBList[i]
+        EdgeCOMList_i = EdgeCOMList[i]
+        EdgexList_i = EdgexList[i]
+        EdgeyList_i = EdgeyList[i]
+        EdgezList_i = EdgezList[i]
 
-            # for j in range(0, len(EdgeAList_i)):
-            #     EdgeA = EdgeAList_i[j]
-            #     EdgeB = EdgeBList_i[j]
-            #     EdgeCOM = EdgeCOMList_i[j]
-            #     Edgex = EdgexList_i[j]
-            #     Edgey = EdgeyList_i[j]
-            #     Edgez = EdgezList_i[j]
-            #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
+        # for j in range(0, len(EdgeAList_i)):
+        #     EdgeA = EdgeAList_i[j]
+        #     EdgeB = EdgeBList_i[j]
+        #     EdgeCOM = EdgeCOMList_i[j]
+        #     Edgex = EdgexList_i[j]
+        #     Edgey = EdgeyList_i[j]
+        #     Edgez = EdgezList_i[j]
+        #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
 
-            # if CPFlag is 1 or 2:
-            #     try:
-            #         h = ConvexHull(EdgeAList_i)
-            #     except:
-            #         InfeasiFlag = 1
-            #     if InfeasiFlag is 0:
-            #         h = ConvexHull(EdgeAList_i)
-            #         hrender = draw_hull.PrettyHullRenderer(h)
-            #         vis.add("blah", h)
-            #         vis.setDrawFunc("blah", my_draw_hull)
-            #     else:
-            #         print "Input Contact Polytope Infeasible!"
-            # Reachable_Contact_Plot(vis, IdealReachableContacts_data)
-            # Reachable_Contact_Plot(vis, ActiveReachableContacts_data)
-            # Reachable_Contact_Plot(vis, ContactFreeContacts_data)
-            # Reachable_Contact_Plot(vis, SupportContacts_data)
-            Reachable_Contact_Plot(vis, OptimalContact_data)
-            # Reachable_Contact_Plot(vis, CirclePointContact_data)
-            # Reachable_Contact_Plot(vis, TransitionPoints_data)
+        # if CPFlag is 1 or 2:
+        #     try:
+        #         h = ConvexHull(EdgeAList_i)
+        #     except:
+        #         InfeasiFlag = 1
+        #     if InfeasiFlag is 0:
+        #         h = ConvexHull(EdgeAList_i)
+        #         hrender = draw_hull.PrettyHullRenderer(h)
+        #         vis.add("blah", h)
+        #         vis.setDrawFunc("blah", my_draw_hull)
+        #     else:
+        #         print "Input Contact Polytope Infeasible!"
+        # ContactDataPlot(vis, IdealReachableContacts_data)
+        # ContactDataPlot(vis, ActiveReachableContacts_data)
+        # ContactDataPlot(vis, ContactFreeContacts_data)
+        # ContactDataPlot(vis, SupportContacts_data)
+        # ContactDataPlot(vis, OptimalContact_data)
 
-            vis.unlock()
-            time.sleep(0.025)
+        vis.unlock()
+        time.sleep(TimeStep)
 
-            # for j in range(0, len(EdgeAList_i)):
-            #     PIP_Remove(j, vis)
+        # for j in range(0, len(EdgeAList_i)):
+        #     PIP_Remove(j, vis)
 
-        # Reachable_Contact_Plot(vis, IdealReachableContacts_data)
+        # ContactDataPlot(vis, IdealReachableContacts_data)
 
-            # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
-            #     vis.remove("blah")
+        # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
+        #     vis.remove("blah")
 
+def ImpulseInfoReader(file_path):
+    PushInfoFilePath = file_path + "/PushInfoFile.txt"
+    with open(PushInfoFilePath,'r') as PushInfoFilePathFile:
+        PushInfoTot = PushInfoFilePathFile.readlines()
+        # Actually we only need two information: Time and Impulsive Force
+        StartPushInfoTot = PushInfoTot[0].split(" ")
+        StartTime = float(StartPushInfoTot[0])
+        EndPushInfoTot = PushInfoTot[len(PushInfoTot)-1].split(" ")
+        EndTime = float(EndPushInfoTot[0])
+        ImpulseX = float(StartPushInfoTot[1])
+        ImpulseY = float(StartPushInfoTot[2])
+        ImpulseZ = float(StartPushInfoTot[3].replace('\n',''))
 
+        return StartTime, EndTime, [ImpulseX, ImpulseY, ImpulseZ]
 
 def main(*arg):
-    Exp_Name = arg[0]
+    # This function needs to be rewritten.
+    PlotType = arg[0]
     Robot_Option = "../user/hrp2/"
     world = WorldModel()                    	# WorldModel is a pre-defined class
 
     # The next step is to load in robot's XML file
-    XML_path = ExpName + "Envi1.xml"
+    XML_path = ExpName + "/../../" + EnviName + ".xml"
     result = world.readFile(XML_path)         	# Here result is a boolean variable indicating the result of this loading operation
     if not result:
         raise RuntimeError("Unable to load model " + XML_path)
-    Contact_Link_Dictionary = Contact_Link_Reader("ContactLink.txt", ExpName+"user/hrp2/")
-    Contact_Status_Dictionary = Contact_Status_Reader("InitContact.txt", ExpName+"user/hrp2/")
-    # ipdb.set_trace()
-    if ".path" in Exp_Name:
-        # Then this means that we are given the robot trajectories for experimentations.
-        Exp_Name_Copy = copy.deepcopy(Exp_Name)
-        Exp_File_Name = ""
-        for str_i in Exp_Name_Copy:
-            if str_i == ".":
-                break;
-            Exp_File_Name = Exp_File_Name + str_i;
-        delta_t, DOF, robot_traj = Traj_Loader_fn(Exp_File_Name)
-        PIPInfoList = PIP_Traj_Reader(Exp_File_Name)
-        Traj_Vis(world, DOF, robot_traj, PIPInfoList, delta_t)
+    ContactLinkDictionary = ContactLinkReader("ContactLink.txt", "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/")
+    ipdb.set_trace()
+    if "Path" in PlotType:
+
+        PlanStateTraj = Trajectory(world.robot(0))
+        CtrlStateTraj = Trajectory(world.robot(0))
+        FailureStateTraj = Trajectory(world.robot(0))
+
+        PlanStateTraj.load(ExpName + ContactType + "/" + str(ExpNo) + "/PlanStateTraj.path")
+        CtrlStateTraj.load(ExpName + ContactType + "/"+ str(ExpNo) + "/CtrlStateTraj.path")
+        FailureStateTraj.load(ExpName + ContactType + "/"+ str(ExpNo) + "/FailureStateTraj.path")
+
+        PIPInfoList = PIPTrajReader(ExpName + ContactType + "/" + str(ExpNo))
+        # One missing part is the reader for impulse information.
+        StartTime, EndTime, ImpulForce = ImpulseInfoReader(ExpName + ContactType + "/" + str(ExpNo))
+
+        RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTraj, FailureStateTraj, PIPInfoList, StartTime, EndTime, ImpulForce)
 
     else:
         # In this case, what we have is a config
@@ -569,8 +524,8 @@ def main(*arg):
         # Now it is the validation of the feasibility of the given initial condition
         State_Init = Config_Init + Velocity_Init
         Convex_Edges_List = Convex_Edge_Reader(Exp_Name + "CHEdges.txt", Robot_Option);
-        Robot_Config_Plot(world, DOF, State_Init, Contact_Link_Dictionary, Convex_Edges_List)
+        Robot_Config_Plot(world, DOF, State_Init, ContactLinkDictionary, Convex_Edges_List)
 
 if __name__ == "__main__":
-    # main("InitConfig")
-    main("1.path")
+    # main("Config")
+    main("Path")

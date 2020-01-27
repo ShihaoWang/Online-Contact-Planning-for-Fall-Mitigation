@@ -1304,6 +1304,7 @@ struct ControlReferenceInfo
     SwingLimbTraj = _SwingLimbTraj;
     ControlReferenceFlag = true;
     Impulse = 0.0;
+    PlanningTime = 0.0;
   }
 
   void TimeBound(const double & Time, int & InitIndex, int & EndIndex)
@@ -1361,6 +1362,7 @@ struct ControlReferenceInfo
   double Impulse;
   std::vector<ContactStatusInfo> InitContactInfo;
   std::vector<ContactStatusInfo> GoalContactInfo;
+  double PlanningTime;
 };
 
 struct InvertedPendulumInfo

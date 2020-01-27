@@ -487,10 +487,10 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
 
-  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
-  // Vector3Writer(SupportContact, "SupportContact");
-  // Vector3Writer(OptimalContact, "OptimalContact");
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  Vector3Writer(SupportContact, "SupportContact");
+  Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }
@@ -730,7 +730,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
     start_time = std::clock();          // get current time
-
+    RobotTraj.PlanningTime = 1000.0 * duration_time;      // The unit is ms.
     switch (RobotTraj.ControlReferenceFlag)
     {
       case true:
