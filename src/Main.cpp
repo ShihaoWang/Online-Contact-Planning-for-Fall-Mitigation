@@ -103,18 +103,24 @@ int main()
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
   /* 8. Internal Experimentation Loop*/
-  int FileIndex = 0;
+  int FileIndex = 2;
   int TotalNumber = 25;
   while(FileIndex<=TotalNumber)
   {
-    FileIndex = FileIndexFinder(false);
     bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
     switch (SimFlag)
     {
       case false:
+      {
+        // Here a command has to be conducted to delete all the files within that folder
+        string str = "cd " + SpecificPath + std::to_string(FileIndex) + "/";
+        str+="&& rm -f *.*";
+        const char *command = str.c_str();
+        system(command);
+      }
       break;
       default:
-      FileIndex = FileIndexFinder(true);
+      FileIndex++;
       break;
     }
   }

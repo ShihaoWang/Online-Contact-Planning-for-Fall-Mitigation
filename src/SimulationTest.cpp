@@ -19,6 +19,8 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
+  double  DetectionWait = 0.1;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWaitMeasure = 1.0;
   double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
 
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath, FileIndex);
@@ -96,7 +98,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         PushDurationMeasure+=TimeStep;
         double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
         dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), ImpulseScale * ImpulseForce.x, ImpulseScale * ImpulseForce.y, ImpulseScale * ImpulseForce.z, 0.0, 0.0, 0.0);     // Body 2
-        PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, FileIndex);
+        PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath, FileIndex);
       }
       else
       {
@@ -128,6 +130,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           // Turn off PushControlFlag
           RobotContactInfo = ControlReference.GoalContactInfo;
           PushControlFlag = 0;
+          DetectionWaitMeasure = 0.0;
           InitTime = Sim.time;
         }
       }
@@ -140,21 +143,28 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           break;
           default:
           {
-            InitTime = Sim.time;
-            switch (FailureStateObj.FailureInitFlag)
+            if(DetectionWaitMeasure>DetectionWait)
             {
-              case false:
-              FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
-              break;
-              default:
-              break;
+              InitTime = Sim.time;
+              switch (FailureStateObj.FailureInitFlag)
+              {
+                case false:
+                FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
+                break;
+                default:
+                break;
+              }
+              // Push recovery controller reference should be computed here.
+              // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
+              ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
+              if(ControlReference.ControlReferenceFlag == true)
+              {
+                PushControlFlag = 1;
+              }
             }
-            // Push recovery controller reference should be computed here.
-            // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
-            ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
-            if(ControlReference.ControlReferenceFlag == true)
+            else
             {
-              PushControlFlag = 1;
+              DetectionWaitMeasure+=TimeStep;
             }
           }
         }
@@ -198,29 +208,38 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   PlanStateTrajFile.close();
 
   // Then we gonna have to simulate the robot's falling trajectory
-  Sim.time = FailureStateObj.FailureTime;
-
-  Sim.world->robots[0]->UpdateConfig(FailureStateObj.FailureConfig);
-  Sim.world->robots[0]->dq = FailureStateObj.FailureVelocity;
-
-  Sim.controlSimulators[0].oderobot->SetConfig(FailureStateObj.FailureConfig);
-  Sim.controlSimulators[0].oderobot->SetVelocities(FailureStateObj.FailureVelocity);
-
-  NewControllerPtr->SetConstant(FailureStateObj.FailureConfig);
-
-  while(Sim.time <= CtrlStateTraj.EndTime())
+  switch (FailureStateObj.FailureInitFlag)
   {
-    FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-    StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+    case true:
+    {
+      Sim.time = FailureStateObj.FailureTime;
 
-    Sim.Advance(TimeStep);
-    Sim.UpdateModel();
+      Sim.world->robots[0]->UpdateConfig(FailureStateObj.FailureConfig);
+      Sim.world->robots[0]->dq = FailureStateObj.FailureVelocity;
+
+      Sim.controlSimulators[0].oderobot->SetConfig(FailureStateObj.FailureConfig);
+      Sim.controlSimulators[0].oderobot->SetVelocities(FailureStateObj.FailureVelocity);
+
+      NewControllerPtr->SetConstant(FailureStateObj.FailureConfig);
+
+      while(Sim.time <= CtrlStateTraj.EndTime())
+      {
+        FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
+        StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+        Sim.Advance(TimeStep);
+        Sim.UpdateModel();
+      }
+    }
+    break;
+    default:
+    break;
   }
+
   // Write these three trajectories into files.
   ofstream FailureStateTrajFile;
   FailureStateTrajFile.open (FailureStateTrajStr_Name);
   FailureStateTraj.Save(FailureStateTrajFile);
   FailureStateTrajFile.close();
 
-  return true;
+  return FailureStateObj.FailureInitFlag;
 }

@@ -487,10 +487,10 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
 
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
-  Vector3Writer(SupportContact, "SupportContact");
-  Vector3Writer(OptimalContact, "OptimalContact");
+  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  // Vector3Writer(SupportContact, "SupportContact");
+  // Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }

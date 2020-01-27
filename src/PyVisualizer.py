@@ -377,7 +377,7 @@ def ContactDataPlot(vis, ReachableContacts_data):
         vis.setColor("Point:" + str(i),65.0/255.0, 199.0/255.0, 244.0/255.0, 1.0)
 
 def ContactDataLoader(IdealReachableContact):
-    IdealReachableContacts = ExpName + "build/" + IdealReachableContact + ".bin"
+    IdealReachableContacts = ExpName + "/../../build/" + IdealReachableContact + ".bin"
     f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
     IdealReachableContacts_data = np.fromfile(f_IdealReachableContacts, dtype=np.double)
     IdealReachableContacts_data = IdealReachableContacts_data.reshape((IdealReachableContacts_data.size/3, 3))
@@ -401,76 +401,78 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     EdgezList = PIPInfoList[5]
 
     TimeStep = PlanStateTraj.times[1] - PlanStateTraj.times[0]
-    StateTrajLength = len(PlanStateTraj)
+    StateTrajLength = len(PlanStateTraj.times)
     PIPTrajLength = len(EdgeAList)
 
     # Here we would like to read point cloud for visualization of planning.
-    # # 1. All Reachable Points
-    # # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
-    # # 2. Active Reachable Points
-    # ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # # 3. Contact Free Points
-    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # # 4. Supportive Points
-    # SupportContacts_data = ContactDataLoader("SupportContact")
-    # # 5. Optimal Point
-    # OptimalContact_data = ContactDataLoader("OptimalContact")
+    # 1. All Reachable Points
+    # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
+    # 2. Active Reachable Points
+    ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
+    # 3. Contact Free Points
+    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # 4. Supportive Points
+    SupportContacts_data = ContactDataLoader("SupportContact")
+    # 5. Optimal Point
+    OptimalContact_data = ContactDataLoader("OptimalContact")
 
-    PlanStateTraj.getLinkTrajectory
+    # PlanStateTraj.getLinkTrajectory
 
     while vis.shown():
         # This is the main plot program
-        for i in range(0, len(PlanStateTraj.times)):
-            pass
-        vis.lock()
-        config_i = state_traj[i + RedundantTrajLength]
-        SimRobot.setConfig(config_i[0:DOF])
-        COM_Pos = SimRobot.getCom()
-        RobotCOMPlot(SimRobot, vis)
-        EdgeAList_i = EdgeAList[i]
-        EdgeBList_i = EdgeBList[i]
-        EdgeCOMList_i = EdgeCOMList[i]
-        EdgexList_i = EdgexList[i]
-        EdgeyList_i = EdgeyList[i]
-        EdgezList_i = EdgezList[i]
+        InfeasiFlag = 0
+        for i in range(0, StateTrajLength):
+            vis.lock()
+            config_i = CtrlStateTraj.milestones[i]
+            SimRobot.setConfig(config_i)
+            COM_Pos = SimRobot.getCom()
+            RobotCOMPlot(SimRobot, vis)
+            # EdgeAList_i = EdgeAList[i]
+            # EdgeBList_i = EdgeBList[i]
+            # EdgeCOMList_i = EdgeCOMList[i]
+            # EdgexList_i = EdgexList[i]
+            # EdgeyList_i = EdgeyList[i]
+            # EdgezList_i = EdgezList[i]
 
-        # for j in range(0, len(EdgeAList_i)):
-        #     EdgeA = EdgeAList_i[j]
-        #     EdgeB = EdgeBList_i[j]
-        #     EdgeCOM = EdgeCOMList_i[j]
-        #     Edgex = EdgexList_i[j]
-        #     Edgey = EdgeyList_i[j]
-        #     Edgez = EdgezList_i[j]
-        #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
+            # for j in range(0, len(EdgeAList_i)):
+            #     EdgeA = EdgeAList_i[j]
+            #     EdgeB = EdgeBList_i[j]
+            #     EdgeCOM = EdgeCOMList_i[j]
+            #     Edgex = EdgexList_i[j]
+            #     Edgey = EdgeyList_i[j]
+            #     Edgez = EdgezList_i[j]
+            #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
 
-        # if CPFlag is 1 or 2:
-        #     try:
-        #         h = ConvexHull(EdgeAList_i)
-        #     except:
-        #         InfeasiFlag = 1
-        #     if InfeasiFlag is 0:
-        #         h = ConvexHull(EdgeAList_i)
-        #         hrender = draw_hull.PrettyHullRenderer(h)
-        #         vis.add("blah", h)
-        #         vis.setDrawFunc("blah", my_draw_hull)
-        #     else:
-        #         print "Input Contact Polytope Infeasible!"
-        # ContactDataPlot(vis, IdealReachableContacts_data)
-        # ContactDataPlot(vis, ActiveReachableContacts_data)
-        # ContactDataPlot(vis, ContactFreeContacts_data)
-        # ContactDataPlot(vis, SupportContacts_data)
-        # ContactDataPlot(vis, OptimalContact_data)
+            # if CPFlag is 1 or 2:
+            #     try:
+            #         h = ConvexHull(EdgeAList_i)
+            #     except:
+            #         InfeasiFlag = 1
+            #     if InfeasiFlag is 0:
+            #         h = ConvexHull(EdgeAList_i)
+            #         hrender = draw_hull.PrettyHullRenderer(h)
+            #         vis.add("blah", h
+            #         vis.setDrawFunc("blah", my_draw_hull)
+            #     else:
+            #         print "Input Contact Polytope Infeasible!"
+            # ContactDataPlot(vis, IdealReachableContacts_data)
+            # ContactDataPlot(vis, ActiveReachableContacts_data)
+            # ContactDataPlot(vis, ContactFreeContacts_data)
+            # ContactDataPlot(vis, SupportContacts_data)
+            ContactDataPlot(vis, OptimalContact_data)
+            # ContactDataPlot(vis, CirclePointContact_data)
+            # ContactDataPlot(vis, TransitionPoints_data)
 
-        vis.unlock()
-        time.sleep(TimeStep)
+            vis.unlock()
+            time.sleep(TimeStep)
 
-        # for j in range(0, len(EdgeAList_i)):
-        #     PIP_Remove(j, vis)
+            # for j in range(0, len(EdgeAList_i)):
+            #     PIP_Remove(j, vis)
 
-        # ContactDataPlot(vis, IdealReachableContacts_data)
+        # ReachableContactPlot(vis, IdealReachableContacts_data)
 
-        # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
-        #     vis.remove("blah")
+            # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
+            #     vis.remove("blah")
 
 def ImpulseInfoReader(file_path):
     PushInfoFilePath = file_path + "/PushInfoFile.txt"
