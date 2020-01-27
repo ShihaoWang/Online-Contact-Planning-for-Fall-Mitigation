@@ -610,9 +610,9 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
 
   double Fx_t, Fy_t, Fz_t;
 
-  Fx_t = Sign_x_val * ImpXdis(gen);
-  Fy_t = Sign_y_val * ImpYdis(gen);
-  Fz_t = Sign_z_val * ImpZdis(gen);
+  Fx_t = Sign_x * ImpXdis(gen);
+  Fy_t = Sign_y * ImpYdis(gen);
+  Fz_t = Sign_z * ImpZdis(gen);
 
   return Vector3(Fx_t, Fy_t, Fz_t);
 }
@@ -643,5 +643,17 @@ Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileNa
   IFMax.z = IFVec[2];
 
   return IFMax;
+}
 
+void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath, const int & FileIndex)
+{
+  // This function is used to generate the ROC curve
+  string PlanTimeFileStr = SpecificPath + std::to_string(FileIndex) + "/PlanTime.txt";
+  const char *PlanTimeFile_Name = PlanTimeFileStr.c_str();
+
+  std::ofstream PlanTimeFile;
+  PlanTimeFile.open(PlanTimeFile_Name, std::ios_base::app);
+  PlanTimeFile<<std::to_string(PlanTimeVal);
+  PlanTimeFile<<"\n";
+  PlanTimeFile.close();
 }

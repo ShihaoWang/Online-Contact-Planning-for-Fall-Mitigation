@@ -156,9 +156,11 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
               }
               // Push recovery controller reference should be computed here.
               // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
-              ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep);
+              double PlanTime;
+              ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep, PlanTime);
               if(ControlReference.ControlReferenceFlag == true)
               {
+                PlanTimeRecorder(PlanTime, SpecificPath, FileIndex);
                 PushControlFlag = 1;
               }
             }

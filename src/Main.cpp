@@ -77,13 +77,6 @@ int main()
     exit(1);
   }
 
-  //  Given the optimized result to be the initial state
-  Sim.world->robots[0]->UpdateConfig(Config(InitRobotConfig));
-  Sim.world->robots[0]->dq = InitRobotVelocity;
-
-  Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
-  Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
-
   /* 6. Projected Inverted Pendulum Plot */
   std::vector<Vector3> ActContactPositions, ActVelocities;
   std::vector<Matrix> ActJacobians;
@@ -103,11 +96,21 @@ int main()
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
   /* 8. Internal Experimentation Loop*/
-  int FileIndex = 2;
+  int FileIndex = 3;
   int TotalNumber = 25;
   while(FileIndex<=TotalNumber)
   {
-    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
+    Sim.time = 0.0;
+    //  Given the optimized result to be the initial state
+    Sim.world->robots[0]->UpdateConfig(Config(InitRobotConfig));
+    Sim.world->robots[0]->dq = InitRobotVelocity;
+
+    Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
+    Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
+
+    std::vector<ContactStatusInfo> InitRobotContactInfo = RobotContactInfo;
+
+    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, InitRobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
     switch (SimFlag)
     {
       case false:

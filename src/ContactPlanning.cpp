@@ -696,13 +696,15 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
   return ControlReferenceObj;
 }
 
-ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & _PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep)
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & _PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep, double & PlanTime)
 {
   // The whole planning algorithm should be written here.
   // The high-level idea is to plan individual end effector's configuration trajectory.
   // To avoid single leg jumping motion, we would like to exclude case where foot contact does not show up.
 
   AllContactStatusInfo AllContactStatusObj = SwingLimbIndices(SimRobot, RobotContactInfo);
+
+  PlanTime = 0.0;
 
   std::clock_t start_time;
   double allowd_time, duration_time;
@@ -731,6 +733,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
     start_time = std::clock();          // get current time
     RobotTraj.PlanningTime = 1000.0 * duration_time;      // The unit is ms.
+    PlanTime+= 1000.0 * duration_time;
     switch (RobotTraj.ControlReferenceFlag)
     {
       case true:

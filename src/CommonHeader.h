@@ -72,6 +72,7 @@ std::vector<Vector3> ContactPositionFinder(const Robot& SimRobot, const std::vec
 double PresumeContactMinDis(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo);
 Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double & ImpFz);
 Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileName);
+void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath, const int & FileIndex);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);
@@ -105,7 +106,7 @@ EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const d
 double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex, const double & dt);
 double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, const double & dt);
 int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig, std::vector<Vector3> & NewContacts);
-ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep);
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo & _PIPObj, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const double & TimeStep, double & PlanTime);
 
 /*  11. Reachability Map */
 ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<int> & TorsoLink);
