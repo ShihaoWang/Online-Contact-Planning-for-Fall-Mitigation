@@ -415,6 +415,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     SupportContacts_data = ContactDataLoader("SupportContact")
     # 5. Optimal Point
     OptimalContact_data = ContactDataLoader("OptimalContact")
+    # 6.
+    TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     # PlanStateTraj.getLinkTrajectory
 
@@ -459,9 +461,9 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
-            ContactDataPlot(vis, OptimalContact_data)
+            # ContactDataPlot(vis, OptimalContact_data)
             # ContactDataPlot(vis, CirclePointContact_data)
-            # ContactDataPlot(vis, TransitionPoints_data)
+            ContactDataPlot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(TimeStep)

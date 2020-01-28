@@ -153,10 +153,13 @@ static std::vector<double> InitialConfigOptFn(std::vector<double> &RobotConfig)
   xlow_vec[1] = RobotConfig[1];
   xlow_vec[1] = RobotConfig[1];
 
+  xlow_vec[4] = 0.0;
+  xupp_vec[4] = 0.0;
+
   xlow_vec[6] = -0.35;
   xupp_vec[6] = -0.35;
-  xlow_vec[9] = 1.0;
-  xupp_vec[9] = 1.0;
+  xlow_vec[15] = 1.0;
+  xupp_vec[15] = 1.0;
   InitialConfigOptProblem.VariableBoundsUpdate(xlow_vec, xupp_vec);
 
   /*

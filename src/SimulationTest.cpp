@@ -51,6 +51,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
     PlanStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
     // std::cout<<Sim.world->robots[0]->q[2]<<endl;
+    std::printf("Initial Simulation Time: %f\n", Sim.time);
 
     if((Sim.world->robots[0]->q[2])<0.35)
     {
@@ -65,6 +66,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     Sim.UpdateModel();
   }
   SimTotalTime           += Sim.time;
+  std::printf("Initial Simulation Done!\n");
 
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
@@ -122,7 +124,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
-    // std::cout<<SimRobot.q[2]<<endl;
+    std::cout<<SimRobot.q[2]<<endl;
 
     if(SimRobot.q[2]<0.35)
     {

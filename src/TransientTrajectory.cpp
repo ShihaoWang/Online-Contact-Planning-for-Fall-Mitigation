@@ -219,28 +219,28 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   std::vector<cSpline3> SplineObj = SplineObjGene(PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 
-  // const int SplineNumber = SplineObj.size();
-  // const int SplineGrid = 5;
-  // std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
-  //
-  // double sUnit = 1.0/(1.0 * SplineGrid);
-  // int TransitionIndex = 0;
-  // for (int i = 0; i < SplineNumber; i++)
-  // {
-  //   for (int j = 0; j < SplineGrid; j++)
-  //   {
-  //     double s = 1.0 * j * sUnit;
-  //     Vec3f ps = Position (SplineObj[i], s);
-  //     Vector3 SplinePoint(ps.x, ps.y, ps.z);
-  //     TransitionPoints[TransitionIndex] = SplinePoint;
-  //     TransitionIndex++;
-  //   }
-  // }
-  // // The last waypoint
-  // Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
-  // Vector3 SplinePoint(ps.x, ps.y, ps.z);
-  // TransitionPoints[TransitionIndex] = SplinePoint;
-  // Vector3Writer(TransitionPoints, "TransitionPoints");
+  const int SplineNumber = SplineObj.size();
+  const int SplineGrid = 5;
+  std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
+
+  double sUnit = 1.0/(1.0 * SplineGrid);
+  int TransitionIndex = 0;
+  for (int i = 0; i < SplineNumber; i++)
+  {
+    for (int j = 0; j < SplineGrid; j++)
+    {
+      double s = 1.0 * j * sUnit;
+      Vec3f ps = Position (SplineObj[i], s);
+      Vector3 SplinePoint(ps.x, ps.y, ps.z);
+      TransitionPoints[TransitionIndex] = SplinePoint;
+      TransitionIndex++;
+    }
+  }
+  // The last waypoint
+  Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
+  Vector3 SplinePoint(ps.x, ps.y, ps.z);
+  TransitionPoints[TransitionIndex] = SplinePoint;
+  Vector3Writer(TransitionPoints, "TransitionPoints");
 
   return SplineObj;
 
