@@ -50,6 +50,12 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     FailureStateTraj.Append(Sim.time, Sim.world->robots[0]->q);
     CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
     PlanStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
+    // std::cout<<Sim.world->robots[0]->q[2]<<endl;
+
+    if((Sim.world->robots[0]->q[2])<0.35)
+    {
+      return false;
+    }
 
     StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
     StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
@@ -116,8 +122,13 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
-    std::printf("Simulation Time: %f and Failure Metric: %f\n", Sim.time, RefFailureMetric);
+    // std::cout<<SimRobot.q[2]<<endl;
 
+    if(SimRobot.q[2]<0.35)
+    {
+      return false;
+    }
+    std::printf("Simulation Time: %f and Failure Metric: %f\n", Sim.time, RefFailureMetric);
     ContactPolytopeWriter(PIPTotal, EdgeFileNames);
     switch (PushControlFlag)
     {
@@ -157,7 +168,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
               // Push recovery controller reference should be computed here.
               // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
               double PlanTime;
-              std::cout<<SimRobot.q<<endl;
+              // std::cout<<SimRobot.q[2]<<endl;
               ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep, PlanTime);
               if(ControlReference.ControlReferenceFlag == true)
               {

@@ -82,7 +82,7 @@ struct TransientOpt: public NonlinearOptimizerInfo
   }
 };
 
-std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, ReachabilityMap & RMObject, bool & OptFlag)
+std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, ReachabilityMap & RMObject, bool & OptFlag, const bool & LastFlag)
 {
   // This function is used to optimize robot's configuration such that a certain contact can be reached for that end effector.
   SimRobotObj = SimRobot;
@@ -127,6 +127,18 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     Flow_vec[i] = 0;
     Fupp_vec[i] = 1e10;
   }
+  switch (LastFlag)
+  {
+    case true:
+    {
+      for (int i = 1; i < neF; i++)
+      {
+        Flow_vec[i] = 0;
+        Fupp_vec[i] = 0;
+      }
+    }
+    break;
+  }
   TransientOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
 
   /*
@@ -159,6 +171,11 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   }
   SimRobotObj.UpdateConfig(Config(OptConfig));
   SimRobotObj.UpdateGeometry();
+
+  std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  string _OptConfigFile = "OptConfigInner.config";
+  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+
   bool SelfCollisionTest = SimRobotObj.SelfCollision();        // Self-collision has been included.
   switch(SelfCollisionTest)
   {

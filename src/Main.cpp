@@ -11,22 +11,8 @@ std::vector<LinkInfo>   NonlinearOptimizerInfo::RobotLinkInfo;
 
 int main()
 {
-  /* 0. Load the XML World file */
-  RobotWorld world;
-  SimGUIBackend Backend(&world);
-  WorldSimulation& Sim = Backend.sim;
-
   std::string FolderPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/";
   std::string EnviName = "Envi1.xml";
-
-  string XMLFileStr = FolderPath + EnviName;
-  const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
-  if(!Backend.LoadAndInitSim(XMLFile))
-  {
-    std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
-    return -1;
-  }
-  Robot SimRobot = *world.robots[0];
 
   /* 1. Load the Contact Link file */
   const std::string UserFilePath = FolderPath + "user/hrp2/";
@@ -47,60 +33,56 @@ int main()
   const int GridsNo = 251;
   // NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
   NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
-  ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
 
-  /* 4. Robot State Loader */
-  RobotConfigLoader(SimRobot, SpecificPath, "SampleTest.config");
 
-  const int DOF = SimRobot.q.size();
-  std::vector<double> InitRobotConfig(DOF), InitRobotVelocity(DOF, 0);
-  std::vector<double> RobotConfigRef(DOF);
-  for (int i = 0; i < DOF; i++)
-  {
-    RobotConfigRef[i] = SimRobot.q[i];
-  }
-  SimRobot.UpdateConfig(Config(RobotConfigRef));
-  SimRobot.dq = InitRobotVelocity;
-
-  /* 5. Initial Optimization Optimization (only for this project) */
-  // RobotConfigLoader(SimRobot, SpecificPath, "InitConfig.config");
-  // InitRobotConfig = SimRobot.q;
-  InitRobotConfig = InitialConfigurationOptimization(SimRobot, RobotContactInfo, RobotConfigRef);
-  RobotConfigWriter(InitRobotConfig, SpecificPath, "InitConfig.config");
-  SimRobot.UpdateConfig(Config(InitRobotConfig));
-  SimRobot.UpdateGeometry();
-  SimRobot.dq = InitRobotVelocity;
-  bool SelfCollisionTest = SimRobot.SelfCollision();
-  if(SelfCollisionTest == true)
-  {
-    std::cerr<<"Initial configuration failed due to self-collision!\n";
-    exit(1);
-  }
-
-  /* 6. Projected Inverted Pendulum Plot */
-  std::vector<Vector3> ActContactPositions, ActVelocities;
-  std::vector<Matrix> ActJacobians;
-  std::vector<int> ActStatus = ActContactNJacobian(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, ActContactPositions, ActVelocities, ActJacobians, NonlinearOptimizerInfo::SDFInfo);
-
-  std::vector<Vector3> CPVertex, CPEdgeA, CPEdgeB;
-  std::vector<FacetInfo> FacetInfoObj = ContactHullGeneration(ActContactPositions, CPVertex, CPEdgeA, CPEdgeB);      // This function output is only used for visualization purpose.
-  // ConvexEdgesWriter(FacetInfoObj, SpecificPath, "InitConfigCHEdges.txt");
-
-  // Vector3 InitCOM = SimRobot.GetCOM();
-  // std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, InitCOM, InitCOM);   // SP denotes SP projection approach.
-  // PIPsWriter(PIPTotal, SpecificPath, "InitConfigPIPs.txt");
-  // std::vector<Vector3> FullPIPInters = FullPIPInterCal(FacetInfoObj, InitCOM);
-  // IntersectionsWriter(FullPIPInters, SpecificPath, "InitConfigIntersections.txt");
-
-  /*  7. Load Impulse Force Magnitude*/
+  /*  5. Load Impulse Force Magnitude*/
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
-  /* 8. Internal Experimentation Loop*/
+  /* 6. Internal Experimentation Loop*/
   int FileIndex = 3;
   int TotalNumber = 25;
+
   while(FileIndex<=TotalNumber)
   {
-    Sim.time = 0.0;
+    // Let them be internal objects
+
+    RobotWorld world;
+    SimGUIBackend Backend(&world);
+    WorldSimulation& Sim = Backend.sim;
+
+    string XMLFileStr = FolderPath + EnviName;
+    const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
+    if(!Backend.LoadAndInitSim(XMLFile))
+    {
+      std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
+      return -1;
+    }
+    Robot SimRobot = *world.robots[0];
+    ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
+
+    std::vector<ContactStatusInfo> InitRobotContactInfo = RobotContactInfo;
+    Robot SimRobotObj = SimRobot;
+    std::vector<double> InitRobotConfig;
+    std::vector<double> InitRobotVelocity(SimRobotObj.q.size(), 0.0);
+    std::vector<double> RobotConfigRef = InitRobotVelocity;
+    bool SelfCollisionTest = true;
+    while(SelfCollisionTest == true)
+    {
+      for (int i = 6; i < SimRobotObj.q.size(); i++)
+      {
+        RobotConfigRef[i] = RandomValue(1.0);
+      }
+      RobotConfigRef[2] = 0.65;
+      RobotConfigRef[23] = -1.0;
+      RobotConfigRef[30] = 1.0;
+      InitRobotConfig = InitialConfigurationOptimization(SimRobotObj, InitRobotContactInfo, RobotConfigRef);
+      RobotConfigWriter(InitRobotConfig, SpecificPath, "InitConfig.config");
+      SimRobotObj.UpdateConfig(Config(InitRobotConfig));
+      SimRobotObj.UpdateGeometry();
+      SimRobotObj.dq = InitRobotVelocity;
+      SelfCollisionTest = SimRobotObj.SelfCollision();
+    }
+
     //  Given the optimized result to be the initial state
     Sim.world->robots[0]->UpdateConfig(Config(InitRobotConfig));
     Sim.world->robots[0]->dq = InitRobotVelocity;
@@ -108,7 +90,7 @@ int main()
     Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
     Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
 
-    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
+    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, InitRobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
     switch (SimFlag)
     {
       case false:

@@ -638,7 +638,16 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
             {
               sVal = 1.0 * sIndex * sDiff;
               EndPathObj.s2Pos(sVal, CurrentContactPos);
-              std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag);
+              bool LastFlag = false;
+              switch (sIndex)
+              {
+                case 5:
+                LastFlag = true;
+                break;
+                default:
+                break;
+              }
+              std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag, false);
               switch (OptFlag)
               {
                 case false:

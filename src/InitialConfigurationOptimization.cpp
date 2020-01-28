@@ -56,7 +56,6 @@ struct InitialConfigurationOpt: public NonlinearOptimizerInfo
     SimRobotObj.UpdateConfig(ConfigOptNew);     // Here both the SimRobot.q and robot frames have already been updated.
     double ConfigVia = 0.0;
     for (int i = 0; i <nVar; i++)
-    // for (int i = 0; i <6; i++)
     {
       ConfigVia +=(ConfigOpt[i] - RobotConfigRef[i]) * (ConfigOpt[i] - RobotConfigRef[i]);
     }
@@ -110,10 +109,11 @@ struct InitialConfigurationOpt: public NonlinearOptimizerInfo
     Vector3 COM_Pos = SimRobotObj.GetCOM();
     int FacetFlag = 0;
     FacetInfo SPObj = FlatContactHullGeneration(SPVertices, FacetFlag);    // This is the support polygon
-    COM_Pos.z = 0.0;
-    F[ConstraintIndex] = SPObj.ProjPoint2EdgeDist(COM_Pos) - 0.025;
-    ConstraintIndex = ConstraintIndex + 1;
+    // COM_Pos.z = 0.0;
+    // F[ConstraintIndex] = SPObj.ProjPoint2EdgeDist(COM_Pos) - 0.025;
+    // ConstraintIndex = ConstraintIndex + 1;
 
+    F[0] =  -SPObj.ProjPoint2EdgeDist(COM_Pos);
     return F;
   }
 };
@@ -134,7 +134,7 @@ static std::vector<double> InitialConfigOptFn(std::vector<double> &RobotConfig)
     }
   }
   neF = neF + n - 6;
-  neF = neF + 1;      // Add one more constraint on the CoM within SP
+  // neF = neF + 1;      // Add one more constraint on the CoM within SP
   InitialConfigOptProblem.InnerVariableInitialize(n, neF);
 
   /*
@@ -148,13 +148,22 @@ static std::vector<double> InitialConfigOptFn(std::vector<double> &RobotConfig)
     xlow_vec[i] = SimRobotObj.qMin(i);
     xupp_vec[i] = SimRobotObj.qMax(i);
   }
+  xlow_vec[0] = RobotConfig[0];
+  xlow_vec[0] = RobotConfig[0];
+  xlow_vec[1] = RobotConfig[1];
+  xlow_vec[1] = RobotConfig[1];
+
+  xlow_vec[6] = -0.35;
+  xupp_vec[6] = -0.35;
+  xlow_vec[9] = 1.0;
+  xupp_vec[9] = 1.0;
   InitialConfigOptProblem.VariableBoundsUpdate(xlow_vec, xupp_vec);
 
   /*
     Initialize the bounds of variables
   */
   std::vector<double> Flow_vec(neF), Fupp_vec(neF);
-  Flow_vec[0] = 0;
+  Flow_vec[0] = -1e20;
   Fupp_vec[0] = 1e20;           // The default idea is that the objective should always be nonnegative
   int ConstraintIndex = 1;
   for (int i = 0; i < RobotContactInfo.size(); i++)
@@ -184,10 +193,10 @@ static std::vector<double> InitialConfigOptFn(std::vector<double> &RobotConfig)
     ConstraintIndex = ConstraintIndex + 1;
   }
 
-  // Projected Center of Mass within Support Polygon
-  Flow_vec[ConstraintIndex] = 0;
-  Fupp_vec[ConstraintIndex] = 1e20;
-  ConstraintIndex = ConstraintIndex + 1;
+  // // Projected Center of Mass within Support Polygon
+  // Flow_vec[ConstraintIndex] = 0;
+  // Fupp_vec[ConstraintIndex] = 1e20;
+  // ConstraintIndex = ConstraintIndex + 1;
 
   InitialConfigOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
 
