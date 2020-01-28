@@ -107,7 +107,15 @@ static std::vector<double> GlobalFrameConfigUpdate(Robot & SimRobot, const doubl
 
   NewRotMat.mul(NewRotMat, RotMat);
   Vector3 EulerAngle = RotMat2EulerAngles(NewRotMat);    // Reverse order to update frame's yaw, pitch and roll.
-
+  double Pi = atan(1.0)*4.0;
+  if(EulerAngle.x>Pi)
+  {
+    EulerAngle.x-=2.0 * Pi;
+  }
+  if(EulerAngle.x<-Pi)
+  {
+    EulerAngle.x+=2.0 * Pi;
+  }
   double FrameConfig[] = {FramePosNew.x, FramePosNew.y, FramePosNew.z, EulerAngle.z , EulerAngle.y, EulerAngle.x};
   std:;vector<double> FrameConfigVec(FrameConfig, FrameConfig + 6);
   return FrameConfigVec;

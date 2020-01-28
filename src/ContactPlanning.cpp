@@ -487,10 +487,10 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
 
-  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
-  // Vector3Writer(SupportContact, "SupportContact");
-  // Vector3Writer(OptimalContact, "OptimalContact");
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  Vector3Writer(SupportContact, "SupportContact");
+  Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }
@@ -585,6 +585,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
       bool FeasiFlag;
       std::vector<SplineLib::cSpline3> SplineObj;
       int OptimalContactIndex = 0;
+      double Pi = atan(1.0)*4.0;
       while(OptimalContactIndex<ContactPairVec.size())
       {
         Robot SimRobotInner = SimRobot;
@@ -609,6 +610,14 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
             double sDiff = 1.0/(1.0 * sNumber - 1.0);
             double sVal = 0.0;
             Config CurrentConfig = SimRobotInner.q;
+            if(CurrentConfig[5]>Pi)
+            {
+              CurrentConfig[5]-=2.0 * Pi;
+            }
+            if(CurrentConfig[5]<-Pi)
+            {
+              CurrentConfig[5]+=2.0 * Pi;
+            }
             double CurrentTime = 0.0;
             Vector3 CurrentContactPos = ContactInit;
 
@@ -635,6 +644,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
                 case false:
                 {
                   // Stop testing the current ContactGoal and try a different one!
+                  std::printf("Transient Optimization failure due to self-collision! \n");
                   break;
                 }
                 break;
@@ -707,15 +717,13 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
   PlanTime = 0.0;
 
   std::clock_t start_time;
-  double allowd_time, duration_time;
-  allowd_time = 0.25;                 // 250ms
-
+  double duration_time;
   start_time = std::clock();          // get current time
   int ContactStatusOption = 0;
   std::vector<ControlReferenceInfo> RobotTrajVec;
   ControlReferenceInfo RobotTraj;
   std::vector<double> ImpulseVec;
-  while((duration_time < allowd_time) && (ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size()))
+  while(ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size())
   {
     std::vector<ContactStatusInfo> RobotContactInfo = AllContactStatusObj.ContactStatusInfoVec[ContactStatusOption];
     int SwingLimbIndex = AllContactStatusObj.SwingLimbIndices[ContactStatusOption];

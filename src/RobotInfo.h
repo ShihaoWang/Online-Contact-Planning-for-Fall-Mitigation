@@ -9,6 +9,7 @@
 #include <KrisLibrary/geometry/CollisionMesh.h>
 #include <KrisLibrary/geometry/PQP/src/PQP.h>
 #include "Splines.h"
+#include "Modeling/Paths.h"
 
 struct LinkInfo
 {
@@ -1299,26 +1300,12 @@ struct ControlReferenceInfo
   void TrajectoryUpdate(const std::vector<Config> & _ConfigTraj, const std::vector<double> & _TimeTraj, const std::vector<Vector3> & _SwingLimbTraj)
   {
     // The three trajectories have been provided.
-    ConfigTraj = _ConfigTraj;
-    TimeTraj = _TimeTraj;
+    LinearPath _PlanStateTraj(_TimeTraj, _ConfigTraj);
+    PlanStateTraj = _PlanStateTraj;
     SwingLimbTraj = _SwingLimbTraj;
     ControlReferenceFlag = true;
     Impulse = 0.0;
     PlanningTime = 0.0;
-  }
-
-  void TimeBound(const double & Time, int & InitIndex, int & EndIndex)
-  {
-    // This function finds the index for Time within TimeTraj.
-    for(int i = 0; i<TimeTraj.size(); i++)
-    {
-      if(TimeTraj[i]>Time)
-      {
-        InitIndex = i - 1;
-        EndIndex = i;
-        break;
-      }
-    }
   }
 
   std::vector<double> ConfigReference(const double & InitTime, const double & CurTime)
@@ -1327,36 +1314,27 @@ struct ControlReferenceInfo
     double TimeDur = CurTime - InitTime;
     if(CurTime<InitTime)
     {
-      return ConfigTraj[0];
+      return PlanStateTraj.milestones[0];
     }
     else
     {
-      if((CurTime - InitTime)>TimeTraj[TimeTraj.size()-1])
+      if((CurTime - InitTime) > PlanStateTraj.EndTime())
       {
-        return ConfigTraj[ConfigTraj.size()-1];
+        return PlanStateTraj.milestones[PlanStateTraj.times.size()-1];
       }
       else
       {
-        int InitIndex, EndIndex;
-        TimeBound(TimeDur, InitIndex, EndIndex);
+        Vector xt;
+        PlanStateTraj.Eval(TimeDur, xt);
         // Then a linear interpolation will be conducted to get robot's current configuration reference.
-        double TimeDurRef = TimeTraj[EndIndex] - TimeTraj[InitIndex];
-
-        std::vector<double> ConfigVec(ConfigTraj[0].size());
-        for(int i = 0; i < ConfigTraj[0].size(); i++)
-        {
-          double slope = (ConfigTraj[EndIndex][i] - ConfigTraj[InitIndex][i])/TimeDurRef;
-          double ConfigVec_i = slope * (TimeDur - TimeTraj[InitIndex]) + ConfigTraj[InitIndex][i];
-          ConfigVec[i] = ConfigVec_i;
-        }
+        std::vector<double> ConfigVec(xt);
         return ConfigVec;
       }
     }
   }
 
   int SwingLimbIndex;
-  std::vector<Config> ConfigTraj;         // This saves robot's reference trajectory.
-  std::vector<double> TimeTraj;           // This saves the optimal time trajectory.
+  LinearPath PlanStateTraj;
   std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector
   bool ControlReferenceFlag;
   double Impulse;

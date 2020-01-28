@@ -84,13 +84,13 @@ int main()
 
   std::vector<Vector3> CPVertex, CPEdgeA, CPEdgeB;
   std::vector<FacetInfo> FacetInfoObj = ContactHullGeneration(ActContactPositions, CPVertex, CPEdgeA, CPEdgeB);      // This function output is only used for visualization purpose.
-  ConvexEdgesWriter(FacetInfoObj, SpecificPath, "InitConfigCHEdges.txt");
+  // ConvexEdgesWriter(FacetInfoObj, SpecificPath, "InitConfigCHEdges.txt");
 
-  Vector3 InitCOM = SimRobot.GetCOM();
-  std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, InitCOM, InitCOM);   // SP denotes SP projection approach.
-  PIPsWriter(PIPTotal, SpecificPath, "InitConfigPIPs.txt");
-  std::vector<Vector3> FullPIPInters = FullPIPInterCal(FacetInfoObj, InitCOM);
-  IntersectionsWriter(FullPIPInters, SpecificPath, "InitConfigIntersections.txt");
+  // Vector3 InitCOM = SimRobot.GetCOM();
+  // std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPositions, InitCOM, InitCOM);   // SP denotes SP projection approach.
+  // PIPsWriter(PIPTotal, SpecificPath, "InitConfigPIPs.txt");
+  // std::vector<Vector3> FullPIPInters = FullPIPInterCal(FacetInfoObj, InitCOM);
+  // IntersectionsWriter(FullPIPInters, SpecificPath, "InitConfigIntersections.txt");
 
   /*  7. Load Impulse Force Magnitude*/
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
@@ -108,9 +108,7 @@ int main()
     Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
     Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
 
-    std::vector<ContactStatusInfo> InitRobotContactInfo = RobotContactInfo;
-
-    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, InitRobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
+    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
     switch (SimFlag)
     {
       case false:

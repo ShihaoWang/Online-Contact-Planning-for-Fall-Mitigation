@@ -170,5 +170,14 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     default:
     break;
   }
+  double Pi = atan(1.0)*4.0;
+  if(OptConfig[5]>Pi)
+  {
+    OptConfig[5]-=2.0 * Pi;
+  }
+  if(OptConfig[5]<-Pi)
+  {
+    OptConfig[5]+=2.0 * Pi;
+  }
   return OptConfig;
 }

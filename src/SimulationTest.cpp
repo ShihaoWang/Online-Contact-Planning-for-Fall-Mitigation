@@ -125,7 +125,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
-        if(((CurTime - InitTime)>ControlReference.TimeTraj[ControlReference.TimeTraj.size()-1])&&(EndEffectorDist<=0.005))
+        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=0.005))
         {
           // Turn off PushControlFlag
           RobotContactInfo = ControlReference.GoalContactInfo;
@@ -157,6 +157,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
               // Push recovery controller reference should be computed here.
               // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
               double PlanTime;
+              std::cout<<SimRobot.q<<endl;
               ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep, PlanTime);
               if(ControlReference.ControlReferenceFlag == true)
               {

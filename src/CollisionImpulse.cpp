@@ -56,13 +56,12 @@ void CollisionImpulseFunc(Robot& SimRobot, const std::vector<ContactStatusInfo> 
   Matrix Jac, JacTrans;
   JacobianMatrixStack(ActJacs, Jac, JacTrans);
 
+  const int DOF = ControlReferenceObj.PlanStateTraj.milestones[0].size();
+  const int ConfigSize = ControlReferenceObj.PlanStateTraj.times.size();
 
-  const int DOF = ControlReferenceObj.ConfigTraj[0].size();
-  const int ConfigSize = ControlReferenceObj.ConfigTraj.size();
-
-  Config Config1stLast = ControlReferenceObj.ConfigTraj[ConfigSize-1];
-  Config Config2ndLast = ControlReferenceObj.ConfigTraj[ConfigSize-2];
-  double TimeDuration = ControlReferenceObj.TimeTraj[ConfigSize-1] - ControlReferenceObj.TimeTraj[ConfigSize-2];
+  Config Config1stLast = ControlReferenceObj.PlanStateTraj.milestones[ConfigSize-1];
+  Config Config2ndLast = ControlReferenceObj.PlanStateTraj.milestones[ConfigSize-2];
+  double TimeDuration = ControlReferenceObj.PlanStateTraj.times[ConfigSize-1] - ControlReferenceObj.PlanStateTraj.times[ConfigSize-2];
 
   NewtonEulerSolver NESolver(SimRobot);
 

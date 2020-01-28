@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 1
+ExpNo = 2
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
 VisMode = 0
@@ -423,7 +423,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
         InfeasiFlag = 0
         for i in range(0, StateTrajLength):
             vis.lock()
-            config_i = CtrlStateTraj.milestones[i]
+            config_i = PlanStateTraj.milestones[i]
             SimRobot.setConfig(config_i)
             COM_Pos = SimRobot.getCom()
             RobotCOMPlot(SimRobot, vis)
