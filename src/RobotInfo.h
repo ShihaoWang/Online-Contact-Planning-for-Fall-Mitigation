@@ -977,7 +977,7 @@ struct ReachabilityMap
   {
     // Here MinRadius is used for comparison while Radius is the maximum allowed radius of robot's end effector.
     // This function is used to get presumably active ReachablePointsGene() from all sampled points.
-    const double DisTol = 0.005;        // 5mm as a signed distance tolerance.
+    const double DisTol = 0.01;        // 1cm as a signed distance tolerance.
     std::vector<Vector3> ReachablePoints;
     ReachablePoints.reserve(TotalPoint);
     ReachablePointNo = 0;
@@ -1005,7 +1005,6 @@ struct ReachabilityMap
       {
         Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
-        // if((CurrentDist>=0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
         if(CurrentDist*CurrentDist<DisTol*DisTol)
         {
           Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);

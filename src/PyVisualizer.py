@@ -15,7 +15,8 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 3
+ExpNo = 1
+StateType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
 VisMode = 0
@@ -418,14 +419,46 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     # 6.
     TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
-    # PlanStateTraj.getLinkTrajectory
+    com_ctrl = []
+    com_plan = []
+    com_failure = []
+    for i in range(0, StateTrajLength):
+        if StateType == 0:
+            config_i = CtrlStateTraj.milestones[i]
+            SimRobot.setConfig(config_i)
+            com_ctrl.append(SimRobot.getCom())
+        if StateType == 1:
+            config_i = PlanStateTraj.milestones[i]
+            SimRobot.setConfig(config_i)
+            com_plan.append(SimRobot.getCom())
+        if StateType == 2:
+            config_i = FailureStateTraj.milestones[i]
+            SimRobot.setConfig(config_i)
+            com_failure.append(SimRobot.getCom())
+
+    # linkTraj = RobotTrajectory(SimRobot,PlanStateTraj.times,PlanStateTraj.milestones).getLinkTrajectory(13)
+    # vis.add("LinkTraj",linkTraj)
+    for prefix,com_list in zip(['COM_ctrl','COM_plan','COM_failure'],[com_ctrl,com_plan,com_failure]):
+        for i,c in enumerate(com_list):
+            label = prefix + str(i)
+            COMPos_end = c
+            COMPos_end[2] = COMPos_end[2] - 7.50
+            vis.add(label, Trajectory([0, 1], [c, COMPos_end]))
+            vis.hideLabel(label,True)
+            vis.setColor(label, 0.0, 204.0/255.0, 0.0, 1.0)
+            vis.setAttribute(label,'width', 5.0)
 
     while vis.shown():
         # This is the main plot program
-        InfeasiFlag = 0
         for i in range(0, StateTrajLength):
             vis.lock()
-            config_i = PlanStateTraj.milestones[i]
+            if StateType == 0:
+                config_i = CtrlStateTraj.milestones[i]
+            if StateType == 1:
+                config_i = PlanStateTraj.milestones[i]
+            if StateType == 2:
+                config_i = FailureStateTraj.milestones[i]
+
             SimRobot.setConfig(config_i)
             COM_Pos = SimRobot.getCom()
             RobotCOMPlot(SimRobot, vis)
@@ -468,13 +501,13 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             vis.unlock()
             time.sleep(TimeStep)
 
-            # for j in range(0, len(EdgeAList_i)):
-            #     PIP_Remove(j, vis)
+        # for j in range(0, len(EdgeAList_i)):
+        #     PIP_Remove(j, vis)
 
         # ReachableContactPlot(vis, IdealReachableContacts_data)
 
-            # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
-            #     vis.remove("blah")
+        # if((CPFlag is 1 or 2) and (InfeasiFlag is 0)):
+        #     vis.remove("blah")
 
 def ImpulseInfoReader(file_path):
     PushInfoFilePath = file_path + "/PushInfoFile.txt"
@@ -503,7 +536,7 @@ def main(*arg):
     if not result:
         raise RuntimeError("Unable to load model " + XML_path)
     ContactLinkDictionary = ContactLinkReader("ContactLink.txt", "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/")
-    ipdb.set_trace()
+    # ipdb.set_trace()
     if "Path" in PlotType:
 
         PlanStateTraj = Trajectory(world.robot(0))

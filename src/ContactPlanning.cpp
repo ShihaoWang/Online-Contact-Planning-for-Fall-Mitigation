@@ -287,8 +287,10 @@ EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const d
 static AllContactStatusInfo SwingLimbIndices(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo)
 {
   // This function is used to generate Swing Limb Indices and its associated contact status info.
-  // First  part is for contact modification.
+  // First part is for contact modification.
   // Second part is for contact addition.
+
+  // This part should be rewritten to allow more general case.
 
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
@@ -322,56 +324,29 @@ static AllContactStatusInfo SwingLimbIndices(Robot & SimRobot, const std::vector
         break;
         case 1:
         {
-          switch (RobotContactInfo[2].LocalContactStatus[0] + RobotContactInfo[3].LocalContactStatus[0])
+          // In this case, the contact modification can only be conducted for hand contact if there exists.
+          switch (RobotContactInfo[2].LocalContactStatus[0])
           {
-            case 2:
+            case 1:
             {
-              std::vector<ContactStatusInfo> RobotContactInfoFirst = RobotContactInfo;
-              RobotContactInfoFirst[2].StatusSwitch(0);
-              double FMFirst = FailureMetricEval(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfoFirst);
-
-              std::vector<ContactStatusInfo> RobotContactInfoSecond = RobotContactInfo;
-              RobotContactInfoSecond[3].StatusSwitch(0);
-              double FMSecond = FailureMetricEval(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfoSecond);
-              if(FMFirst>FMSecond)
-              {
-                // We should move second contact.
-                AllContactStatusObj.ContactStatusAppender(RobotContactInfoSecond, 3);
-              }
-              else
-              {
-                // We should move first contact point.
-                AllContactStatusObj.ContactStatusAppender(RobotContactInfoFirst, 2);
-              }
+              std::vector<ContactStatusInfo> RobotContactInfoModi = RobotContactInfo;
+              RobotContactInfoModi[2].StatusSwitch(0);
+              AllContactStatusObj.ContactStatusAppender(RobotContactInfoModi, 2);
             }
             break;
             default:
+            break;
+          }
+          switch (RobotContactInfo[3].LocalContactStatus[0])
+          {
+            case 1:
             {
-              switch (RobotContactInfo[2].LocalContactStatus[0])
-              {
-                case 1:
-                {
-                  std::vector<ContactStatusInfo> RobotContactInfoTemp = RobotContactInfo;
-                  RobotContactInfoTemp[2].StatusSwitch(0);
-                  AllContactStatusObj.ContactStatusAppender(RobotContactInfoTemp, 2);
-                }
-                break;
-                default:
-                break;
-              }
-              switch (RobotContactInfo[3].LocalContactStatus[0])
-              {
-                case 1:
-                {
-                  std::vector<ContactStatusInfo> RobotContactInfoTemp = RobotContactInfo;
-                  RobotContactInfoTemp[3].StatusSwitch(0);
-                  AllContactStatusObj.ContactStatusAppender(RobotContactInfoTemp, 3);
-                }
-                break;
-                default:
-                break;
-              }
+              std::vector<ContactStatusInfo> RobotContactInfoModi = RobotContactInfo;
+              RobotContactInfoModi[3].StatusSwitch(0);
+              AllContactStatusObj.ContactStatusAppender(RobotContactInfoModi, 3);
             }
+            break;
+            default:
             break;
           }
         }
@@ -379,30 +354,20 @@ static AllContactStatusInfo SwingLimbIndices(Robot & SimRobot, const std::vector
         default:
         {
           // More general case where two feet contact is shown while hands may be involved.
-          std::vector<double> FMVec;
-          std::vector<int> IndicesVec;
-          for(int i = 0; i < RobotContactInfo.size(); i++)
+          for (int i = 0; i < 4; i++)
           {
             switch (RobotContactInfo[i].LocalContactStatus[0])
             {
               case 1:
               {
-                std::vector<ContactStatusInfo> RobotContactInfoTemp = RobotContactInfo;
-                RobotContactInfoTemp[i].StatusSwitch(0);
-                double FMi = FailureMetricEval(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfoTemp);
-                FMVec.push_back(FMi);
-                IndicesVec.push_back(i);
+                std::vector<ContactStatusInfo> RobotContactInfoModi = RobotContactInfo;
+                RobotContactInfoModi[i].StatusSwitch(0);
+                AllContactStatusObj.ContactStatusAppender(RobotContactInfoModi, i);
               }
               break;
+              default:
+              break;
             }
-          }
-          int MaxEndIndex = std::distance(FMVec.begin(), std::max_element(FMVec.begin(), FMVec.end()));
-          IndicesVec.erase(IndicesVec.begin() + MaxEndIndex);
-          for (int i = 0; i < IndicesVec.size(); i++)
-          {
-            std::vector<ContactStatusInfo> RobotContactInfoTemp = RobotContactInfo;
-            RobotContactInfoTemp[IndicesVec[i]].StatusSwitch(0);
-            AllContactStatusObj.ContactStatusAppender(RobotContactInfoTemp, IndicesVec[i]);
           }
         }
         break;
@@ -467,6 +432,7 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
 
   // 1. Self-collision from other end effectors
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLimbIndex], ActiveReachableContact, ContactFreeInfo);
@@ -476,6 +442,8 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+
   // 2. Supportive
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
   switch (SupportContact.size()){
@@ -484,12 +452,10 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
+  Vector3Writer(SupportContact, "SupportContact");
+
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
-
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
-  Vector3Writer(SupportContact, "SupportContact");
   Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
@@ -525,12 +491,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
 
-  // clock_t beginTime = std::clock();
   std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLimbIndex, RefFailureMetric);
-  // clock_t endTime = std::clock();
-  // double elapsed_secs = double(endTime - beginTime)/CLOCKS_PER_SEC;
-  // std::printf("OptimalContactSearcher function takes: %f ms\n", 1000.0 * elapsed_secs);
-
   switch (OptimalContact.size())
   {
     case 0:
@@ -633,6 +594,11 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
             TimeTraj.push_back(CurrentTime);
             SwingLimbTraj.push_back(CurrentContactPos);
 
+            std::string ConfigRMCMD = "cd /home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+            ConfigRMCMD += " && rm -f *OptConfig*.*";
+            const char *command = ConfigRMCMD.c_str();
+            system(command);
+
             bool OptFlag = true;
             while((sIndex<sNumber)&&(OptFlag == true))
             {
@@ -647,7 +613,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
                 default:
                 break;
               }
-              std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag, false);
+              std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag, LastFlag);
               switch (OptFlag)
               {
                 case false:

@@ -36,8 +36,8 @@ int main()
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
   /* 6. Internal Experimentation Loop*/
-  int FileIndex = 3;
-  int TotalNumber = 10;
+  int FileIndex = 1;
+  int TotalNumber = 5;
 
   while(FileIndex<=TotalNumber)
   {
@@ -45,6 +45,7 @@ int main()
     string str = "cd " + SpecificPath + std::to_string(FileIndex) + "/";
     str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt";
     str+=" && cd /home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/ && rm -f *Opt*.config";
+    str+=" && cd /home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/build/ && rm -f *Contact.bin && rm -f *TransitionPoints*.*";
     const char *command = str.c_str();
     system(command);
 

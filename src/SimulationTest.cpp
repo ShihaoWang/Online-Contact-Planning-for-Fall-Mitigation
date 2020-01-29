@@ -15,7 +15,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  InitDuration    = 2.0;
   double  PushPeriod      = 5.0;                                    // Every 10s a push will be given to the robot body.
   double  PushTriTime     = PushPeriod;                             // Initial disturbance is given.
-  double  PushDuration    = 0.1;                                    // Push lasts for 0.1s.
+  double  PushDuration    = 0.5;                                    // Push lasts for 0.5s.
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
@@ -124,7 +124,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
-    std::cout<<SimRobot.q[2]<<endl;
+    std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
 
     if(SimRobot.q[2]<0.35)
     {
