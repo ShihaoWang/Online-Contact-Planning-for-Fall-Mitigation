@@ -19,7 +19,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  DetectionWait = 0.25;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWait = 0.1;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = 1.0;
   double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
 
@@ -125,8 +125,9 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
     std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
+    // std::cout<<"SimRobot.q[2]: "<<SimRobot.q[2]<<endl;
 
-    if(SimRobot.q[2]<0.35)
+    if(SimRobot.q[2]<0.5)
     {
       return false;
     }
@@ -245,7 +246,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         Sim.Advance(TimeStep);
         Sim.UpdateModel();
       }
-      if(Sim.world->robots[0]->q[2]>0.35)
+      if(Sim.world->robots[0]->q[2]>0.5)
       {
         return false;
       }

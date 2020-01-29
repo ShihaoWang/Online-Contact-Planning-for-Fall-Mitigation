@@ -4,7 +4,7 @@
 
 // This function is used to estimate robot's collision impulse.
 
-static double InfVal = 5000.0;
+static double InfVal = 1000.0;
 
 static void JacobianMatrixStack(const std::vector<Matrix> & ActJacs, Matrix & Jac, Matrix & JacTrans)
 {

@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 1
+ExpNo = 6
 StateType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -410,14 +410,14 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
     # 2. Active Reachable Points
     ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # 3. Contact Free Points
-    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # 4. Supportive Points
-    SupportContacts_data = ContactDataLoader("SupportContact")
-    # 5. Optimal Point
-    OptimalContact_data = ContactDataLoader("OptimalContact")
-    # 6.
-    TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # # 3. Contact Free Points
+    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # # 4. Supportive Points
+    # SupportContacts_data = ContactDataLoader("SupportContact")
+    # # 5. Optimal Point
+    # OptimalContact_data = ContactDataLoader("OptimalContact")
+    # # 6.
+    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     com_ctrl = []
     com_plan = []
@@ -491,12 +491,12 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             #     else:
             #         print "Input Contact Polytope Infeasible!"
             # ContactDataPlot(vis, IdealReachableContacts_data)
-            # ContactDataPlot(vis, ActiveReachableContacts_data)
+            ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)
             # ContactDataPlot(vis, CirclePointContact_data)
-            ContactDataPlot(vis, TransitionPoints_data)
+            # ContactDataPlot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(TimeStep)
