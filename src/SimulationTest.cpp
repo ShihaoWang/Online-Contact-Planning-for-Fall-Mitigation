@@ -253,6 +253,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     }
     break;
     default:
+    return false;
     break;
   }
 

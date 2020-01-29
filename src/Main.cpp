@@ -36,7 +36,7 @@ int main()
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
   /* 6. Internal Experimentation Loop*/
-  int FileIndex = 7;
+  int FileIndex = 8;
   int TotalNumber = 10;
 
   while(FileIndex<=TotalNumber)
