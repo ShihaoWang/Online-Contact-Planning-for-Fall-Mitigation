@@ -529,11 +529,28 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
       std::vector<std::pair<Vector3, double>> ContactPairVec;
       ContactPairVec.reserve(OptimalContact.size());
 
+      // Here a little modification will be made to ensure a more accurate computation of contact points.
+      std::vector<Vector3> SwingLimbVertices;
+      SwingLimbVertices.reserve(RobotLinkInfo[SwingLimbIndex].LocalContacts.size());
+      for (int i = 0; i < RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
+      {
+        Vector3 LinkiPjPos;
+        SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].LocalContacts[i], RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
+        SwingLimbVertices.push_back(LinkiPjPos);
+      }
+
+      Vector3 SwingLimbAvg;
+      SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, SwingLimbAvg);
+
       int FacetFlag = 0;
       for (int i = 0; i < OptimalContact.size(); i++)
       {
         std::vector<Vector3> NewSPVertices = SPVertices;
-        NewSPVertices.push_back(OptimalContact[i]);
+        Vector3 ShiftVec = OptimalContact[i] - SwingLimbAvg;
+        for (int j = 0; j < SwingLimbVertices.size(); j++)
+        {
+          NewSPVertices.push_back(SwingLimbVertices[j] + ShiftVec);
+        }
         FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
         COM_Pos.z = 0.0;
         double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);

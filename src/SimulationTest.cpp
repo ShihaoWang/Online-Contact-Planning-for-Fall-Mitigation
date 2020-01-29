@@ -19,7 +19,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  DetectionWait = 0.1;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWait = 0.25;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = 1.0;
   double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
 
@@ -37,7 +37,6 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   Sim.SetController(0, NewControllerPtr);
   NewControllerPtr->SetConstant(Sim.world->robots[0]->q);
 
-  std::vector<double> qDes = Sim.world->robots[0]->q;               // This is commanded robot configuration to the controller.
   Robot SimRobot = *Sim.world->robots[0];
   ControlReferenceInfo ControlReference;                            // Used for control reference generation.
   Vector3 ImpulseForce;
@@ -67,6 +66,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   }
   SimTotalTime           += Sim.time;
   std::printf("Initial Simulation Done!\n");
+  std::vector<double> qDes = PlanStateTraj.milestones[PlanStateTraj.milestones.size()-1];               // This is commanded robot configuration to the controller.
 
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
@@ -244,6 +244,10 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
         Sim.Advance(TimeStep);
         Sim.UpdateModel();
+      }
+      if(Sim.world->robots[0]->q[2]>0.35)
+      {
+        return false;
       }
     }
     break;
