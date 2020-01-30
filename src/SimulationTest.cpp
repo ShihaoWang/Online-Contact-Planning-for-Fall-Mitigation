@@ -6,6 +6,8 @@
 #include "Control/JointTrackingController.h"
 #include "NonlinearOptimizerInfo.h"
 
+static double DisTol = 0.35;
+
 bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const string & SpecificPath, const int & FileIndex, const Vector3 & ImpulseForceMax)
 {
   /* Simulation parameters */
@@ -19,7 +21,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  DetectionWait = 0.1;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWait = 0.25;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = 1.0;
   double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
 
@@ -49,13 +51,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     FailureStateTraj.Append(Sim.time, Sim.world->robots[0]->q);
     CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
     PlanStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-    // std::cout<<Sim.world->robots[0]->q[2]<<endl;
     std::printf("Initial Simulation Time: %f\n", Sim.time);
-
-    if((Sim.world->robots[0]->q[2])<0.35)
-    {
-      return false;
-    }
 
     StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
     StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
@@ -105,6 +101,8 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // Push should last in this duration.
         PushDurationMeasure+=TimeStep;
         double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
+        ImpulseForce.x = -2500;
+        ImpulseForce.y = 2000;
         dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), ImpulseScale * ImpulseForce.x, ImpulseScale * ImpulseForce.y, ImpulseScale * ImpulseForce.z, 0.0, 0.0, 0.0);     // Body 2
         PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath, FileIndex);
       }
@@ -125,9 +123,9 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
     std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
-    // std::cout<<"SimRobot.q[2]: "<<SimRobot.q[2]<<endl;
+    std::cout<<"COMPos.z: "<<COMPos.z<<endl;
 
-    if(SimRobot.q[2]<0.5)
+    if(COMPos.z<DisTol)
     {
       return false;
     }
@@ -139,7 +137,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
-        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=0.005))
+        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=0.01))
         {
           // Turn off PushControlFlag
           RobotContactInfo = ControlReference.GoalContactInfo;
@@ -241,12 +239,13 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
       while(Sim.time <= CtrlStateTraj.EndTime())
       {
+        CentroidalState(*Sim.world->robots[0], COMPos, COMVel);
         FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
         StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
         Sim.Advance(TimeStep);
         Sim.UpdateModel();
       }
-      if(Sim.world->robots[0]->q[2]>0.5)
+      if(COMPos.z>DisTol)
       {
         return false;
       }

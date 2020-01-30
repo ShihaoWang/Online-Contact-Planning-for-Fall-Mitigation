@@ -14,8 +14,8 @@ import numpy as np
 import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
-ContactType = "/1Contact"
-ExpNo = 6
+ContactType = "/2Contact"
+ExpNo = 4
 StateType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -410,14 +410,14 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
     # 2. Active Reachable Points
     ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # # 3. Contact Free Points
-    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # # 4. Supportive Points
-    # SupportContacts_data = ContactDataLoader("SupportContact")
-    # # 5. Optimal Point
-    # OptimalContact_data = ContactDataLoader("OptimalContact")
-    # # 6.
-    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # 3. Contact Free Points
+    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # 4. Supportive Points
+    SupportContacts_data = ContactDataLoader("SupportContact")
+    # 5. Optimal Point
+    OptimalContact_data = ContactDataLoader("OptimalContact")
+    # 6.
+    TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     com_ctrl = []
     com_plan = []
@@ -450,7 +450,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
     while vis.shown():
         # This is the main plot program
-        for i in range(0, StateTrajLength):
+        for i in range(0, PIPTrajLength):
             vis.lock()
             if StateType == 0:
                 config_i = CtrlStateTraj.milestones[i]
@@ -462,7 +462,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             SimRobot.setConfig(config_i)
             COM_Pos = SimRobot.getCom()
             RobotCOMPlot(SimRobot, vis)
-            # EdgeAList_i = EdgeAList[i]
+            EdgeAList_i = EdgeAList[i]
             # EdgeBList_i = EdgeBList[i]
             # EdgeCOMList_i = EdgeCOMList[i]
             # EdgexList_i = EdgexList[i]
@@ -480,18 +480,18 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
             # if CPFlag is 1 or 2:
             #     try:
-            #         h = ConvexHull(EdgeAList_i)
+            # h = ConvexHull(EdgeAList_i)
             #     except:
             #         InfeasiFlag = 1
             #     if InfeasiFlag is 0:
-            #         h = ConvexHull(EdgeAList_i)
-            #         hrender = draw_hull.PrettyHullRenderer(h)
-            #         vis.add("blah", h
-            #         vis.setDrawFunc("blah", my_draw_hull)
+            h = ConvexHull(EdgeAList_i)
+            hrender = draw_hull.PrettyHullRenderer(h)
+            vis.add("blah", h)
+            vis.setDrawFunc("blah", my_draw_hull)
             #     else:
             #         print "Input Contact Polytope Infeasible!"
             # ContactDataPlot(vis, IdealReachableContacts_data)
-            ContactDataPlot(vis, ActiveReachableContacts_data)
+            # ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)

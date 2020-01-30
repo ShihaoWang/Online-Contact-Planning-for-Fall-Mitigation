@@ -26,7 +26,7 @@ static void JacobianMatrixStack(const std::vector<Matrix> & ActJacs, Matrix & Ja
 
 void CollisionImpulseFunc(Robot& SimRobot, const std::vector<ContactStatusInfo> & InitContactInfo, const int & SwingLimbIndex, ControlReferenceInfo & ControlReferenceObj)
 {
-  double Impulse = 0.0;
+  double Impulse = InfVal * InfVal;
   std::vector<ContactStatusInfo> GoalContactInfo = InitContactInfo;
   for(int i = 0; i<InitContactInfo[SwingLimbIndex].LocalContactStatus.size(); i++)
   {

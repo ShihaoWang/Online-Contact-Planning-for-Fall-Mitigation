@@ -174,7 +174,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
 
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
   string _OptConfigFile = "InnerOptConfig.config";
-  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+  // RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   bool SelfCollisionTest = SimRobotObj.SelfCollision();        // Self-collision has been included.
   switch(SelfCollisionTest)
@@ -195,6 +195,15 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   if(OptConfig[5]<-Pi)
   {
     OptConfig[5]+=2.0 * Pi;
+  }
+
+  if(OptConfig[3]>Pi)
+  {
+    OptConfig[3]-=2.0 * Pi;
+  }
+  if(OptConfig[3]<-Pi)
+  {
+    OptConfig[3]+=2.0 * Pi;
   }
   return OptConfig;
 }

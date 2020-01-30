@@ -574,7 +574,7 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  std::uniform_real_distribution<> ImpXdis(0.5 * ImpFx, 1.0 * ImpFx);
+  std::uniform_real_distribution<> ImpXdis(0.75 * ImpFx, 1.0 * ImpFx);
   std::uniform_real_distribution<> ImpYdis(0.75 * ImpFy, 1.0 * ImpFy);
   std::uniform_real_distribution<> ImpZdis(0.5 * ImpFz, 1.0 * ImpFz);
 

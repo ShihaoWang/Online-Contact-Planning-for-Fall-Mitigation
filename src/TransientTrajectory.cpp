@@ -93,7 +93,7 @@ static SplineInfo SplinePiece3DObjGene(const double & sInit, const double & sGoa
 static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal)
 {
   // This function is used to generate the cubic spline for given robot's end effector path.
-  const double scale = 0.1;
+  const double scale = 0.25;
   SplineInfo BaseSpline = SplinePiece3DObjGene(0.0, 1.0, PosInit, scale * NormalInit, PosGoal, -scale * NormalGoal);
   const int segmentNo = 3;
   double sUnit = 1.0/(1.0 * segmentNo);
@@ -219,28 +219,28 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   std::vector<cSpline3> SplineObj = SplineObjGene(PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 
-  const int SplineNumber = SplineObj.size();
-  const int SplineGrid = 5;
-  std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
-
-  double sUnit = 1.0/(1.0 * SplineGrid);
-  int TransitionIndex = 0;
-  for (int i = 0; i < SplineNumber; i++)
-  {
-    for (int j = 0; j < SplineGrid; j++)
-    {
-      double s = 1.0 * j * sUnit;
-      Vec3f ps = Position (SplineObj[i], s);
-      Vector3 SplinePoint(ps.x, ps.y, ps.z);
-      TransitionPoints[TransitionIndex] = SplinePoint;
-      TransitionIndex++;
-    }
-  }
-  // The last waypoint
-  Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
-  Vector3 SplinePoint(ps.x, ps.y, ps.z);
-  TransitionPoints[TransitionIndex] = SplinePoint;
-  Vector3Writer(TransitionPoints, "TransitionPoints");
+  // const int SplineNumber = SplineObj.size();
+  // const int SplineGrid = 5;
+  // std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
+  //
+  // double sUnit = 1.0/(1.0 * SplineGrid);
+  // int TransitionIndex = 0;
+  // for (int i = 0; i < SplineNumber; i++)
+  // {
+  //   for (int j = 0; j < SplineGrid; j++)
+  //   {
+  //     double s = 1.0 * j * sUnit;
+  //     Vec3f ps = Position (SplineObj[i], s);
+  //     Vector3 SplinePoint(ps.x, ps.y, ps.z);
+  //     TransitionPoints[TransitionIndex] = SplinePoint;
+  //     TransitionIndex++;
+  //   }
+  // }
+  // // The last waypoint
+  // Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
+  // Vector3 SplinePoint(ps.x, ps.y, ps.z);
+  // TransitionPoints[TransitionIndex] = SplinePoint;
+  // Vector3Writer(TransitionPoints, "TransitionPoints");
 
   return SplineObj;
 

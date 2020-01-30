@@ -432,7 +432,7 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
 
   // 1. Self-collision from other end effectors
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLimbIndex], ActiveReachableContact, ContactFreeInfo);
@@ -442,7 +442,7 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
 
   // 2. Supportive
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
@@ -452,11 +452,11 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
-  Vector3Writer(SupportContact, "SupportContact");
+  // Vector3Writer(SupportContact, "SupportContact");
 
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
-  Vector3Writer(OptimalContact, "OptimalContact");
+  // Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }
@@ -596,6 +596,14 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
             {
               CurrentConfig[5]+=2.0 * Pi;
             }
+            if(CurrentConfig[3]>Pi)
+            {
+              CurrentConfig[3]-=2.0 * Pi;
+            }
+            if(CurrentConfig[3]<-Pi)
+            {
+              CurrentConfig[3]+=2.0 * Pi;
+            }
             double CurrentTime = 0.0;
             Vector3 CurrentContactPos = ContactInit;
 
@@ -654,6 +662,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & _SimRo
                   // Then we should update the robot's CurrentConfig based on CurrentTime_i.
                   Config UpdatedConfig  = WholeBodyDynamicsIntegrator(SimRobotInner, OptConfig, PIPObj, InvertedPendulumObj, CurrentTime_i, sIndex);
                   SimRobotInner.UpdateConfig(UpdatedConfig);
+                  CurrentConfig = UpdatedConfig;
                 }
                 break;
               }
@@ -760,7 +769,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const PIPInfo 
     default:
     {
       int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
-      std::printf("Planning successfully finds a feasible solution! \nRobot Limb Index: %d\n", RobotTrajVec[RobotTrajIndex].SwingLimbIndex);
+      std::printf("Planning successfully finds a feasible solution! \nRobot Limb Index: %d\n", NonlinearOptimizerInfo::RobotLinkInfo[RobotTrajVec[RobotTrajIndex].SwingLimbIndex].LinkIndex);
       RobotTraj = RobotTrajVec[RobotTrajIndex];
     }
     break;

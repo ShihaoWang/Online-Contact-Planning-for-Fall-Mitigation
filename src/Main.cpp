@@ -23,7 +23,7 @@ int main()
   std::vector<int> TorsoLink = TorsoLinkReader(TorsoLinkFilePath);
 
   /* 2. Load the Contact Status file */
-  const std::string ExpName = "flat/";
+  const std::string ExpName = "uneven/";
   const std::string ContactType = "1Contact/";
   const std::string SpecificPath = FolderPath + "result/" + ExpName + ContactType;
 
@@ -36,7 +36,7 @@ int main()
   Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
 
   /* 6. Internal Experimentation Loop*/
-  int FileIndex = 8;
+  int FileIndex = 1;
   int TotalNumber = 10;
 
   while(FileIndex<=TotalNumber)
