@@ -12,7 +12,7 @@ std::vector<LinkInfo>   NonlinearOptimizerInfo::RobotLinkInfo;
 int main()
 {
   std::string FolderPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/";
-  std::string EnviName = "Envi1.xml";
+  std::string EnviName = "Envi2.xml";
 
   /* 1. Load the Contact Link file */
   const std::string UserFilePath = FolderPath + "user/hrp2/";
@@ -24,12 +24,11 @@ int main()
 
   /* 2. Load the Contact Status file */
   const std::string ExpName = "uneven/";
-  const std::string ContactType = "1Contact/";
+  const std::string ContactType = "2Contact/";
   const std::string SpecificPath = FolderPath + "result/" + ExpName + ContactType;
 
   /* 3. Environment Geometry and Reachability Map*/
   const int GridsNo = 251;
-  // NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
   NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
 
   /*  5. Load Impulse Force Magnitude*/
@@ -60,6 +59,8 @@ int main()
       std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
       return -1;
     }
+    NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
+
     Robot SimRobot = *world.robots[0];
     ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
 
@@ -78,7 +79,6 @@ int main()
 
     Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
     Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
-
     bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
     switch (SimFlag)
     {

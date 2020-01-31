@@ -21,7 +21,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  DetectionWait = 0.25;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWait = 0.5;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = 1.0;
   double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
 
@@ -101,8 +101,6 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // Push should last in this duration.
         PushDurationMeasure+=TimeStep;
         double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
-        ImpulseForce.x = -2500;
-        ImpulseForce.y = 2000;
         dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), ImpulseScale * ImpulseForce.x, ImpulseScale * ImpulseForce.y, ImpulseScale * ImpulseForce.z, 0.0, 0.0, 0.0);     // Body 2
         PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath, FileIndex);
       }
@@ -122,10 +120,12 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
-    std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
-    std::cout<<"COMPos.z: "<<COMPos.z<<endl;
+    COMDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(COMPos);
 
-    if(COMPos.z<DisTol)
+    std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
+    std::cout<<"COMDist: "<<COMDist<<endl;
+
+    if(COMDist<DisTol)
     {
       return false;
     }
@@ -245,7 +245,8 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         Sim.Advance(TimeStep);
         Sim.UpdateModel();
       }
-      if(COMPos.z>DisTol)
+      COMDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(COMPos);
+      if(COMDist>DisTol)
       {
         return false;
       }

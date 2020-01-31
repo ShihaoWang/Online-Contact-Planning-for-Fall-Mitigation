@@ -574,8 +574,8 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  std::uniform_real_distribution<> ImpXdis(0.75 * ImpFx, 1.0 * ImpFx);
-  std::uniform_real_distribution<> ImpYdis(0.75 * ImpFy, 1.0 * ImpFy);
+  std::uniform_real_distribution<> ImpXdis(0.75 * ImpFx, 1.25 * ImpFx);
+  std::uniform_real_distribution<> ImpYdis(0.75 * ImpFy, 1.25 * ImpFy);
   std::uniform_real_distribution<> ImpZdis(0.5 * ImpFz, 1.0 * ImpFz);
 
   double Sign_x_val = ((double) rand() / (RAND_MAX));
@@ -610,6 +610,7 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
 
   double Fx_t, Fy_t, Fz_t;
 
+  Sign_y = -1.0;
   Fx_t = Sign_x * ImpXdis(gen);
   Fy_t = Sign_y * ImpYdis(gen);
   Fz_t = Sign_z * ImpZdis(gen);

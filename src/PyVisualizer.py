@@ -2,7 +2,7 @@ import sys, os, time
 from klampt import *
 from klampt import vis
 from klampt.vis.glrobotprogram import GLSimulationPlugin
-from klampt.model.trajectory import Trajectory
+from klampt.model.trajectory import Trajectory, RobotTrajectory
 from scipy.interpolate import interp1d
 import ipdb
 import copy
@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/2Contact"
-ExpNo = 4
+ExpNo = 10
 StateType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -362,10 +362,33 @@ def RobotCOMPlot(SimRobot, vis):
     vis.setColor("COM", 0.0, 204.0/255.0, 0.0, 1.0)
     vis.setAttribute("COM",'width', 5.0)
 
+def ContactDataGene(ReachableContacts_data):
+    RowNo, ColumnNo = ReachableContacts_data.shape
+    RowStart = 0
+    RowEnd = RowNo
+
+    point = []
+    for i in range(RowStart, RowEnd):
+        point_start = [0.0, 0.0, 0.0]
+        ReachableContact_i = ReachableContacts_data[i]
+        point_start[0] = ReachableContact_i[0]
+        point_start[1] = ReachableContact_i[1]
+        point_start[2] = ReachableContact_i[2]
+        point.append(point_start)
+    return ContactDataGene
+
+def ContactDataUnplot(vis, ReachableContacts_data):
+    RowNo, ColumnNo = ReachableContacts_data.shape
+    RowStart = 0
+    RowEnd = RowNo
+    for i in range(RowStart, RowEnd):
+        vis.remove("Point:" + str(i))
+
 def ContactDataPlot(vis, ReachableContacts_data):
     RowNo, ColumnNo = ReachableContacts_data.shape
     RowStart = 0
     RowEnd = RowNo
+
     for i in range(RowStart, RowEnd):
         point_start = [0.0, 0.0, 0.0]
         ReachableContact_i = ReachableContacts_data[i]
@@ -409,15 +432,16 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     # 1. All Reachable Points
     # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
     # 2. Active Reachable Points
-    ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # 3. Contact Free Points
-    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # 4. Supportive Points
-    SupportContacts_data = ContactDataLoader("SupportContact")
-    # 5. Optimal Point
-    OptimalContact_data = ContactDataLoader("OptimalContact")
-    # 6.
-    TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
+    # # 3. Contact Free Points
+    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # # 4. Supportive Points
+    # SupportContacts_data = ContactDataLoader("SupportContact")
+    # # 5. Optimal Point
+    # OptimalContact_data = ContactDataLoader("OptimalContact")
+    # # 6.
+    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
+
 
     com_ctrl = []
     com_plan = []
@@ -436,8 +460,9 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             SimRobot.setConfig(config_i)
             com_failure.append(SimRobot.getCom())
 
-    # linkTraj = RobotTrajectory(SimRobot,PlanStateTraj.times,PlanStateTraj.milestones).getLinkTrajectory(13)
-    # vis.add("LinkTraj",linkTraj)
+    linkTraj = RobotTrajectory(SimRobot,PlanStateTraj.times,PlanStateTraj.milestones).getLinkTrajectory(11)
+    vis.add("LinkTraj",linkTraj)
+    vis.hideLabel("LinkTraj",True)
     for prefix,com_list in zip(['COM_ctrl','COM_plan','COM_failure'],[com_ctrl,com_plan,com_failure]):
         for i,c in enumerate(com_list):
             label = prefix + str(i)
@@ -448,9 +473,11 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             vis.setColor(label, 0.0, 204.0/255.0, 0.0, 1.0)
             vis.setAttribute(label,'width', 5.0)
 
+    plotIndex = 0
     while vis.shown():
         # This is the main plot program
-        for i in range(0, PIPTrajLength):
+        for i in range(0, StateTrajLength):
+            i = StateTrajLength-1;
             vis.lock()
             if StateType == 0:
                 config_i = CtrlStateTraj.milestones[i]
@@ -461,8 +488,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
             SimRobot.setConfig(config_i)
             COM_Pos = SimRobot.getCom()
-            RobotCOMPlot(SimRobot, vis)
-            EdgeAList_i = EdgeAList[i]
+            # RobotCOMPlot(SimRobot, vis)
+            # EdgeAList_i = EdgeAList[i]
             # EdgeBList_i = EdgeBList[i]
             # EdgeCOMList_i = EdgeCOMList[i]
             # EdgexList_i = EdgexList[i]
@@ -484,22 +511,41 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             #     except:
             #         InfeasiFlag = 1
             #     if InfeasiFlag is 0:
-            h = ConvexHull(EdgeAList_i)
-            hrender = draw_hull.PrettyHullRenderer(h)
-            vis.add("blah", h)
-            vis.setDrawFunc("blah", my_draw_hull)
+            # h = ConvexHull(EdgeAList_i)
+            # hrender = draw_hull.PrettyHullRenderer(h)
+            # vis.add("blah", h)
+            # vis.setDrawFunc("blah", my_draw_hull)
             #     else:
             #         print "Input Contact Polytope Infeasible!"
             # ContactDataPlot(vis, IdealReachableContacts_data)
-            # ContactDataPlot(vis, ActiveReachableContacts_data)
-            # ContactDataPlot(vis, ContactFreeContacts_data)
-            # ContactDataPlot(vis, SupportContacts_data)
+
+            # if plotIndex == 0:
+            #     ContactDataPlot(vis, ActiveReachableContacts_data)
+            # elif plotIndex == 1:
+            #     ContactDataPlot(vis, ContactFreeContacts_data)
+            # elif plotIndex == 2:
+            #     ContactDataPlot(vis, SupportContacts_data)
+            # else:
+            #     ContactDataPlot(vis, OptimalContact_data)
             # ContactDataPlot(vis, OptimalContact_data)
+
+
             # ContactDataPlot(vis, CirclePointContact_data)
             # ContactDataPlot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(TimeStep)
+            # if plotIndex == 0:
+            #     ContactDataUnplot(vis, ActiveReachableContacts_data)
+            # elif plotIndex == 1:
+            #     ContactDataUnplot(vis, ContactFreeContacts_data)
+            # elif plotIndex == 2:
+            #     ContactDataUnplot(vis, SupportContacts_data)
+            # else:
+            #     ContactDataUnplot(vis, OptimalContact_data)
+            # plotIndex = plotIndex + 1
+            # if plotIndex == 4:
+            #     plotIndex = 0
 
         # for j in range(0, len(EdgeAList_i)):
         #     PIP_Remove(j, vis)
