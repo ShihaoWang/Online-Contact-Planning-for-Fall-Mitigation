@@ -412,13 +412,13 @@ std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath)
   return TorsoLinkVec;
 }
 
-void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const string & SpecificPath, const int & FileIndex)
+void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const string & SpecificPath)
 {
   // This function is used to
   // This following part is used to save the robot's desired position, velocity and acceleration trajectory
   std::ofstream PushInfoFileWriter;
 
-  string PushInfoFileStr = SpecificPath + std::to_string(FileIndex) + "/PushInfoFile.txt";
+  string PushInfoFileStr = SpecificPath + "PushInfoFile.txt";
   const char *PushInfoFileStr_Name = PushInfoFileStr.c_str();
   PushInfoFileWriter.open(PushInfoFileStr_Name, std::ios_base::app);
   PushInfoFileWriter<<std::to_string(SimTime)<<" "<< std::to_string(Fx_t)<<" "<<std::to_string(Fy_t)<<" "<<std::to_string(Fz_t)<<"\n";

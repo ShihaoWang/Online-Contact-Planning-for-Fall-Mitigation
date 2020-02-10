@@ -542,6 +542,32 @@ void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string
   return;
 }
 
+std::vector<string>  EdgeFileNamesGene(const string & SpecificPath)
+{
+  std::vector<string> EdgeFileNames;
+  string fEdgeAFile = SpecificPath + "EdgeATraj.txt";
+  // const char *fEdgeAFile_Name = fEdgeAFile.c_str();
+  string fEdgeBFile = SpecificPath + "EdgeBTraj.txt";
+  // const char *fEdgeBFile_Name = fEdgeBFile.c_str();
+  string fEdgeCOMFile = SpecificPath + "EdgeCOMTraj.txt";
+  // const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
+  string fEdgexTrajFile = SpecificPath + "EdgexTraj.txt";
+  // const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
+  string fEdgeyTrajFile = SpecificPath + "EdgeyTraj.txt";
+  // const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
+  string fEdgezTrajFile = SpecificPath + "EdgezTraj.txt";
+  // const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
+
+  EdgeFileNames.push_back(fEdgeAFile);
+  EdgeFileNames.push_back(fEdgeBFile);
+  EdgeFileNames.push_back(fEdgeCOMFile);
+  EdgeFileNames.push_back(fEdgexTrajFile);
+  EdgeFileNames.push_back(fEdgeyTrajFile);
+  EdgeFileNames.push_back(fEdgezTrajFile);
+
+  return EdgeFileNames;
+}
+
 std::vector<string>  EdgeFileNamesGene(const string & SpecificPath, const int & FileIndex)
 {
   std::vector<string> EdgeFileNames;
@@ -645,10 +671,10 @@ Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileNa
   return IFMax;
 }
 
-void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath, const int & FileIndex)
+void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath)
 {
   // This function is used to generate the ROC curve
-  string PlanTimeFileStr = SpecificPath + std::to_string(FileIndex) + "/PlanTime.txt";
+  string PlanTimeFileStr = SpecificPath + "PlanTime.txt";
   const char *PlanTimeFile_Name = PlanTimeFileStr.c_str();
 
   std::ofstream PlanTimeFile;
@@ -656,4 +682,20 @@ void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath, c
   PlanTimeFile<<std::to_string(PlanTimeVal);
   PlanTimeFile<<"\n";
   PlanTimeFile.close();
+}
+
+bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol)
+{
+  std::vector<double> LinkTerrDistVec;
+  for (int i = 6; i < SimRobot.q.size(); i++)
+  {
+    if(!RMObject.EndEffectorIndices.count(i))
+    {
+      if(SimRobot.geometry[i]->Distance(TerrColGeom)<DistTol)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
 }

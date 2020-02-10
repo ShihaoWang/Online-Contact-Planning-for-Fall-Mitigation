@@ -6,32 +6,31 @@
 #include "Control/JointTrackingController.h"
 #include "NonlinearOptimizerInfo.h"
 
-static double DisTol = 0.35;
+static double PeneTol = 0.35;
 
-bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const string & SpecificPath, const int & FileIndex)
+bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath)
 {
   /* Simulation parameters */
   double  TimeStep          = 0.025;
   int DOF = Sim.world->robots[0]->q.size();
-  double  COMFailureDist  = 0.35;
   double  InitDuration    = 2.0;
-  double  PushPeriod      = 10.0;                                    // Every 10s a push will be given to the robot body.
-  double  PushTriTime     = PushPeriod;                             // Initial disturbance is given.
-  double  PushDuration    = 0.1;                                    // Push lasts for 0.5s.
-  double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
-  int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
-  int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  DetectionWait = 0.5;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  PushPeriod      = 10.0;                                     // Every 10s a push will be given to the robot body.
+  double  PushTriTime     = PushPeriod;                               // Initial disturbance is given.
+  double  PushDuration    = 0.5;                                      // Push lasts for 0.5s.
+  double  PushDurationMeasure = 0.0;                                  // To measure how long push has been imposed to the robot body.
+  int     PushGeneFlag    = 0;                                        // For the generation of push magnitude.
+  int     PushControlFlag = 0;                                        // Robot will switch to push recovery controller when PushControlFlag = 1;
+  double  DetectionWait = 0.5;                                        // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = 1.0;
-  double  SimTotalTime    = 5.0;                                    // Simulation lasts for 10s.
+  double  SimTotalTime    = 5.0;                                      // Simulation lasts for 5s.
 
-  std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath, FileIndex);
+  std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath);
   // Three types of trajectories should be saved for visualization purpose.
-  string FailureStateTrajStr = SpecificPath + std::to_string(FileIndex) + "/FailureStateTraj.path";
+  string FailureStateTrajStr = SpecificPath + "FailureStateTraj.path";
   const char *FailureStateTrajStr_Name = FailureStateTrajStr.c_str();
-  string CtrlStateTrajStr = SpecificPath + std::to_string(FileIndex) + "/CtrlStateTraj.path";
+  string CtrlStateTrajStr = SpecificPath + "CtrlStateTraj.path";
   const char *CtrlStateTrajStr_Name = CtrlStateTrajStr.c_str();
-  string PlanStateTrajFileStr = SpecificPath + std::to_string(FileIndex) + "/PlanStateTraj.path";
+  string PlanStateTrajFileStr = SpecificPath + "PlanStateTraj.path";
   const char *PlanStateTrajStr_Name = PlanStateTrajFileStr.c_str();
 
   /* Override the default controller with a PolynomialPathController */
@@ -102,7 +101,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         PushDurationMeasure+=TimeStep;
         double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
         dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), ImpulseScale * ImpulseForce.x, ImpulseScale * ImpulseForce.y, ImpulseScale * ImpulseForce.z, 0.0, 0.0, 0.0);     // Body 2
-        PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath, FileIndex);
+        PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath);
       }
       else
       {
@@ -124,7 +123,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
     std::cout<<"COMDist: "<<COMDist<<endl;
 
-    if(COMDist<DisTol)
+    if(COMDist<PeneTol)
     {
       return false;
     }
@@ -173,7 +172,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
               ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep, PlanTime);
               if(ControlReference.ControlReferenceFlag == true)
               {
-                PlanTimeRecorder(PlanTime, SpecificPath, FileIndex);
+                PlanTimeRecorder(PlanTime, SpecificPath);
                 PushControlFlag = 1;
               }
             }
@@ -246,7 +245,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         Sim.UpdateModel();
       }
       COMDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(COMPos);
-      if(COMDist>DisTol)
+      if(COMDist>PeneTol)
       {
         return false;
       }

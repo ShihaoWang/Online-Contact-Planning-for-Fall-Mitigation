@@ -67,10 +67,13 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   std::vector<int> EndEffectorPivotalIndex(RobotLinkInfo.size());
   std::map<int, std::vector<int>> EndEffectorLink2Pivotal;
 
+  std::map<int, int> EndEffectorIndices;
+
   for (int i = 0; i < RobotLinkInfo.size(); i++)
   {
     int ParentIndex = -1;
     int CurrentIndex = RobotLinkInfo[i].LinkIndex;
+    EndEffectorIndices[CurrentIndex] = 1;
     EndEffectorLinkIndex[i] = RobotLinkInfo[i].LinkIndex;
     std::vector<int> EndEffectorLink2PivotalIndex;
     EndEffectorLink2PivotalIndex.push_back(CurrentIndex);
@@ -103,6 +106,7 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
   RMObject.EndEffectorCollisionRadius = EndEffectorCollisionRadius;
   RMObject.EndEffectorPivotalIndex = EndEffectorPivotalIndex;
   RMObject.EndEffectorLink2Pivotal = EndEffectorLink2Pivotal;
+  RMObject.EndEffectorIndices = EndEffectorIndices;
 
   RMObject.TotalPoint = TotalPoint;
   return RMObject;

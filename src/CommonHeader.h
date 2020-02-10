@@ -34,7 +34,7 @@ void SpecsWriter(const Robot & SimRobot, const double & t_final, const double & 
 void CentroidalFailureMetricWriter(const Vector3 & COM, const Vector3 & COMVel, const double & KE, const std::vector<double> FailureMetricVec, const std::vector<const char*> & CentroidalFileNames, const std::vector<const char*> & FailureMetricNames);
 void COMDesWriter(const int & FileIndex, const Vector3 & COMPosdes);
 void IntersectionsWriter(const std::vector<Vector3> & Intersections, const string &user_path, const string &inters_file_name);
-void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const string & SpecificPath, const int & FileIndex);
+void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const string & SpecificPath);
 
 /* 3. Robot Initial State Optimization */
 bool InitialStateOptFn(Robot& _SimRobotObj, const std::vector<LinkInfo> & _RobotLinkInfo, const std::vector<ContactStatusInfo> &  _RobotContactInfo, const std::vector<double>& _RobotConfigRef, const double & _KEInit, const Vector3& _CentDirection, std::vector<double> & RobotConfig, std::vector<double> & RobotVelocity, const bool & ConfigFlag, const bool & VelocityFlag);
@@ -66,12 +66,14 @@ void ROCAppender(const double & TPR, const double & FPR, const int & CaseNumber,
 std::vector<int> TorsoLinkReader(const string & TorsoLinkFilePath);
 void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName);
 std::vector<string>  EdgeFileNamesGene(const string & SpecificPath, const int & FileIndex);
+std::vector<string>  EdgeFileNamesGene(const string & SpecificPath);
 void StateTrajAppender(const char *stateTrajFile_Name, const double & Time_t, const std::vector<double> & Configuration);
 std::vector<Vector3> ContactPositionFinder(const Robot& SimRobot, const std::vector<LinkInfo>& RobotLinkInfo, const std::vector<ContactStatusInfo>& RobotContactInfo);
 double PresumeContactMinDis(Robot & SimRobot, const std::vector<ContactStatusInfo> & RobotContactInfo);
 Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double & ImpFz);
 Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileName);
-void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath, const int & FileIndex);
+void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath);
+bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);
@@ -93,7 +95,7 @@ double FailureMetricEval(Robot & SimRobot, std::vector<LinkInfo> & RobotLinkInfo
 int PIPIndexFinder(const std::vector<PIPInfo> & PIPTotal, const Vector3 & RefPos);
 
 /* 8. Simulation Test */
-bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const string & SpecificPath, const int & FileIndex);
+bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath);
 
 /* 9. Stabilizing Controller */
 std::vector<double> StabilizingControllerContact(const Robot& SimRobot, const std::vector<Matrix> & _ActJacobians, const std::vector<Vector3>& _ConeAllUnits, const int & _EdgeNo, const int& _DOF, const double& dt, std::vector<Config>& qTrajDes, std::vector<Config> & qdotTrajDes, std::vector<Config> & qTrajAct, std::vector<Config> & qdotTrajAct, std::vector<LinkInfo> & _RobotLinkInfo, std::vector<ContactStatusInfo> & _RobotContactInfo, const std::vector<Vector3> & _ContactPositionsRef, std::vector<Vector3> & _ContactPositions, std::vector<Vector3> & _ContactVelocities, const int & _ContactPointNo, const int & StepIndex);

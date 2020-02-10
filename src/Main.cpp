@@ -34,12 +34,23 @@ int main()
   std::getline(FolderPathFile, ContactType);
   FolderPathFile.close();
 
-  const std::string SpecificPath = "../result/" + ExpName + "/" + ContactType;
+  const std::string ExperimentPath = "../result/" + ExpName + "/" + ContactType;
+
+  RobotWorld worldObj;
+  SimGUIBackend BackendObj(&worldObj);
+  WorldSimulation& SimObj = BackendObj.sim;
+  string XMLFileStrObj =  "../" + EnviName;
+  const char* XMLFileObj = XMLFileStrObj.c_str();    // Here we must give abstract path to the file
+  if(!BackendObj.LoadAndInitSim(XMLFileObj))
+  {
+    std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
+    return -1;
+  }
 
   /* 3. Environment Geometry and Reachability Map */
   const int GridsNo = 251;
   struct stat buffer;   // This is used to check whether "SDFSpecs.bin" exists or not.
-  const string SDFSpecsName = "SDFSpecs.bin";
+  const string SDFSpecsName = "./SDFs/SDFSpecs.bin";
   if(stat (SDFSpecsName.c_str(), &buffer) == 0)
   {
     NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
@@ -48,38 +59,40 @@ int main()
   {
     if(!SDFFlag)
     {
-      RobotWorld worldObj;
-      SimGUIBackend Backend(&worldObj);
-      WorldSimulation& Sim = Backend.sim;
-
-      string XMLFileStr =  "../" + EnviName;
-      const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
-      if(!Backend.LoadAndInitSim(XMLFile))
-      {
-        std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
-        return -1;
-      }
       NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(worldObj, GridsNo);
       SDFFlag = true;
     }
   }
-
-  /* 3. Reachability Map Generation */
   ReachabilityMap RMObject;
   if(!RMFlag)
   {
-    RobotWorld worldObj;
-    SimGUIBackend Backend(&worldObj);
-    WorldSimulation& Sim = Backend.sim;
-
-    string XMLFileStr =  "../" + EnviName;
-    const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
-    if(!Backend.LoadAndInitSim(XMLFile))
-    {
-      std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
-      return -1;
-    }
     RMObject = ReachabilityMapGenerator(*worldObj.robots[0], NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
+  }
+  const int NumberOfTerrains = worldObj.terrains.size();
+  std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*worldObj.terrains[0]);
+  Meshing::TriMesh EnviTriMesh  = Terrain_ptr->geometry->AsTriangleMesh();
+  for (int i = 0; i < NumberOfTerrains-1; i++)
+  {
+    std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*worldObj.terrains[i+1]);
+    Meshing::TriMesh EnviTriMesh_i  = Terrain_ptr->geometry->AsTriangleMesh();
+    EnviTriMesh.MergeWith(EnviTriMesh_i);
+  }
+  AnyCollisionGeometry3D TerrColGeom(EnviTriMesh);
+
+  /* 4. SDFs for Robot's Links */
+  // Write down number of links into this folder.
+  SelfLinkGeoInfo SelfLinkGeoObj;
+  for (int i = 6; i < worldObj.robots[0]->q.size(); i++)
+  {
+    double resolution = 0.01;
+    Meshing::TriMesh LinkTriMesh = worldObj.robots[0]->geometry[i]->AsTriangleMesh();
+    Meshing::VolumeGrid SDFGrid;
+    CollisionMesh EnviTriMeshTopology(LinkTriMesh);
+    EnviTriMeshTopology.InitCollisions();
+    EnviTriMeshTopology.CalcTriNeighbors();
+    MeshToImplicitSurface_FMM(EnviTriMeshTopology, SDFGrid, resolution);
+    AnyGeometry3D AnyGeometryLink(SDFGrid);
+    SelfLinkGeoObj.LinkSDFs.push_back(AnyGeometryLink);
   }
 
   int FileIndex = FileIndexFinder(false);
@@ -88,8 +101,9 @@ int main()
   /* 4. Internal Experimentation Loop */
   while(FileIndex<=TotalNumber)
   {
+    string SpecificPath = ExperimentPath + "/" + std::to_string(FileIndex) + "/";
     // Let them be internal objects
-    string str = "cd " + SpecificPath + "/" + std::to_string(FileIndex) + "/";
+    string str = "cd " + SpecificPath;
     str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt";
     const char *command = str.c_str();
     system(command);
@@ -106,9 +120,9 @@ int main()
       return -1;
     }
     Robot SimRobot = *world.robots[0];
-    RobotConfigLoader(SimRobot, SpecificPath + std::to_string(FileIndex) + "/", "InitConfig.config");
+    RobotConfigLoader(SimRobot, SpecificPath, "InitConfig.config");
 
-    const std::string ContactStatusPath = SpecificPath + std::to_string(FileIndex) + "/ContactStatus.txt";
+    const std::string ContactStatusPath = SpecificPath + "ContactStatus.txt";
     std::vector<ContactStatusInfo> RobotContactInfo = ContactStatusInfoLoader(ContactStatusPath);
 
     std::vector<double> InitRobotConfig(SimRobot.q);
@@ -121,7 +135,38 @@ int main()
 
     Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
     Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
-    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex);
+
+    SimRobot.UpdateConfig(Config(InitRobotConfig));
+    SimRobot.UpdateGeometry();
+    std::vector<double> LinkTerrDistVec(SimRobot.q.size() - 6);
+    for (int i = 6; i < SimRobot.q.size(); i++)
+    {
+      double LinkTerrDist = SimRobot.geometry[i]->Distance(TerrColGeom);
+      AnyCollisionQuery CollisionObj(TerrColGeom, *SimRobot.geometry[i]);
+
+      Meshing::TriMesh LinkTriMesh = SimRobot.geometry[i]->AsTriangleMesh();
+
+      double resolution = 0.025;
+
+      Meshing::VolumeGrid SDFGrid;
+      CollisionMesh EnviTriMeshTopology(LinkTriMesh);
+      EnviTriMeshTopology.InitCollisions();
+      EnviTriMeshTopology.CalcTriNeighbors();
+      MeshToImplicitSurface_FMM(EnviTriMeshTopology, SDFGrid, resolution);
+
+      std::cout<<"Link: "<<i<<": "<<SimRobot.geometry[i]->Distance(TerrColGeom)<<endl;
+
+      double qi;
+      Frame3D T;
+      // SimRobot.links[i].GetLocalTransform(qi, T);
+
+      T = SimRobot.links[i].T_World;
+
+      // std::cout<<"Link: "<<i<<": "<<Collide(CollisionMesh(EnviTriMesh), CollisionMesh(SimRobot.geometry[i]->AsTriangleMesh()))<<endl;
+      LinkTerrDistVec[i-6] = CollisionObj.PenetrationDepth();
+    }
+
+    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath);
     switch (SimFlag)
     {
       case false:

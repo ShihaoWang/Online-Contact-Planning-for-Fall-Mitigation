@@ -667,6 +667,8 @@ struct ViabilityKernelInfo
 struct SelfLinkGeoInfo
 {
   // This struct is used to save the information of the signed distance field of robot's links in their local frames
+  SelfLinkGeoInfo(){};
+  std::vector<AnyGeometry3D> LinkSDFs;
 
 };
 
@@ -1072,6 +1074,7 @@ struct ReachabilityMap
   std::vector<int> EndEffectorLinkIndex;              //
   std::vector<int> EndEffectorPivotalIndex;
   std::map<int, std::vector<int>> EndEffectorLink2Pivotal;       // This map saves intermediate joint from End Effector Joint to Pivotal Joint.
+  std::map<int, int> EndEffectorIndices;
   double MaxRadius;
   int LayerNumber;
   int PointNumberOnInner;

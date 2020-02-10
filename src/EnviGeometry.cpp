@@ -11,12 +11,12 @@ static void SignedDistanceFieldWriter(const std::vector<double> & SDFVector, con
 {
   // This function will write the computed SDFTensor and SDFSpecs into file
   FILE * SDFTensorFile = NULL;
-  SDFTensorFile = fopen("SDFTensor.bin", "wb");
+  SDFTensorFile = fopen("./SDFs/SDFTensor.bin", "wb");
   fwrite(&SDFVector[0], sizeof(double), SDFVector.size(), SDFTensorFile);
   fclose(SDFTensorFile);
 
   FILE * SDFSpecsFile = NULL;
-  SDFSpecsFile = fopen("SDFSpecs.bin", "wb");
+  SDFSpecsFile = fopen("./SDFS/SDFSpecs.bin", "wb");
   fwrite(&SDFSpecs[0], sizeof(double), SDFSpecs.size(), SDFSpecsFile);
   fclose(SDFSpecsFile);
 }
@@ -135,7 +135,7 @@ SignedDistanceFieldInfo SignedDistanceFieldGene(const RobotWorld& WorldObj, cons
 SignedDistanceFieldInfo SignedDistanceFieldLoader(const int GridsNo)
 {
   // This function will read in the computed SDF_File into a Eigen::Tensor
-  FILE* SDF_File = fopen("SDFTensor.bin", "rb");
+  FILE* SDF_File = fopen("./SDFs/SDFTensor.bin", "rb");
   std::vector<double> SDFVector(GridsNo * GridsNo * GridsNo);
   fread(&SDFVector[0], sizeof(double), GridsNo * GridsNo * GridsNo, SDF_File);
   fclose(SDF_File);
@@ -156,7 +156,7 @@ SignedDistanceFieldInfo SignedDistanceFieldLoader(const int GridsNo)
   }
   FILE * SDFSpecsFile = NULL;
   std::vector<double> SDFSpecs(13);
-  SDFSpecsFile = fopen("SDFSpecs.bin", "rb");
+  SDFSpecsFile = fopen("./SDFs/SDFSpecs.bin", "rb");
   fread(&SDFSpecs[0], sizeof(double), 13, SDFSpecsFile);
   fclose(SDFSpecsFile);
 
