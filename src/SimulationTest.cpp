@@ -8,16 +8,16 @@
 
 static double DisTol = 0.35;
 
-bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const string & SpecificPath, const int & FileIndex, const Vector3 & ImpulseForceMax)
+bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, const string & SpecificPath, const int & FileIndex)
 {
   /* Simulation parameters */
   double  TimeStep          = 0.025;
   int DOF = Sim.world->robots[0]->q.size();
   double  COMFailureDist  = 0.35;
   double  InitDuration    = 2.0;
-  double  PushPeriod      = 5.0;                                    // Every 10s a push will be given to the robot body.
+  double  PushPeriod      = 10.0;                                    // Every 10s a push will be given to the robot body.
   double  PushTriTime     = PushPeriod;                             // Initial disturbance is given.
-  double  PushDuration    = 0.5;                                    // Push lasts for 0.5s.
+  double  PushDuration    = 0.1;                                    // Push lasts for 0.5s.
   double  PushDurationMeasure = 0.0;                                // To measure how long push has been imposed to the robot body.
   int     PushGeneFlag    = 0;                                      // For the generation of push magnitude.
   int     PushControlFlag = 0;                                      // Robot will switch to push recovery controller when PushControlFlag = 1;
@@ -87,7 +87,8 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         {
           // Flat:
           // 1Contact
-          double FxBnd = ImpulseForceMax.x, FyBnd = ImpulseForceMax.y, FzBnd = ImpulseForceMax.z;
+          // double FxBnd = ImpulseForceMax.x, FyBnd = ImpulseForceMax.y, FzBnd = ImpulseForceMax.z;
+          double FxBnd = 100.0, FyBnd = 100.0, FzBnd = 100.0;
           ImpulseForce = ImpulForceGene(FxBnd, FyBnd, FzBnd);
           PushGeneFlag = 1;
         }
@@ -95,8 +96,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         default:
         break;
       }
-
-      if(PushDurationMeasure <= PushDuration)
+      if((PushDurationMeasure <= PushDuration)&&(PushGeneFlag == 1))
       {
         // Push should last in this duration.
         PushDurationMeasure+=TimeStep;
@@ -110,7 +110,6 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         PushDurationMeasure = 0.0;
         PushGeneFlag = 0;
       }
-
     }
     /* Robot's COMPos and COMVel */
     CentroidalState(SimRobot, COMPos, COMVel);
@@ -155,6 +154,7 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           break;
           default:
           {
+            PushGeneFlag = 0;
             if(DetectionWaitMeasure>DetectionWait)
             {
               InitTime = Sim.time;

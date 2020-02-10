@@ -13,11 +13,11 @@ import math
 import numpy as np
 import random
 
-ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
+ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/uneven"
 ContactType = "/2Contact"
-ExpNo = 10
-StateType = 0
-EnviName = "Envi1"
+ExpNo = 8
+DataType = 2
+EnviName = "Envi2"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
 VisMode = 0
 # This function is used solely for the visualization of online contact planning.
@@ -429,9 +429,9 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     PIPTrajLength = len(EdgeAList)
 
     # Here we would like to read point cloud for visualization of planning.
-    # 1. All Reachable Points
+    # # 1. All Reachable Points
     # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
-    # 2. Active Reachable Points
+    # # 2. Active Reachable Points
     # ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
     # # 3. Contact Free Points
     # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
@@ -440,62 +440,82 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     # # 5. Optimal Point
     # OptimalContact_data = ContactDataLoader("OptimalContact")
     # # 6.
-    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
+    Ghostcolor = [88.0/255.0, 88.0/255.0, 88.0/255.0]
 
-    com_ctrl = []
-    com_plan = []
-    com_failure = []
-    for i in range(0, StateTrajLength):
-        if StateType == 0:
-            config_i = CtrlStateTraj.milestones[i]
-            SimRobot.setConfig(config_i)
-            com_ctrl.append(SimRobot.getCom())
-        if StateType == 1:
-            config_i = PlanStateTraj.milestones[i]
-            SimRobot.setConfig(config_i)
-            com_plan.append(SimRobot.getCom())
-        if StateType == 2:
-            config_i = FailureStateTraj.milestones[i]
-            SimRobot.setConfig(config_i)
-            com_failure.append(SimRobot.getCom())
+    # com_ctrl = []
+    # com_plan = []
+    # com_failure = []
+    # for i in range(0, StateTrajLength):
+    #     if StateType == 0:
+    #         config_i = CtrlStateTraj.milestones[i]
+    #         SimRobot.setConfig(config_i)
+    #         com_ctrl.append(SimRobot.getCom())
+    #     if StateType == 1:
+    #         config_i = PlanStateTraj.milestones[i]
+    #         SimRobot.setConfig(config_i)
+    #         com_plan.append(SimRobot.getCom())
+    #     if StateType == 2:
+    #         config_i = FailureStateTraj.milestones[i]
+    #         SimRobot.setConfig(config_i)
+    #         com_failure.append(SimRobot.getCom())
 
-    linkTraj = RobotTrajectory(SimRobot,PlanStateTraj.times,PlanStateTraj.milestones).getLinkTrajectory(11)
-    vis.add("LinkTraj",linkTraj)
-    vis.hideLabel("LinkTraj",True)
-    for prefix,com_list in zip(['COM_ctrl','COM_plan','COM_failure'],[com_ctrl,com_plan,com_failure]):
-        for i,c in enumerate(com_list):
-            label = prefix + str(i)
-            COMPos_end = c
-            COMPos_end[2] = COMPos_end[2] - 7.50
-            vis.add(label, Trajectory([0, 1], [c, COMPos_end]))
-            vis.hideLabel(label,True)
-            vis.setColor(label, 0.0, 204.0/255.0, 0.0, 1.0)
-            vis.setAttribute(label,'width', 5.0)
+    # linkTraj = RobotTrajectory(SimRobot,PlanStateTraj.times,PlanStateTraj.milestones).getLinkTrajectory(17)
+    # vis.add("LinkTraj",linkTraj)
+    # vis.hideLabel("LinkTraj",True)
+    # for prefix,com_list in zip(['COM_ctrl','COM_plan','COM_failure'],[com_ctrl,com_plan,com_failure]):
+    #     for i,c in enumerate(com_list):
+    #         label = prefix + str(i)
+    #         COMPos_end = c
+    #         COMPos_end[2] = COMPos_end[2] - 7.50
+    #         vis.add(label, Trajectory([0, 1], [c, COMPos_end]))
+    #         vis.hideLabel(label,True)
+    #         vis.setColor(label, 0.0, 204.0/255.0, 0.0, 1.0)
+    #         vis.setAttribute(label,'width', 5.0)
 
-    plotIndex = 0
+    # if StateType == 0:
+    #     state_traj = CtrlStateTraj.milestones
+    # if StateType == 1:
+    #     state_traj = PlanStateTraj.milestones
+    # if StateType == 2:
+    #     state_traj = FailureStateTraj.milestones
+
+    # GhostNumber = 20
+    # GhostGap = int(PIPTrajLength/GhostNumber)
+    # GhostColorGap = 1.0/(1.0 * GhostNumber)
+    # for i in range(0, GhostNumber):
+    #     GhostPose = state_traj[StateTrajLength - PIPTrajLength + i * GhostGap]
+    #     vis.add("Ghost" + str(i), GhostPose)
+    #     # vis.hide("Ghost" + str(i))
+    #     vis.setColor("Ghost" + str(i), Ghostcolor[0], Ghostcolor[1], Ghostcolor[2], i * 1.0 * GhostColorGap)
+
+    StateType = DataType
+
+    # plotIndex = 0
     while vis.shown():
         # This is the main plot program
         for i in range(0, StateTrajLength):
-            i = StateTrajLength-1;
+            configindex = i
             vis.lock()
             if StateType == 0:
-                config_i = CtrlStateTraj.milestones[i]
+                config_i = CtrlStateTraj.milestones[configindex]
             if StateType == 1:
-                config_i = PlanStateTraj.milestones[i]
+                config_i = PlanStateTraj.milestones[configindex]
             if StateType == 2:
-                config_i = FailureStateTraj.milestones[i]
+                config_i = FailureStateTraj.milestones[configindex]
 
             SimRobot.setConfig(config_i)
             COM_Pos = SimRobot.getCom()
             # RobotCOMPlot(SimRobot, vis)
-            # EdgeAList_i = EdgeAList[i]
+            if (i >= (StateTrajLength - PIPTrajLength)):
+                EdgeAList_i = EdgeAList[i + PIPTrajLength - StateTrajLength]
             # EdgeBList_i = EdgeBList[i]
             # EdgeCOMList_i = EdgeCOMList[i]
             # EdgexList_i = EdgexList[i]
             # EdgeyList_i = EdgeyList[i]
             # EdgezList_i = EdgezList[i]
-
+            #
             # for j in range(0, len(EdgeAList_i)):
             #     EdgeA = EdgeAList_i[j]
             #     EdgeB = EdgeBList_i[j]
@@ -511,10 +531,10 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             #     except:
             #         InfeasiFlag = 1
             #     if InfeasiFlag is 0:
-            # h = ConvexHull(EdgeAList_i)
-            # hrender = draw_hull.PrettyHullRenderer(h)
-            # vis.add("blah", h)
-            # vis.setDrawFunc("blah", my_draw_hull)
+                h = ConvexHull(EdgeAList_i)
+                hrender = draw_hull.PrettyHullRenderer(h)
+                vis.add("ContactPolytope", h)
+                vis.setDrawFunc("ContactPolytope", my_draw_hull)
             #     else:
             #         print "Input Contact Polytope Infeasible!"
             # ContactDataPlot(vis, IdealReachableContacts_data)
@@ -527,7 +547,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             #     ContactDataPlot(vis, SupportContacts_data)
             # else:
             #     ContactDataPlot(vis, OptimalContact_data)
-            # ContactDataPlot(vis, OptimalContact_data)
+            # # ContactDataPlot(vis, OptimalContact_data)
 
 
             # ContactDataPlot(vis, CirclePointContact_data)
@@ -535,6 +555,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
             vis.unlock()
             time.sleep(TimeStep)
+            if (i >= (StateTrajLength - PIPTrajLength)):
+                vis.remove("ContactPolytope")
             # if plotIndex == 0:
             #     ContactDataUnplot(vis, ActiveReachableContacts_data)
             # elif plotIndex == 1:
@@ -546,6 +568,9 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # plotIndex = plotIndex + 1
             # if plotIndex == 4:
             #     plotIndex = 0
+        StateType = StateType + 1
+        if StateType == 3:
+            StateType = 0
 
         # for j in range(0, len(EdgeAList_i)):
         #     PIP_Remove(j, vis)

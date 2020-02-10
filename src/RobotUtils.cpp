@@ -375,7 +375,7 @@ void ContactNumberFinder(const std::vector<ContactStatusInfo> & RobotContactInfo
 int FileIndexFinder(bool UpdateFlag)
 {
   // This function is used to read the current File Index to make sure that the file is ranged according to the number.
-  string FileIndexName = "FileIndex.txt";         // This file should be located in the "build" folder.
+  string FileIndexName = "ConfigNo.txt";         // This file should be located in the "build" folder.
   ifstream FileIndexReader(FileIndexName);
   int FileIndex;
   string str_line;
@@ -610,7 +610,6 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
 
   double Fx_t, Fy_t, Fz_t;
 
-  Sign_y = -1.0;
   Fx_t = Sign_x * ImpXdis(gen);
   Fy_t = Sign_y * ImpYdis(gen);
   Fz_t = Sign_z * ImpZdis(gen);

@@ -664,6 +664,12 @@ struct ViabilityKernelInfo
   double DeltaT;                                                  // This is the time step for HJB computation.
 };
 
+struct SelfLinkGeoInfo
+{
+  // This struct is used to save the information of the signed distance field of robot's links in their local frames
+
+};
+
 struct SignedDistanceFieldInfo
 {
   // This struct is used to save the information of the signed distance field

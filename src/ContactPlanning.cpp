@@ -432,7 +432,7 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
-  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
 
   // 1. Self-collision from other end effectors
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLimbIndex], ActiveReachableContact, ContactFreeInfo);
@@ -442,7 +442,7 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
-  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
 
   // 2. Supportive
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
@@ -452,11 +452,11 @@ static std::vector<Vector3> OptimalContactSearcher(Robot & SimRobot, const PIPIn
     default:
     break;
   }
-  // Vector3Writer(SupportContact, "SupportContact");
+  Vector3Writer(SupportContact, "SupportContact");
 
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
-  // Vector3Writer(OptimalContact, "OptimalContact");
+  Vector3Writer(OptimalContact, "OptimalContact");
 
   return OptimalContact;
 }

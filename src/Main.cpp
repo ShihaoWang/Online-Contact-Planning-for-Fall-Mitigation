@@ -5,46 +5,92 @@
 #include "Control/PathController.h"
 #include "Simulation/WorldSimulation.h"
 #include <ode/ode.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
 
 SignedDistanceFieldInfo NonlinearOptimizerInfo::SDFInfo;
 std::vector<LinkInfo>   NonlinearOptimizerInfo::RobotLinkInfo;
+bool SDFFlag = false;
+bool RMFlag = false;
 
 int main()
 {
-  std::string FolderPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/";
-  std::string EnviName = "Envi2.xml";
-
   /* 1. Load the Contact Link file */
-  const std::string UserFilePath = FolderPath + "user/hrp2/";
+  const std::string UserFilePath = "../user/hrp2/";
   const std::string ContactLinkPath = UserFilePath + "ContactLink.txt";
   int NumberOfContactPoints;
   NonlinearOptimizerInfo::RobotLinkInfo = ContactInfoLoader(ContactLinkPath, NumberOfContactPoints);
   const std::string TorsoLinkFilePath = UserFilePath + "TorsoLink.txt";
   std::vector<int> TorsoLink = TorsoLinkReader(TorsoLinkFilePath);
 
-  /* 2. Load the Contact Status file */
-  const std::string ExpName = "uneven/";
-  const std::string ContactType = "2Contact/";
-  const std::string SpecificPath = FolderPath + "result/" + ExpName + ContactType;
+  /* 2. Load the Envi and Contact Status file */
+  std::ifstream FolderPathFile("./Specs/EnviSpecs.txt");
+  std::string EnviName;
+  std::string ExpName;
+  std::string ContactType;
+  std::getline(FolderPathFile, EnviName);
+  std::getline(FolderPathFile, ExpName);
+  std::getline(FolderPathFile, ContactType);
+  FolderPathFile.close();
 
-  /* 3. Environment Geometry and Reachability Map*/
+  const std::string SpecificPath = "../result/" + ExpName + "/" + ContactType;
+
+  /* 3. Environment Geometry and Reachability Map */
   const int GridsNo = 251;
-  NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
+  struct stat buffer;   // This is used to check whether "SDFSpecs.bin" exists or not.
+  const string SDFSpecsName = "SDFSpecs.bin";
+  if(stat (SDFSpecsName.c_str(), &buffer) == 0)
+  {
+    NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldLoader(GridsNo);
+  }
+  else
+  {
+    if(!SDFFlag)
+    {
+      RobotWorld worldObj;
+      SimGUIBackend Backend(&worldObj);
+      WorldSimulation& Sim = Backend.sim;
 
-  /*  5. Load Impulse Force Magnitude*/
-  Vector3 IFMax = ImpulForceMaxReader(SpecificPath, "ImpulseForce.txt");
+      string XMLFileStr =  "../" + EnviName;
+      const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
+      if(!Backend.LoadAndInitSim(XMLFile))
+      {
+        std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
+        return -1;
+      }
+      NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(worldObj, GridsNo);
+      SDFFlag = true;
+    }
+  }
 
-  /* 6. Internal Experimentation Loop*/
-  int FileIndex = 1;
-  int TotalNumber = 10;
+  /* 3. Reachability Map Generation */
+  ReachabilityMap RMObject;
+  if(!RMFlag)
+  {
+    RobotWorld worldObj;
+    SimGUIBackend Backend(&worldObj);
+    WorldSimulation& Sim = Backend.sim;
 
+    string XMLFileStr =  "../" + EnviName;
+    const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
+    if(!Backend.LoadAndInitSim(XMLFile))
+    {
+      std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
+      return -1;
+    }
+    RMObject = ReachabilityMapGenerator(*worldObj.robots[0], NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
+  }
+
+  int FileIndex = FileIndexFinder(false);
+  int TotalNumber = 100;
+
+  /* 4. Internal Experimentation Loop */
   while(FileIndex<=TotalNumber)
   {
     // Let them be internal objects
-    string str = "cd " + SpecificPath + std::to_string(FileIndex) + "/";
+    string str = "cd " + SpecificPath + "/" + std::to_string(FileIndex) + "/";
     str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt";
-    str+=" && cd /home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/ && rm -f *Opt*.config";
-    str+=" && cd /home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/build/ && rm -f *Contact.bin && rm -f *TransitionPoints*.*";
     const char *command = str.c_str();
     system(command);
 
@@ -52,18 +98,14 @@ int main()
     SimGUIBackend Backend(&world);
     WorldSimulation& Sim = Backend.sim;
 
-    string XMLFileStr = FolderPath + EnviName;
+    string XMLFileStr = "../" + EnviName;
     const char* XMLFile = XMLFileStr.c_str();    // Here we must give abstract path to the file
     if(!Backend.LoadAndInitSim(XMLFile))
     {
-      std::cerr<< EnviName<<" file does not exist in that path!"<<endl;
+      std::cerr<< EnviName << " file does not exist in that path!" << endl;
       return -1;
     }
-    NonlinearOptimizerInfo::SDFInfo = SignedDistanceFieldGene(world, GridsNo);
-
     Robot SimRobot = *world.robots[0];
-    ReachabilityMap RMObject = ReachabilityMapGenerator(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
-
     RobotConfigLoader(SimRobot, SpecificPath + std::to_string(FileIndex) + "/", "InitConfig.config");
 
     const std::string ContactStatusPath = SpecificPath + std::to_string(FileIndex) + "/ContactStatus.txt";
@@ -79,7 +121,7 @@ int main()
 
     Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
     Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
-    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex, IFMax);
+    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, SpecificPath, FileIndex);
     switch (SimFlag)
     {
       case false:
