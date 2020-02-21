@@ -6,29 +6,27 @@
 #include "Control/JointTrackingController.h"
 #include "NonlinearOptimizerInfo.h"
 
-static double PeneTol = 0.35;
+static double DisTol = 0.01;      // 1cm
 
-bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath)
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath, int & PushRecovSuccFlag, int & ActualFailureFlag)
 {
   /* Simulation parameters */
-  double  TimeStep          = 0.025;
+  double  TimeStep        = 0.025;
   int DOF = Sim.world->robots[0]->q.size();
   double  InitDuration    = 2.0;
-  double  PushPeriod      = 10.0;                                     // Every 10s a push will be given to the robot body.
-  double  PushTriTime     = PushPeriod;                               // Initial disturbance is given.
   double  PushDuration    = 0.5;                                      // Push lasts for 0.5s.
   double  PushDurationMeasure = 0.0;                                  // To measure how long push has been imposed to the robot body.
-  int     PushGeneFlag    = 0;                                        // For the generation of push magnitude.
-  int     PushControlFlag = 0;                                        // Robot will switch to push recovery controller when PushControlFlag = 1;
-  double  DetectionWait = 0.5;                                        // After the push controller finishes, we would like to pause for sometime before failure detection!
-  double  DetectionWaitMeasure = 1.0;
+  double  DetectionWait   = 0.5;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWaitMeasure = DetectionWait;
   double  SimTotalTime    = 5.0;                                      // Simulation lasts for 5s.
+  int     PushRecovFlag   = 0;                                        // Robot will switch to push recovery controller when PushRecovFlag = 1;
+  int     PlanRecorFlag   = 1;                                        // When its value is 1, this means that currently PlanRecords current
 
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath);
   // Three types of trajectories should be saved for visualization purpose.
-  string FailureStateTrajStr = SpecificPath + "FailureStateTraj.path";
+  string FailureStateTrajStr =  SpecificPath + "FailureStateTraj.path";
   const char *FailureStateTrajStr_Name = FailureStateTrajStr.c_str();
-  string CtrlStateTrajStr = SpecificPath + "CtrlStateTraj.path";
+  string CtrlStateTrajStr =     SpecificPath + "CtrlStateTraj.path";
   const char *CtrlStateTrajStr_Name = CtrlStateTrajStr.c_str();
   string PlanStateTrajFileStr = SpecificPath + "PlanStateTraj.path";
   const char *PlanStateTrajStr_Name = PlanStateTrajFileStr.c_str();
@@ -38,13 +36,8 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   Sim.SetController(0, NewControllerPtr);
   NewControllerPtr->SetConstant(Sim.world->robots[0]->q);
 
-  Robot SimRobot = *Sim.world->robots[0];
-  ControlReferenceInfo ControlReference;                            // Used for control reference generation.
-  Vector3 ImpulseForce;
-
+  // Initial Simulation
   LinearPath FailureStateTraj, CtrlStateTraj, PlanStateTraj;
-
-  // The first part is to simualte the robot for a certain amount of time.
   while(Sim.time <= InitDuration)
   {
     FailureStateTraj.Append(Sim.time, Sim.world->robots[0]->q);
@@ -53,95 +46,71 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     std::printf("Initial Simulation Time: %f\n", Sim.time);
 
     StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-    StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-    StateTrajAppender(PlanStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+    StateTrajAppender(CtrlStateTrajStr_Name,    Sim.time, Sim.world->robots[0]->q);
+    StateTrajAppender(PlanStateTrajStr_Name,    Sim.time, Sim.world->robots[0]->q);
 
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
   }
   SimTotalTime           += Sim.time;
   std::printf("Initial Simulation Done!\n");
+
   std::vector<double> qDes = PlanStateTraj.milestones[PlanStateTraj.milestones.size()-1];               // This is commanded robot configuration to the controller.
-
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
-  CentroidalState(SimRobot, COMPos, COMVel);
-  double COMDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(COMPos);
-
   double InitTime = Sim.time;
   double CurTime = Sim.time;
 
+  ControlReferenceInfo ControlReference;                            // Used for control reference generation.
   FailureStateInfo FailureStateObj;
 
+  double ForceMag = 2000.0;     // Flat Contact 1
+
+  Vector3 ImpulseDirection = ImpulseDirectionGene(*Sim.world->robots[0], NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);
+  Vector3 ImpulseForceMax = ForceMag * ImpulseDirection;
+
+  Robot SimRobot;
+  // This loop is used for push recovery experimentation.
   while(Sim.time <= SimTotalTime)
   {
-    /*
-      This main loop will be terminated if the simulation time has passed or robot falls to the environment.
-    */
     SimRobot = *Sim.world->robots[0];
-    if(PushTriTime >= PushPeriod)
+    if(PushDurationMeasure<PushDuration)
     {
-      switch (PushGeneFlag)
-      {
-        case 0:
-        {
-          // Flat:
-          // 1Contact
-          // double FxBnd = ImpulseForceMax.x, FyBnd = ImpulseForceMax.y, FzBnd = ImpulseForceMax.z;
-          double FxBnd = 100.0, FyBnd = 100.0, FzBnd = 100.0;
-          ImpulseForce = ImpulForceGene(FxBnd, FyBnd, FzBnd);
-          PushGeneFlag = 1;
-        }
-        break;
-        default:
-        break;
-      }
-      if((PushDurationMeasure <= PushDuration)&&(PushGeneFlag == 1))
-      {
-        // Push should last in this duration.
-        PushDurationMeasure+=TimeStep;
-        double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
-        dBodyAddForceAtPos(Sim.odesim.robot(0)->body(19), ImpulseScale * ImpulseForce.x, ImpulseScale * ImpulseForce.y, ImpulseScale * ImpulseForce.z, 0.0, 0.0, 0.0);     // Body 2
-        PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath);
-      }
-      else
-      {
-        PushTriTime = 0.0;
-        PushDurationMeasure = 0.0;
-        PushGeneFlag = 0;
-      }
+      int LinkIndex = 19;
+      PushDurationMeasure+=TimeStep;
+      double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
+      Vector3 ImpulseForce = ImpulseScale * ImpulseForceMax;
+      // Frame3D LinkLocalFrame = SimRobot.links[LinkIndex].T_World;
+      // Vector3 ImpulseForceLocal = ImpulseForce;
+      // LinkLocalFrame.mulPointInverse(ImpulseForce + LinkLocalFrame.t, ImpulseForceLocal);
+      // dBodyAddRelForceAtRelPos(Sim.odesim.robot(0)->body(LinkIndex), ImpulseForceLocal.x, ImpulseForceLocal.y, ImpulseForceLocal.z, 0.0, 0.0, 0.0);
+      dBodyAddForceAtRelPos(Sim.odesim.robot(0)->body(LinkIndex), ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, 0.0, 0.0, 0.0);
+      PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath);
     }
+
     /* Robot's COMPos and COMVel */
     CentroidalState(SimRobot, COMPos, COMVel);
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);
     std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
+    ContactPolytopeWriter(PIPTotal, EdgeFileNames);
+
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
 
-    COMDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(COMPos);
-
-    std::cout<<"EndEffectorDist: "<<EndEffectorDist<<endl;
-    std::cout<<"COMDist: "<<COMDist<<endl;
-
-    if(COMDist<PeneTol)
-    {
-      return false;
-    }
-    std::printf("Simulation Time: %f and Failure Metric: %f\n", Sim.time, RefFailureMetric);
-    ContactPolytopeWriter(PIPTotal, EdgeFileNames);
-    switch (PushControlFlag)
+    std::printf("Simulation Time: %f, EndEffectorDist: %f, and Failure Metric: %f\n", Sim.time, EndEffectorDist, RefFailureMetric);
+    switch (PushRecovFlag)
     {
       case 1:
       {
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
-        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=0.01))
+        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=DisTol))
         {
-          // Turn off PushControlFlag
-          RobotContactInfo = ControlReference.GoalContactInfo;
-          PushControlFlag = 0;
           DetectionWaitMeasure = 0.0;
           InitTime = Sim.time;
+          RobotContactInfo = ControlReference.GoalContactInfo;
+          PushRecovFlag = 0;
+          PlanRecorFlag = 1;
         }
       }
       break;
@@ -153,27 +122,21 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           break;
           default:
           {
-            PushGeneFlag = 0;
-            if(DetectionWaitMeasure>DetectionWait)
+            if(DetectionWaitMeasure>=DetectionWait)
             {
               InitTime = Sim.time;
-              switch (FailureStateObj.FailureInitFlag)
-              {
-                case false:
-                FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
-                break;
-                default:
-                break;
-              }
+              if(!FailureStateObj.FailureInitFlag)
+              FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
+
               // Push recovery controller reference should be computed here.
               // Here a configuration generator should be produced such that at each time, a configuration reference is avaiable for controller to track.
               double PlanTime;
-              // std::cout<<SimRobot.q[2]<<endl;
-              ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, TimeStep, PlanTime);
+              ControlReference = ControlReferenceGeneration(SimRobot, PIPTotal[CPPIPIndex], RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime);
               if(ControlReference.ControlReferenceFlag == true)
               {
                 PlanTimeRecorder(PlanTime, SpecificPath);
-                PushControlFlag = 1;
+                PushRecovFlag = 1;
+                PlanRecorFlag = 0;
               }
             }
             else
@@ -189,10 +152,23 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     NewControllerPtr->SetConstant(Config(qDes));
 
     CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-    PlanStateTraj.Append(Sim.time,    Config(qDes));
-
     StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-    StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
+
+    switch (PlanRecorFlag)
+    {
+      case 1:
+      {
+        StateTrajAppender(PlanStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+        PlanStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
+      }
+      break;
+      default:
+      {
+        StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
+        PlanStateTraj.Append(Sim.time,    Config(qDes));
+      }
+      break;
+    }
 
     switch (FailureStateObj.FailureInitFlag)
     {
@@ -205,10 +181,18 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       default:
       break;
     }
-
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
-    PushTriTime+=TimeStep;
+  }
+  if(FailureChecker(SimRobot, TerrColGeom, RMObject, DisTol))
+  {
+    // This means that Push Recovery fails to stabilize the robot.
+    PushRecovSuccFlag = 0;
+  }
+  else
+  {
+    // This means that either Push Recovery successfully protects the robot or robot does not even fall.
+    PushRecovSuccFlag = 1;
   }
 
   ofstream CtrlStateTrajFile;
@@ -222,45 +206,46 @@ bool SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   PlanStateTrajFile.close();
 
   // Then we gonna have to simulate the robot's falling trajectory
-  switch (FailureStateObj.FailureInitFlag)
+  if(FailureStateObj.FailureInitFlag)
   {
-    case true:
+    Sim.time = FailureStateObj.FailureTime;
+
+    Sim.world->robots[0]->UpdateConfig(FailureStateObj.FailureConfig);
+    Sim.world->robots[0]->dq = FailureStateObj.FailureVelocity;
+
+    Sim.controlSimulators[0].oderobot->SetConfig(FailureStateObj.FailureConfig);
+    Sim.controlSimulators[0].oderobot->SetVelocities(FailureStateObj.FailureVelocity);
+
+    NewControllerPtr->SetConstant(FailureStateObj.FailureConfig);
+
+    while(Sim.time <= CtrlStateTraj.EndTime())
     {
-      Sim.time = FailureStateObj.FailureTime;
-
-      Sim.world->robots[0]->UpdateConfig(FailureStateObj.FailureConfig);
-      Sim.world->robots[0]->dq = FailureStateObj.FailureVelocity;
-
-      Sim.controlSimulators[0].oderobot->SetConfig(FailureStateObj.FailureConfig);
-      Sim.controlSimulators[0].oderobot->SetVelocities(FailureStateObj.FailureVelocity);
-
-      NewControllerPtr->SetConstant(FailureStateObj.FailureConfig);
-
-      while(Sim.time <= CtrlStateTraj.EndTime())
-      {
-        CentroidalState(*Sim.world->robots[0], COMPos, COMVel);
-        FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-        StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-        Sim.Advance(TimeStep);
-        Sim.UpdateModel();
-      }
-      COMDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(COMPos);
-      if(COMDist>PeneTol)
-      {
-        return false;
-      }
+      CentroidalState(*Sim.world->robots[0], COMPos, COMVel);
+      FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
+      StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+      Sim.Advance(TimeStep);
+      Sim.UpdateModel();
     }
-    break;
-    default:
-    return false;
-    break;
+    if(FailureChecker(*Sim.world->robots[0], TerrColGeom, RMObject, DisTol))
+    {
+      // This means that there exists failure.
+      ActualFailureFlag = 1;
+    }
+    else
+    {
+      // This means that there is no failure at all.
+      ActualFailureFlag = 0;
+    }
   }
-
+  else
+  {
+    ActualFailureFlag = 0;
+  }
   // Write these three trajectories into files.
   ofstream FailureStateTrajFile;
   FailureStateTrajFile.open (FailureStateTrajStr_Name);
   FailureStateTraj.Save(FailureStateTrajFile);
   FailureStateTrajFile.close();
 
-  return FailureStateObj.FailureInitFlag;
+  return;
 }

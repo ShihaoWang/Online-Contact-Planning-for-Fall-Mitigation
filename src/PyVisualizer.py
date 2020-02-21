@@ -13,11 +13,11 @@ import math
 import numpy as np
 import random
 
-ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/uneven"
-ContactType = "/2Contact"
-ExpNo = 8
+ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
+ContactType = "/1Contact"
+ExpNo = 1
 DataType = 2
-EnviName = "Envi2"
+EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
 VisMode = 0
 # This function is used solely for the visualization of online contact planning.
@@ -431,16 +431,16 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     # Here we would like to read point cloud for visualization of planning.
     # # 1. All Reachable Points
     # IdealReachableContacts_data = ContactDataLoader("IdealReachableContact")
-    # # 2. Active Reachable Points
-    # ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
-    # # 3. Contact Free Points
-    # ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
-    # # 4. Supportive Points
-    # SupportContacts_data = ContactDataLoader("SupportContact")
-    # # 5. Optimal Point
-    # OptimalContact_data = ContactDataLoader("OptimalContact")
+    # 2. Active Reachable Points
+    ActiveReachableContacts_data = ContactDataLoader("ActiveReachableContact")
+    # 3. Contact Free Points
+    ContactFreeContacts_data = ContactDataLoader("ContactFreeContact")
+    # 4. Supportive Points
+    SupportContacts_data = ContactDataLoader("SupportContact")
+    # 5. Optimal Point
+    OptimalContact_data = ContactDataLoader("OptimalContact")
     # # 6.
-    TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     Ghostcolor = [88.0/255.0, 88.0/255.0, 88.0/255.0]
 
@@ -492,7 +492,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
     StateType = DataType
 
-    # plotIndex = 0
+    plotIndex = 0
     while vis.shown():
         # This is the main plot program
         for i in range(0, StateTrajLength):
@@ -547,8 +547,12 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             #     ContactDataPlot(vis, SupportContacts_data)
             # else:
             #     ContactDataPlot(vis, OptimalContact_data)
-            # # ContactDataPlot(vis, OptimalContact_data)
 
+
+            # ContactDataPlot(vis, ActiveReachableContacts_data)
+            # ContactDataPlot(vis, ContactFreeContacts_data)
+            # ContactDataPlot(vis, SupportContacts_data)
+            ContactDataPlot(vis, OptimalContact_data)
 
             # ContactDataPlot(vis, CirclePointContact_data)
             # ContactDataPlot(vis, TransitionPoints_data)

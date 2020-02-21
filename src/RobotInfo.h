@@ -96,6 +96,22 @@ struct FacetInfo
     }
     return *min_element(ProjPoint2Edge_vec.begin(), ProjPoint2Edge_vec.end());
   }
+  std::vector<double> ProjPoint2EdgeDistVec(const Vector3& _Point)
+  {
+    std::vector<double> ProjPoint2Edge_vec(EdgeNorms.size());
+    Vector3 Vertex2Point = _Point - FacetEdges[0].first;
+    double Point2Facet = Vertex2Point.dot(FacetNorm);
+    Vector3 Facet2Point = Point2Facet * FacetNorm;
+
+    for (int i = 0; i < EdgeNorms.size(); i++)
+    {
+      Vertex2Point = _Point - FacetEdges[i].first;
+      Vector3 Vertex2ProjPoint = Vertex2Point - Facet2Point;
+      double ProjPoint2Edge_i = Vertex2ProjPoint.dot(EdgeNorms[i]);
+      ProjPoint2Edge_vec[i] = ProjPoint2Edge_i;
+    }
+    return ProjPoint2Edge_vec;
+  }
   void EdgesUpdate()
   {
     // This function will update the Edges based on the FacetEdges
@@ -662,14 +678,6 @@ struct ViabilityKernelInfo
   std::vector<Eigen::Tensor<int,4>> NextIndexVec;                 // This vector saves the indices of the next index
   int AngleLow, AngleUpp, AngleDiff, AngleNum;                    // These three save the Angle Range for HJBDataBase.
   double DeltaT;                                                  // This is the time step for HJB computation.
-};
-
-struct SelfLinkGeoInfo
-{
-  // This struct is used to save the information of the signed distance field of robot's links in their local frames
-  SelfLinkGeoInfo(){};
-  std::vector<AnyGeometry3D> LinkSDFs;
-
 };
 
 struct SignedDistanceFieldInfo
@@ -1387,4 +1395,110 @@ struct FailureStateInfo
   Config FailureVelocity;
   bool FailureInitFlag;
 };
+
+struct SelfLinkGeoInfo
+{
+  // This struct is used to save the information of bounding boxes of robot's links.
+  SelfLinkGeoInfo(const Robot & SimRobot, const std::map<int, std::vector<int>> & EndEffectorLink2Pivotal, const std::vector<int> & SelfCollisionFreeLink)
+  {
+    // Initial constructor
+    for (int i = 5; i < SimRobot.q.size(); i++)
+    {
+      AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABB();
+      LinkBBs.push_back(AABB3D_i);
+    }
+
+    for (int i = 0; i < EndEffectorLink2Pivotal.size(); i++)
+    {
+      std::vector<int> EndLink2PivIndices = EndEffectorLink2Pivotal.at(i);
+      for (int j = 5; j < SimRobot.q.size(); j++)
+      {
+        if(std::find(EndLink2PivIndices.begin(), EndLink2PivIndices.end(), j) == EndLink2PivIndices.end())
+        {
+          if(std::find(SelfCollisionFreeLink.begin(), SelfCollisionFreeLink.end(), j) == SelfCollisionFreeLink.end())
+          {
+            SelfCollisionLinkMap[i].push_back(j-5);
+          }
+        }
+      }
+    }
+  };
+  void LinkBBsUpdate(const Robot& SimRobot)
+  {
+    // Must be updated firstly for Self-Collision-Dist computation
+    for (int i = 5; i < SimRobot.q.size(); i++)
+    {
+      AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABB();
+      LinkBBs[i-5] = AABB3D_i;
+    }
+  }
+  void SingleLinkDistNGrad(const int & LinkCountIndex, const Vector3 & GlobalPoint, double & Dist, Vector3 & DistGrad)
+  {
+    // The signed distance of bounding box is with respect to the global bounding box
+    const int GridNo = 100;
+    double dx = LinkBBs[LinkCountIndex].size().x/(1.0 * GridNo);
+    double dy = LinkBBs[LinkCountIndex].size().y/(1.0 * GridNo);
+    double dz = LinkBBs[LinkCountIndex].size().z/(1.0 * GridNo);
+
+    Dist = LinkBBs[LinkCountIndex].signedDistance(GlobalPoint);
+
+    Vector3 GlobalPointx = GlobalPoint;
+    GlobalPointx.x += dx;
+    double Distx = LinkBBs[LinkCountIndex].signedDistance(GlobalPointx);
+
+    Vector3 GlobalPointy = GlobalPoint;
+    GlobalPointy.y += dy;
+    double Disty = LinkBBs[LinkCountIndex].signedDistance(GlobalPointy);
+
+    Vector3 GlobalPointz = GlobalPoint;
+    GlobalPointz.z += dz;
+    double Distz = LinkBBs[LinkCountIndex].signedDistance(GlobalPointz);
+
+    DistGrad.x = (Distx - Dist)/dx;
+    DistGrad.y = (Disty - Dist)/dy;
+    DistGrad.z = (Distz - Dist)/dz;
+    DistGrad.getNormalized(DistGrad);
+  }
+  void SelfCollisionDistNGrad(const int & LinkIndex, const Vector3 & GlobalPoint, double & Dist, Vector3 & Grad)
+  {
+    // This function is used to calculate robot's self-collision distance given a point
+    const int ActLinkNo = SelfCollisionLinkMap[LinkIndex].size();
+    std::vector<double> DistVec;
+    DistVec.reserve(ActLinkNo);
+    std::vector<Vector3> GradVec;
+    GradVec.reserve(ActLinkNo);
+    std::vector<double> DistWeights;
+    DistWeights.reserve(ActLinkNo);
+    double Dist_i;
+    Vector3 Grad_i;
+
+    for (int i = 0; i < ActLinkNo; i++)
+    {
+      int SelfLinkIndex = SelfCollisionLinkMap[LinkIndex][i];
+      SingleLinkDistNGrad(SelfLinkIndex, GlobalPoint, Dist_i, Grad_i);
+      DistVec.push_back(Dist_i);
+      GradVec.push_back(Grad_i);
+    }
+
+    double Scale = abs(*std::min_element(DistVec.begin(), DistVec.end()));
+    for (int i = 0; i < ActLinkNo; i++)
+    {
+      DistWeights.push_back(exp(-1.0 * DistVec[i]/Scale));
+    }
+    Dist = *std::min_element(DistVec.begin(), DistVec.end());
+
+    // Set its value to be zero!
+    Grad.x = 0.0;
+    Grad.y = 0.0;
+    Grad.z = 0.0;
+    for (int i = 0; i < ActLinkNo; i++)
+    {
+      Grad+=DistWeights[i] * GradVec[i];
+    }
+    Grad.getNormalized(Grad);
+  }
+  std::vector<AABB3D> LinkBBs;
+  std::map<int, std::vector<int>> SelfCollisionLinkMap;       // This map saves intermediate joint from End Effector Joint to Pivotal Joint.
+};
+
 #endif

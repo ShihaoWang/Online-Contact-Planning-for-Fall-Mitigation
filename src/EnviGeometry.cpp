@@ -16,7 +16,7 @@ static void SignedDistanceFieldWriter(const std::vector<double> & SDFVector, con
   fclose(SDFTensorFile);
 
   FILE * SDFSpecsFile = NULL;
-  SDFSpecsFile = fopen("./SDFS/SDFSpecs.bin", "wb");
+  SDFSpecsFile = fopen("./SDFs/SDFSpecs.bin", "wb");
   fwrite(&SDFSpecs[0], sizeof(double), SDFSpecs.size(), SDFSpecsFile);
   fclose(SDFSpecsFile);
 }

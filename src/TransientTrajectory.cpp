@@ -93,7 +93,7 @@ static SplineInfo SplinePiece3DObjGene(const double & sInit, const double & sGoa
 static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal)
 {
   // This function is used to generate the cubic spline for given robot's end effector path.
-  const double scale = 0.25;
+  const double scale = 0.5;
   SplineInfo BaseSpline = SplinePiece3DObjGene(0.0, 1.0, PosInit, scale * NormalInit, PosGoal, -scale * NormalGoal);
   const int segmentNo = 3;
   double sUnit = 1.0/(1.0 * segmentNo);
@@ -107,8 +107,46 @@ static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector
   return BasePoints;
 }
 
-std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 & ShiftPoint, bool & FeasibleFlag)
+static double SelfCollisionDist(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & PosInit, const Vector3 & PosGoal)
 {
+  // This function helps calculate robot's clearance for collision-avoidance
+  std::vector<int> EndEffectorLinkIndex = RMObject.EndEffectorLink2Pivotal[LinkInfoIndex];
+  double DistTol = 100000000.0;
+  // for (int i = 6; i < SimRobot.q.size(); i++)
+  // {
+  //   if(std::find(EndEffectorLinkIndex.begin(), EndEffectorLinkIndex.end(), i) == EndEffectorLinkIndex.end())
+  //   {
+  //     Frame3D LinkLocalFrame = SimRobot.links[i].T_World;
+  //     Vector3 PosInitLocal, PosGoalLocal;
+  //     LinkLocalFrame.mulPointInverse(PosInit, PosInitLocal);
+  //     LinkLocalFrame.mulPointInverse(PosGoal, PosGoalLocal);
+  //     double PosInitLocalDist = SelfLinkGeoObj.LinkSDFs[i-6].AsImplicitSurface().TrilinearInterpolate(PosInitLocal);
+  //     double PosGoalLocalDist = SelfLinkGeoObj.LinkSDFs[i-6].AsImplicitSurface().TrilinearInterpolate(PosGoalLocal);
+  //     double PosCenterLocalDist = SelfLinkGeoObj.LinkSDFs[i-6].AsImplicitSurface().TrilinearInterpolate(Vector3(0.0, 0.0, 0.0));
+  //
+  //     // PosInitLocalDist = SelfLinkGeoObj.LinkSDFs[i].AsImplicitSurface().TrilinearInterpolate(PosInitLocal);
+  //     // PosGoalLocalDist = SelfLinkGeoObj.LinkSDFs[i].AsImplicitSurface().TrilinearInterpolate(PosGoalLocal);
+  //     if(PosInitLocalDist<DistTol) DistTol = PosInitLocalDist;
+  //     if(PosGoalLocalDist<DistTol) DistTol = PosGoalLocalDist;
+  //   }
+  // }
+  return DistTol;
+}
+
+static void SelfCollisionFn(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & GlobalPoint)
+{
+  // This function is used to calculate robot's self-collision information
+
+  // Frame3D LinkLocalFrame = SimRobot.links[LinkIndex].T_World;
+  // Vector3 ImpulseForceLocal = ImpulseForce;
+  // LinkLocalFrame.mulPointInverse(ImpulseForce + LinkLocalFrame.t, ImpulseForceLocal);
+
+}
+
+
+static std::vector<cSpline3> cSplineGene(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const std::vector<Vector3> & Points, Vector3 & ShiftPoint, bool & FeasibleFlag)
+{
+  // Actually, the shift function has not been fully tested!
   Vec3f SplinePoints[Points.size()];
   for (int i = 0; i < Points.size(); i++)
   {
@@ -165,9 +203,11 @@ std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, Vector3 &
   return SplineObj;
 }
 
-static std::vector<cSpline3> SplineObjGene(const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, bool & FeasiFlag)
+static std::vector<cSpline3> SplineObjGene(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, bool & FeasiFlag)
 {
-  std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);
+  std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);   // Now we have the reference points!
+  double SelfTol = SelfCollisionDist(SimRobot, SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, PosGoal);
+
   FeasiFlag = false;
   const int TotalIter = 10;
   int CurrentIter = 0;
@@ -175,7 +215,7 @@ static std::vector<cSpline3> SplineObjGene(const Vector3 & PosInit, const Vector
   while((FeasiFlag == false)&&(CurrentIter<=TotalIter))
   {
     Vector3 ShiftPoint;
-    SplineObj = cSplineGene(Points, ShiftPoint, FeasiFlag);
+    SplineObj = cSplineGene(SimRobot, SelfLinkGeoObj, RMObject, LinkInfoIndex, Points, ShiftPoint, FeasiFlag);
     switch (FeasiFlag)
     {
       case true:
@@ -210,14 +250,14 @@ static std::vector<cSpline3> SplineObjGene(const Vector3 & PosInit, const Vector
   return SplineObj;
 }
 
-std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, const std::vector<LinkInfo> & RobotLinkInfo, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, bool & TransFeasFlag)
+std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, SelfLinkGeoInfo & SelfLinkGeoObj, const std::vector<LinkInfo> & RobotLinkInfo, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, bool & TransFeasFlag)
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   // A Hermite spline is constructed with the information of position and velocity.
 
   Vector3 NormalInit = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosInit);
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
-  std::vector<cSpline3> SplineObj = SplineObjGene(PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
+  std::vector<cSpline3> SplineObj = SplineObjGene(SimRobot, SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 
   const int SplineNumber = SplineObj.size();
   const int SplineGrid = 5;

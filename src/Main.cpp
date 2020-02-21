@@ -12,7 +12,6 @@
 SignedDistanceFieldInfo NonlinearOptimizerInfo::SDFInfo;
 std::vector<LinkInfo>   NonlinearOptimizerInfo::RobotLinkInfo;
 bool SDFFlag = false;
-bool RMFlag = false;
 
 int main()
 {
@@ -23,6 +22,8 @@ int main()
   NonlinearOptimizerInfo::RobotLinkInfo = ContactInfoLoader(ContactLinkPath, NumberOfContactPoints);
   const std::string TorsoLinkFilePath = UserFilePath + "TorsoLink.txt";
   std::vector<int> TorsoLink = TorsoLinkReader(TorsoLinkFilePath);
+  const std::string SelfCollisionFreeLinkFilePath = UserFilePath + "SelfCollisionFreeLink.txt";
+  std::vector<int> SelfCollisionFreeLink = TorsoLinkReader(SelfCollisionFreeLinkFilePath);
 
   /* 2. Load the Envi and Contact Status file */
   std::ifstream FolderPathFile("./Specs/EnviSpecs.txt");
@@ -63,11 +64,8 @@ int main()
       SDFFlag = true;
     }
   }
-  ReachabilityMap RMObject;
-  if(!RMFlag)
-  {
-    RMObject = ReachabilityMapGenerator(*worldObj.robots[0], NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
-  }
+  ReachabilityMap RMObject = ReachabilityMapGenerator(*worldObj.robots[0], NonlinearOptimizerInfo::RobotLinkInfo, TorsoLink);
+
   const int NumberOfTerrains = worldObj.terrains.size();
   std::shared_ptr<Terrain> Terrain_ptr = std::make_shared<Terrain>(*worldObj.terrains[0]);
   Meshing::TriMesh EnviTriMesh  = Terrain_ptr->geometry->AsTriangleMesh();
@@ -79,21 +77,8 @@ int main()
   }
   AnyCollisionGeometry3D TerrColGeom(EnviTriMesh);
 
-  /* 4. SDFs for Robot's Links */
-  // Write down number of links into this folder.
-  SelfLinkGeoInfo SelfLinkGeoObj;
-  for (int i = 6; i < worldObj.robots[0]->q.size(); i++)
-  {
-    double resolution = 0.01;
-    Meshing::TriMesh LinkTriMesh = worldObj.robots[0]->geometry[i]->AsTriangleMesh();
-    Meshing::VolumeGrid SDFGrid;
-    CollisionMesh EnviTriMeshTopology(LinkTriMesh);
-    EnviTriMeshTopology.InitCollisions();
-    EnviTriMeshTopology.CalcTriNeighbors();
-    MeshToImplicitSurface_FMM(EnviTriMeshTopology, SDFGrid, resolution);
-    AnyGeometry3D AnyGeometryLink(SDFGrid);
-    SelfLinkGeoObj.LinkSDFs.push_back(AnyGeometryLink);
-  }
+  /* 4. BBs for Robot's Links */
+  SelfLinkGeoInfo SelfLinkGeoObj(*worldObj.robots[0], RMObject.EndEffectorLink2Pivotal, SelfCollisionFreeLink);      // Here SelfLinkGeoObj is instantiated with robot at zero configuration.
 
   int FileIndex = FileIndexFinder(false);
   int TotalNumber = 100;
@@ -136,45 +121,10 @@ int main()
     Sim.controlSimulators[0].oderobot->SetConfig(Config(InitRobotConfig));
     Sim.controlSimulators[0].oderobot->SetVelocities(Config(InitRobotVelocity));
 
-    SimRobot.UpdateConfig(Config(InitRobotConfig));
-    SimRobot.UpdateGeometry();
-    std::vector<double> LinkTerrDistVec(SimRobot.q.size() - 6);
-    for (int i = 6; i < SimRobot.q.size(); i++)
-    {
-      double LinkTerrDist = SimRobot.geometry[i]->Distance(TerrColGeom);
-      AnyCollisionQuery CollisionObj(TerrColGeom, *SimRobot.geometry[i]);
-
-      Meshing::TriMesh LinkTriMesh = SimRobot.geometry[i]->AsTriangleMesh();
-
-      double resolution = 0.025;
-
-      Meshing::VolumeGrid SDFGrid;
-      CollisionMesh EnviTriMeshTopology(LinkTriMesh);
-      EnviTriMeshTopology.InitCollisions();
-      EnviTriMeshTopology.CalcTriNeighbors();
-      MeshToImplicitSurface_FMM(EnviTriMeshTopology, SDFGrid, resolution);
-
-      std::cout<<"Link: "<<i<<": "<<SimRobot.geometry[i]->Distance(TerrColGeom)<<endl;
-
-      double qi;
-      Frame3D T;
-      // SimRobot.links[i].GetLocalTransform(qi, T);
-
-      T = SimRobot.links[i].T_World;
-
-      // std::cout<<"Link: "<<i<<": "<<Collide(CollisionMesh(EnviTriMesh), CollisionMesh(SimRobot.geometry[i]->AsTriangleMesh()))<<endl;
-      LinkTerrDistVec[i-6] = CollisionObj.PenetrationDepth();
-    }
-
-    bool SimFlag = SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath);
-    switch (SimFlag)
-    {
-      case false:
-      break;
-      default:
-      FileIndex++;
-      break;
-    }
+    int PushRecovFlag = 0;
+    int FailureFlag = 0;
+    SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, PushRecovFlag, FailureFlag);
+    FileIndex++;
   }
   return 1;
 }

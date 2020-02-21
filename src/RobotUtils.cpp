@@ -699,3 +699,149 @@ bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, Reac
   }
   return false;
 }
+
+Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo)
+{
+  // This function is used to get the impulsive force direction such that the force can trigger the failure.
+  std::vector<Vector3> SPVertices;
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    int LinkiPNo = RobotLinkInfo[i].LocalContacts.size();
+    for (int j = 0; j < LinkiPNo; j++)
+    {
+      switch (RobotContactInfo[i].LocalContactStatus[j])
+      {
+        case 1:
+        {
+          Vector3 LinkiPjPos;
+          SimRobotObj.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+          LinkiPjPos.z = 0.0;
+          SPVertices.push_back(LinkiPjPos);
+        }
+        break;
+        default:
+        break;
+      }
+    }
+  }
+
+  Vector3 COM_Pos = SimRobotObj.GetCOM();
+  int FacetFlag = 0;
+  FacetInfo SPObj = FlatContactHullGeneration(SPVertices, FacetFlag);    // This is the support polygon
+  COM_Pos.z = 0.0;
+  std::vector<double> DistVec = SPObj.ProjPoint2EdgeDistVec(COM_Pos);
+  for (int i = 0; i < DistVec.size(); i++)
+  {
+    DistVec[i] = DistVec[i] * DistVec[i];
+  }
+  int MinIndex = std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
+  return -SPObj.EdgeNorms[MinIndex];
+}
+
+void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name)
+{
+  // This function is used to save the SDF into disk for debug purpose.
+  // The estimated sizes of the environment
+  double BB_x_min = SDFGrid.bb.bmin[0];
+  double BB_x_max = SDFGrid.bb.bmax[0];
+
+  double BB_y_min = SDFGrid.bb.bmin[1];
+  double BB_y_max = SDFGrid.bb.bmax[1];
+
+  double BB_z_min = SDFGrid.bb.bmin[2];
+  double BB_z_max = SDFGrid.bb.bmax[2];
+
+  double BB_x_length = BB_x_max - BB_x_min;
+  double BB_y_length = BB_y_max - BB_y_min;
+  double BB_z_length = BB_z_max - BB_z_min;
+
+  double ExtCoeff = 0.125;
+
+  // The estimated sizes of the environment
+  double Envi_x_min = BB_x_min - ExtCoeff * BB_x_length;
+  double Envi_x_max = BB_x_max + ExtCoeff * BB_x_length;
+
+  double Envi_y_min = BB_y_min - ExtCoeff * BB_y_length;
+  double Envi_y_max = BB_y_max + ExtCoeff * BB_y_length;
+
+  double Envi_z_min = BB_z_min - ExtCoeff * BB_z_length;
+  double Envi_z_max = BB_z_max + ExtCoeff * BB_z_length;
+
+  double Envi_x_length = Envi_x_max - Envi_x_min;
+  double Envi_y_length = Envi_y_max - Envi_y_min;
+  double Envi_z_length = Envi_z_max - Envi_z_min;
+
+  int xGrid = SDFGrid.value.m;
+  int yGrid = SDFGrid.value.n;
+  int zGrid = SDFGrid.value.p;
+
+  double Envi_x_unit = Envi_x_length/(1.0* xGrid - 1.0);
+  double Envi_y_unit = Envi_y_length/(1.0* yGrid - 1.0);
+  double Envi_z_unit = Envi_z_length/(1.0* zGrid - 1.0);
+
+  std::vector<double> Envi_x_coor(xGrid), Envi_y_coor(yGrid), Envi_z_coor(zGrid);
+
+  // Here Envi_x/y/z_coor is the actual grids from the given environment
+  for (int i = 0; i < xGrid; i++)
+  {
+    Envi_x_coor[i] = Envi_x_min + (1.0 * i) * Envi_x_unit;
+  }
+  for (int i = 0; i < yGrid; i++)
+  {
+    Envi_y_coor[i] = Envi_y_min + (1.0 * i) * Envi_y_unit;
+  }
+  for (int i = 0; i < zGrid; i++)
+  {
+    Envi_z_coor[i] = Envi_z_min + (1.0 * i) * Envi_z_unit;
+  }
+  // Generation of the SDFTensor structure
+  Eigen::Tensor<double,3> SDFTensor(xGrid, yGrid, zGrid);
+  SDFTensor.setZero();
+
+  Vector3 GridPoint;
+  double GridPointDist, GridPoint_x, GridPoint_y, GridPoint_z;
+  std::vector<double> SDFVector;
+  SDFVector.reserve(xGrid * yGrid * zGrid);
+  for (int i = 0; i < xGrid; i++)
+  {
+    GridPoint_x = Envi_x_coor[i];
+    for (int j = 0; j < yGrid; j++)
+    {
+      GridPoint_y = Envi_y_coor[j];
+      for (int k = 0; k < zGrid; k++)
+      {
+        GridPoint_z = Envi_z_coor[k];
+        GridPoint.set(GridPoint_x, GridPoint_y, GridPoint_z);
+        GridPointDist = SDFGrid.TrilinearInterpolate(GridPoint);
+        SDFTensor(i,j,k) = GridPointDist;
+        SDFVector.push_back(GridPointDist);
+      }
+    }
+  }
+
+  std::vector<double> SDFSpecs;
+  SDFSpecs.push_back(Envi_x_min);             SDFSpecs.push_back(Envi_x_max);
+  SDFSpecs.push_back(Envi_y_min);             SDFSpecs.push_back(Envi_y_max);
+  SDFSpecs.push_back(Envi_z_min);             SDFSpecs.push_back(Envi_z_max);
+
+  SDFSpecs.push_back(Envi_x_unit);            SDFSpecs.push_back(Envi_y_unit);            SDFSpecs.push_back(Envi_z_unit);
+  SDFSpecs.push_back(Envi_x_length);          SDFSpecs.push_back(Envi_y_length);          SDFSpecs.push_back(Envi_z_length);
+  SDFSpecs.push_back(xGrid);
+  SDFSpecs.push_back(yGrid);
+  SDFSpecs.push_back(zGrid);
+
+  // This function will write the computed SDFTensor and SDFSpecs into file
+  FILE * SDFTensorFile = NULL;
+  const string SDFDataPath ="./SDFTensor" + Name + ".bin";
+  SDFTensorFile = fopen(SDFDataPath.c_str(), "wb");
+  fwrite(&SDFVector[0], sizeof(double), SDFVector.size(), SDFTensorFile);
+  fclose(SDFTensorFile);
+
+  FILE * SDFSpecsFile = NULL;
+  const string SDFSpecsPath ="./SDFSpecs" + Name + ".bin";
+  SDFSpecsFile = fopen(SDFSpecsPath.c_str(), "wb");
+  fwrite(&SDFSpecs[0], sizeof(double), SDFSpecs.size(), SDFSpecsFile);
+  fclose(SDFSpecsFile);
+
+  return;
+}
