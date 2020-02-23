@@ -32,7 +32,7 @@ std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActConta
   return ProjActContactPositions;
 }
 
-PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vector3& COM, const Vector3& COMVel)
+PIPInfo PIPGeneratorInner(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COM, const Vector3 & COMVel)
 {
   // Here the inputs are EdgeA and EdgeB, which should be chosen to be on the positive dirction of certain edge.
   // Now it is the CoM projection and basically the job is to find the orthogonal intersection point
@@ -40,7 +40,9 @@ PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vect
   Vector3 EdgeA2B = EdgeB - EdgeA;                      // x
   Vector3 x_unit, y_unit, z_unit;
   EdgeA2B.getNormalized(x_unit);
+  double ABLength = EdgeA2B.norm();
   double t = EdgeA2COM.dot(x_unit);
+  double InterOnSegRatio = t/ABLength;
   Vector3 COMOnEdge = EdgeA + t * x_unit;
   Vector3 COMOnEdge2COM = COM - COMOnEdge;              // y
   COMOnEdge2COM.getNormalized(y_unit);
@@ -76,6 +78,15 @@ PIPInfo PIPGeneratorInner(const Vector3& EdgeA, const Vector3& EdgeB, const Vect
   IPM_i.EdgeA = EdgeA;
   IPM_i.EdgeB = EdgeB;
   IPM_i.Intersection = COMOnEdge;
+  if((InterOnSegRatio>=0.0)&&(InterOnSegRatio<=1.0))
+  {
+    IPM_i.InterOnSegFlag = true;
+
+  }
+  else
+  {
+    IPM_i.InterOnSegFlag = false;
+  }
 
   return IPM_i;
 }
@@ -465,6 +476,7 @@ static double ZCoordinate(const double & _X, const double & _Y, const std::vecto
 
 std::vector<PIPInfo> PIPGenerator(const std::vector<Vector3> & CPVertices, const Vector3 & COMPos, const Vector3 & COMVel)
 {
+  // This method utilizes the Projected Support Polygon.
   std::vector<PIPInfo> PIPTotal;
   std::vector<Vector3> SPVertices;
   SPVertices.reserve(CPVertices.size());
@@ -655,13 +667,17 @@ int PIPIndexFinder(const std::vector<PIPInfo> & PIPTotal, const Vector3 & RefPos
 
 double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex)
 {
-  std::vector<double> CP_Pos(PIPTotal.size());
+  PIPIndex = -1;
+
+  std::vector<double> CP_Pos;
+  std::vector<int> PIP_Indices;
   for (int i = 0; i < PIPTotal.size(); i++)
   {
     double L = PIPTotal[i].L;
     double theta = PIPTotal[i].theta;
     double thetadot = PIPTotal[i].thetadot;
-    double g = PIPTotal[i].g;
+    // double g = PIPTotal[i].g;
+    double g = 9.81;      // We do not differentiate gravitational acceleration
 
     double CP_x = L * sin(theta);
     double CP_xdot = L * thetadot * cos(theta);
@@ -669,27 +685,72 @@ double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPInd
 
     if(CP_L<=0)
     {
-      CP_Pos[i] = 0.0;
+      continue;
     }
     else
     {
       double CP_g = g;
       double CP_xbar = CP_x + CP_xdot/sqrt(CP_g/CP_L);
-      CP_Pos[i] = CP_xbar;
+      if(CP_xbar<0)
+      {
+        CP_Pos.push_back(CP_xbar);
+        PIP_Indices.push_back(i);
+      }
     }
   }
-  double CPCECost = *min_element(CP_Pos.begin(), CP_Pos.end());
-  CPCECost = max(0.0, -CPCECost);
-  if(CPCECost>0)
+  switch (PIP_Indices.size())
   {
-    // This indicates that robot's is going to have failure
-    PIPIndex = std::distance(CP_Pos.begin(), std::min_element(CP_Pos.begin(), CP_Pos.end()));
+    case 0:
+    {
+      PIPIndex = -1;
+      return 0.0;
+    }
+    break;
+    case 1:
+    {
+      if(PIPTotal[PIP_Indices[0]].InterOnSegFlag)
+      {
+        PIPIndex = PIP_Indices[0];
+        return -CP_Pos[0];
+      }
+      else
+      {
+        // It cannot happen!
+        PIPIndex = -1;
+        return 0.0;
+      }
+    }
+    break;
+    default:
+    {
+      std::vector<double> CPCECostVec;
+      for (int i = 0; i < PIP_Indices.size(); i++)
+      {
+        if(PIPTotal[PIP_Indices[i]].InterOnSegFlag)
+        {
+          CPCECostVec.push_back(CP_Pos[i]);
+        }
+      }
+      switch (CPCECostVec.size())
+      {
+        case 0:
+        {
+          PIPIndex = std::distance(CP_Pos.begin(), std::min_element(CP_Pos.begin(), CP_Pos.end()));
+          return -CP_Pos[PIPIndex];
+        }
+        break;
+        default:
+        {
+          int FailurePIPIndex = std::distance(CPCECostVec.begin(), std::min_element(CPCECostVec.begin(), CPCECostVec.end()));
+          PIPIndex = PIP_Indices[FailurePIPIndex];
+          return -CPCECostVec[PIPIndex];
+        }
+        break;
+      }
+    }
+    break;
   }
-  else
-  {
-    PIPIndex = -1;
-  }
-  return CPCECost;
+  return 0.0;
 }
 
 double ZMPGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const Vector3 & COMPos, const Vector3 & COMAcc, const double & Margin)

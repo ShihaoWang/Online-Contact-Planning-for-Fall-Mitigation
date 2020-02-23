@@ -169,8 +169,9 @@ struct PIPInfo
   double g, g_angle;
   Vector3 x_prime_unit, y_prime_unit, z_prime_unit;
   Vector3 x_unit, y_unit, z_unit;
-  Vector3 EdgeA, EdgeB;                   // The Edge points from EdgeA to EdgeB.
-  Vector3 Intersection;                    // The point where the COM intersects the edge.
+  Vector3 EdgeA, EdgeB;                     // The Edge points from EdgeA to EdgeB.
+  Vector3 Intersection;                     // The point where the COM intersects the edge.
+  bool InterOnSegFlag;                      // Whether the origin is at intersection or not?!
 };
 
 struct RotationAxisInfo
@@ -950,7 +951,7 @@ struct ReachabilityMap
     LayerDiff = _LayerDiff;
     MinRadius = _MinRadius;
   }
-  std::vector<Vector3> IdealReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex)
+  std::vector<Vector3> IdealReachablePointsFinder(const Robot & SimRobot, const int & LinkInfoIndex)
   {
     std::vector<Vector3> ReachablePoints;
     ReachablePoints.reserve(TotalPoint);
@@ -968,7 +969,7 @@ struct ReachabilityMap
     }
     return ReachablePoints;
   }
-  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, const Vector3 & COMVel)
+  std::vector<Vector3> ReachablePointsFinder(const Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo, const Vector3 & COMVel)
   {
     double Radius = EndEffectorRadius[LinkInfoIndex];
     double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
@@ -978,7 +979,7 @@ struct ReachabilityMap
     int ReachablePointNo = 0;
     return ReachablePointsGene(RefPoint, Radius, SDFInfo, ReachablePointNo, COMVel);
   }
-  std::vector<Vector3> ReachablePointsFinder(Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo)
+  std::vector<Vector3> ReachablePointsFinder(const Robot & SimRobot, const int & LinkInfoIndex, SignedDistanceFieldInfo & SDFInfo)
   {
     double Radius = EndEffectorRadius[LinkInfoIndex];
     double PivotalLinkIndex = EndEffectorPivotalIndex[LinkInfoIndex];
@@ -1059,19 +1060,10 @@ struct ReachabilityMap
         }
         ContactFreeInfoIndex++;
       }
-      switch (ContactFreeFlag)
+      if(ContactFreeFlag)
       {
-        case true:
-        {
-          ContactFreePoints.push_back(ReachablePoints[i]);
-          ContactFreeNo++;
-        }
-        break;
-        default:
-        {
-
-        }
-        break;
+        ContactFreePoints.push_back(ReachablePoints[i]);
+        ContactFreeNo++;
       }
     }
     return ContactFreePoints;
@@ -1479,14 +1471,12 @@ struct SelfLinkGeoInfo
       DistVec.push_back(Dist_i);
       GradVec.push_back(Grad_i);
     }
-
-    double Scale = abs(*std::min_element(DistVec.begin(), DistVec.end()));
+    Dist = *std::min_element(DistVec.begin(), DistVec.end());
+    double Scale = abs(Dist);
     for (int i = 0; i < ActLinkNo; i++)
     {
       DistWeights.push_back(exp(-1.0 * DistVec[i]/Scale));
     }
-    Dist = *std::min_element(DistVec.begin(), DistVec.end());
-
     // Set its value to be zero!
     Grad.x = 0.0;
     Grad.y = 0.0;

@@ -390,19 +390,13 @@ int FileIndexFinder(bool UpdateFlag)
   else cout << "Unable to open FileIndex file";
 
   // The second step is to update the next element value to be +1
-  switch (UpdateFlag)
+  if(UpdateFlag)
   {
-    case true:
-    {
-      const char *FileIndexWriter_Name = FileIndexName.c_str();
-      std::ofstream FileIndexWriter;
-      FileIndexWriter.open(FileIndexWriter_Name);
-      FileIndexWriter<<std::to_string(FileIndex + 1)<<"\n";
-      FileIndexWriter.close();
-    }
-    break;
-    default:
-    break;
+    const char *FileIndexWriter_Name = FileIndexName.c_str();
+    std::ofstream FileIndexWriter;
+    FileIndexWriter.open(FileIndexWriter_Name);
+    FileIndexWriter<<std::to_string(FileIndex + 1)<<"\n";
+    FileIndexWriter.close();
   }
   return FileIndex;
 }

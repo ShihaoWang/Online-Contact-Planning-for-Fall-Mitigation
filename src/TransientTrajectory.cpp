@@ -8,34 +8,6 @@
 
 using namespace SplineLib;
 
-static Vector3 ShiftPointFunc(const Vector3 & ShiftPoint, bool & Flag)
-{
-  // This function is used to relocate contact point according to signed distance and contact normal.
-  // Here the signed distance of shift point should be negative.
-  double Margin = -NonlinearOptimizerInfo::SDFInfo.SignedDistance(ShiftPoint);
-  Vector3 ShiftPointNew = ShiftPoint;
-  Vector3 ShiftPointNormal;
-  double CurDist = 0.0;
-
-  Flag = false;
-  const int TotalNo = 5;
-  int CurrentNo = 0;
-  while(CurrentNo<=TotalNo)
-  {
-    // This inner function conducts an iterative "push" of this contact accoding to signed distance normal.
-    ShiftPointNormal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ShiftPointNew);
-    ShiftPointNew = ShiftPointNew + Margin * ShiftPointNormal;
-    CurDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(ShiftPointNew);
-    if(CurDist>0.0)
-    {
-      Flag = true;
-      break;
-    }
-    CurrentNo++;
-  }
-  return ShiftPointNew;
-}
-
 static void SplinePiece1DObjGene(const double & sInit, const double & sGoal, const double & PosInit, const double & VelInit, const double & PosGoal, const double & VelGoal, double & a, double & b, double & c, double & d)
 {
   // This function is used to generate the piecewiese cubic spline.
@@ -107,46 +79,20 @@ static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector
   return BasePoints;
 }
 
-static double SelfCollisionDist(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & PosInit, const Vector3 & PosGoal)
+static double SelfCollisionDist(SelfLinkGeoInfo & SelfLinkGeoObj, const int & LinkInfoIndex, const Vector3 & PosInit, const Vector3 & PosGoal)
 {
   // This function helps calculate robot's clearance for collision-avoidance
-  std::vector<int> EndEffectorLinkIndex = RMObject.EndEffectorLink2Pivotal[LinkInfoIndex];
-  double DistTol = 100000000.0;
-  // for (int i = 6; i < SimRobot.q.size(); i++)
-  // {
-  //   if(std::find(EndEffectorLinkIndex.begin(), EndEffectorLinkIndex.end(), i) == EndEffectorLinkIndex.end())
-  //   {
-  //     Frame3D LinkLocalFrame = SimRobot.links[i].T_World;
-  //     Vector3 PosInitLocal, PosGoalLocal;
-  //     LinkLocalFrame.mulPointInverse(PosInit, PosInitLocal);
-  //     LinkLocalFrame.mulPointInverse(PosGoal, PosGoalLocal);
-  //     double PosInitLocalDist = SelfLinkGeoObj.LinkSDFs[i-6].AsImplicitSurface().TrilinearInterpolate(PosInitLocal);
-  //     double PosGoalLocalDist = SelfLinkGeoObj.LinkSDFs[i-6].AsImplicitSurface().TrilinearInterpolate(PosGoalLocal);
-  //     double PosCenterLocalDist = SelfLinkGeoObj.LinkSDFs[i-6].AsImplicitSurface().TrilinearInterpolate(Vector3(0.0, 0.0, 0.0));
-  //
-  //     // PosInitLocalDist = SelfLinkGeoObj.LinkSDFs[i].AsImplicitSurface().TrilinearInterpolate(PosInitLocal);
-  //     // PosGoalLocalDist = SelfLinkGeoObj.LinkSDFs[i].AsImplicitSurface().TrilinearInterpolate(PosGoalLocal);
-  //     if(PosInitLocalDist<DistTol) DistTol = PosInitLocalDist;
-  //     if(PosGoalLocalDist<DistTol) DistTol = PosGoalLocalDist;
-  //   }
-  // }
-  return DistTol;
+  double  InitDist, GoalDist;
+  Vector3 InitGrad, GoalGrad;
+  SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, PosInit, InitDist, InitGrad);
+  SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, PosGoal, GoalDist, GoalGrad);
+
+  return min(InitDist, GoalDist);
 }
 
-static void SelfCollisionFn(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & GlobalPoint)
+static std::vector<cSpline3> cSplineGene(const std::vector<Vector3> & Points, const int & LinkInfoIndex, const double & SelfTol, const SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, int & PointIndex, Vector3 & ShiftPoint, bool & FeasibleFlag)
 {
-  // This function is used to calculate robot's self-collision information
-
-  // Frame3D LinkLocalFrame = SimRobot.links[LinkIndex].T_World;
-  // Vector3 ImpulseForceLocal = ImpulseForce;
-  // LinkLocalFrame.mulPointInverse(ImpulseForce + LinkLocalFrame.t, ImpulseForceLocal);
-
-}
-
-
-static std::vector<cSpline3> cSplineGene(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const std::vector<Vector3> & Points, Vector3 & ShiftPoint, bool & FeasibleFlag)
-{
-  // Actually, the shift function has not been fully tested!
+  // Algorithm stops when tolerance cannot be satisfied!
   Vec3f SplinePoints[Points.size()];
   for (int i = 0; i < Points.size(); i++)
   {
@@ -161,12 +107,12 @@ static std::vector<cSpline3> cSplineGene(const Robot & SimRobot, SelfLinkGeoInfo
 
   std::vector<Vector3> ShiftPointVec;
   std::vector<double> ShiftPointDisVec;
-  // std::vector<Vector3> TransitionPoints;
+  std::vector<int> SplineIndexVec;
   const int GridNo = 10;
   float sUnit = 1.0/(1.0 * GridNo);
   for (int i = 0; i < numSplines; i++)
   {
-    for (int j = 0; j < GridNo; j++)
+    for (int j = 0; j < GridNo-1; j++)
     {
       float s = 1.0 * j * sUnit;
       Vec3f ps = Position (splines[i], s);
@@ -174,6 +120,7 @@ static std::vector<cSpline3> cSplineGene(const Robot & SimRobot, SelfLinkGeoInfo
       double SplinePointDis = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SplinePoint);
       if(SplinePointDis<0)
       {
+        SplineIndexVec.push_back(i);
         ShiftPointVec.push_back(SplinePoint);
         ShiftPointDisVec.push_back(SplinePointDis);
       }
@@ -196,6 +143,7 @@ static std::vector<cSpline3> cSplineGene(const Robot & SimRobot, SelfLinkGeoInfo
       // Choose the point with the largest penetration.
       FeasibleFlag = false;
       int ShiftPointIndex = std::distance(ShiftPointDisVec.begin(), std::min_element(ShiftPointDisVec.begin(), ShiftPointDisVec.end()));
+      PointIndex = SplineIndexVec[ShiftPointIndex];
       ShiftPoint = ShiftPointVec[ShiftPointIndex];
     }
     break;
@@ -203,47 +151,165 @@ static std::vector<cSpline3> cSplineGene(const Robot & SimRobot, SelfLinkGeoInfo
   return SplineObj;
 }
 
-static std::vector<cSpline3> SplineObjGene(const Robot & SimRobot, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, bool & FeasiFlag)
+static std::vector<Vector3> SpatialPointShifter(const std::vector<Vector3> & Points, const int & LinkInfoIndex, const double & SelfTol, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, bool & ShiftFeasFlag)
 {
-  std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);   // Now we have the reference points!
-  double SelfTol = SelfCollisionDist(SimRobot, SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, PosGoal);
+  // This function is used to shift Points according to SelfTol
+  // Here we only allow this shift to be conducted N times.
+  const int TotalShiftTime = 10;
+  std::vector<Vector3> NewPoints;
+  NewPoints.push_back(Points[0]);
 
+  int PointCount = 1;
+  while (PointCount<Points.size()-1)
+  {
+    bool SelfShitFlag, EnviShitFlag;
+    Vector3 CurPt = Points[PointCount];
+    // Self-Collision Distance
+    double  CurSelfPtDist;
+    Vector3 CurSelfPtGrad;
+    SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, CurPt, CurSelfPtDist, CurSelfPtGrad);
+    double CurEnvPtDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(CurPt);
+    if((CurSelfPtDist<SelfTol)||(CurEnvPtDist<0))
+    {
+      // Then shift action is needed!
+      Vector3 NewPt = CurPt;
+      int ShiftTime = 0;
+      double ShiftDistUnit = 0.025;     // 2.5cm for example
+      while (ShiftTime<TotalShiftTime)
+      {
+        Vector3 SelfDirection(0.0, 0.0, 0.0);
+        SelfShitFlag = false;
+        if(CurSelfPtDist<SelfTol)
+        {
+          SelfDirection = CurSelfPtGrad;
+          SelfShitFlag = true;
+        }
+        Vector3 EnviDirection(0.0, 0.0, 0.0);
+        EnviShitFlag = false;
+        if(CurEnvPtDist<0)
+        {
+          EnviDirection = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(NewPt);
+          EnviShitFlag = true;
+        }
+        if((!SelfShitFlag)&&(!EnviShitFlag))
+        {
+          break;
+        }
+        Vector3 ShiftDirection = SelfDirection + EnviDirection;
+        ShiftDirection.setNormalized(ShiftDirection);
+        NewPt += ShiftDistUnit * ShiftDirection;
+        SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, NewPt, CurSelfPtDist, CurSelfPtGrad);
+        CurEnvPtDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(CurPt);
+        ShiftTime++;
+      }
+      if((!SelfShitFlag)&&(!EnviShitFlag))
+      {
+        NewPoints.push_back(NewPt);
+      }
+      else
+      {
+        ShiftFeasFlag = false;
+        return NewPoints;
+      }
+    }
+    else
+    {
+      NewPoints.push_back(CurPt);
+    }
+    PointCount++;
+  }
+  NewPoints.push_back(Points[Points.size()-1]);
+  ShiftFeasFlag = true;
+  return NewPoints;
+}
+
+static Vector3 SinglePointShifter(const Vector3 & Point, const int & LinkInfoIndex, const double & SelfTol, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, bool & ShiftFeasFlag)
+{
+  double ShiftDistUnit = 0.025;     // 2.5cm for example
+  Vector3 NewPoint = Point;
+  const int TotalShiftTime = 10;
+  int CurShiftTime = 0;
+
+  bool SelfShitFlag, EnviShitFlag;
+  double  CurSelfPtDist;
+  Vector3 CurSelfPtGrad;
+  SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, Point, CurSelfPtDist, CurSelfPtGrad);
+  double CurEnvPtDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(Point);
+  ShiftFeasFlag = false;
+  while(CurShiftTime<TotalShiftTime)
+  {
+    Vector3 SelfDirection(0.0, 0.0, 0.0);
+    SelfShitFlag = false;
+    if(CurSelfPtDist<SelfTol)
+    {
+      SelfDirection = CurSelfPtGrad;
+      SelfShitFlag = true;
+    }
+    Vector3 EnviDirection(0.0, 0.0, 0.0);
+    EnviShitFlag = false;
+    if(CurEnvPtDist<0)
+    {
+      EnviDirection = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(NewPoint);
+      EnviShitFlag = true;
+    }
+    if((!SelfShitFlag)&&(!EnviShitFlag))
+    {
+      break;
+    }
+    Vector3 ShiftDirection = SelfDirection + EnviDirection;
+    ShiftDirection.setNormalized(ShiftDirection);
+    NewPoint += ShiftDistUnit * ShiftDirection;
+    SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, NewPoint, CurSelfPtDist, CurSelfPtGrad);
+    CurEnvPtDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(NewPoint);
+    CurShiftTime++;
+  }
+  if((!SelfShitFlag)&&(!EnviShitFlag))
+  {
+    ShiftFeasFlag = true;
+  }
+  return NewPoint;
+}
+
+static std::vector<cSpline3> SplineObjGene(SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject, const int & LinkInfoIndex, const Vector3 & PosInit, const Vector3 & NormalInit, const Vector3 & PosGoal, const Vector3 & NormalGoal, bool & FeasiFlag)
+{
+  // This function is used to generate a collision-free path!
+  std::vector<cSpline3> SplineObj;
+  std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);
+  // Vector3Writer(Points, "TransitionPoints");
+  double SelfTol = SelfCollisionDist(SelfLinkGeoObj, LinkInfoIndex, PosInit, PosGoal);
+  bool InitShiftFeasFlag;     // For the shift of initial pts.
+  Points = SpatialPointShifter(Points, LinkInfoIndex, SelfTol, SelfLinkGeoObj, RMObject, InitShiftFeasFlag);
+  // Vector3Writer(Points, "TransitionPoints");
   FeasiFlag = false;
+  if(!InitShiftFeasFlag)
+  {
+    return SplineObj;
+  }
+
+  // Then the task is to generate a path which is collision-free.
   const int TotalIter = 10;
   int CurrentIter = 0;
-  std::vector<cSpline3> SplineObj;
   while((FeasiFlag == false)&&(CurrentIter<=TotalIter))
   {
     Vector3 ShiftPoint;
-    SplineObj = cSplineGene(SimRobot, SelfLinkGeoObj, RMObject, LinkInfoIndex, Points, ShiftPoint, FeasiFlag);
-    switch (FeasiFlag)
+    int ShiftPointIndex;
+    SplineObj = cSplineGene(Points, LinkInfoIndex, SelfTol, SelfLinkGeoObj, RMObject, ShiftPointIndex, ShiftPoint, FeasiFlag);
+    if(!FeasiFlag)
     {
-      case true:
-      break;
-      default:
+      bool ShiftFlag;
+      Vector3 NewShiftPoint = SinglePointShifter(ShiftPoint, LinkInfoIndex, SelfTol, SelfLinkGeoObj, RMObject, ShiftFlag);
+      if(!ShiftFlag)
       {
-        bool ShiftFlag;
-        ShiftPoint = ShiftPointFunc(ShiftPoint, ShiftFlag);
-        switch (ShiftFlag)
-        {
-          case false:
-          {
-            // If ShiftFlag turns out to be failure, then we need to terminate the whole loop
-            return SplineObj;
-          }
-          break;
-          default:
-          break;
-        }
-        std::vector<Vector3> NewPoints(Points.size()+1);
-        for (int i = 0; i < Points.size(); i++)
-        {
-          NewPoints[i] = Points[i];
-        }
-        NewPoints[Points.size()] = ShiftPoint;
+        return SplineObj;
+      }
+      else
+      {
+        // Insert the NewShiftPoint back into Points vector
+        std::vector<Vector3> NewPoints(Points.begin(), Points.begin() + ShiftPointIndex);
+        NewPoints.push_back(NewShiftPoint);
+        NewPoints.insert(NewPoints.end(), Points.begin() + ShiftPointIndex + 1, Points.end());
         Points = NewPoints;
       }
-      break;
     }
     CurrentIter++;
   }
@@ -257,7 +323,7 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
 
   Vector3 NormalInit = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosInit);
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
-  std::vector<cSpline3> SplineObj = SplineObjGene(SimRobot, SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
+  std::vector<cSpline3> SplineObj = SplineObjGene(SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 
   const int SplineNumber = SplineObj.size();
   const int SplineGrid = 5;

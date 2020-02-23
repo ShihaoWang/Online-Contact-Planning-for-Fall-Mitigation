@@ -8,6 +8,115 @@
 /*
     This function computes the robot's whole-body configuration based on the inverted pendulum rotation motion around axis.
 */
+PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector3 & COMPos, const Vector3 & COMVel)
+{
+  // Oops! Here I should use Jerry Pratt's Capture Point for TipOverPIP selection!
+  double LowestHeight = 1000.0;
+  for (int j = 0; j < ActiveContacts.size(); j++)
+  {
+    if(LowestHeight>ActiveContacts[j].z)
+    {
+      LowestHeight = ActiveContacts[j].z;
+    }
+  }
+  double L = COMPos.z - LowestHeight;
+  double g = 9.81;
+  Vector3 NewCOMVel = COMVel;
+  NewCOMVel.z = 0.0;
+  Vector3 CPPos = COMPos + NewCOMVel * sqrt(L/g);                                                 // 3D capture point
+
+  std::vector<PIPInfo> RawPIPTotal = PIPGenerator(ActiveContacts, COMPos, COMVel);   // This is for Capture Point Position
+  std::vector<PIPInfo> PIPTotal = PIPGenerator(ActiveContacts, CPPos, Vector3(0.0, 0.0, 0.0));   // This is for Capture Point Position
+  std::vector<double> CP_Pos_All(PIPTotal.size());
+  std::vector<double> CP_Pos;
+  std::vector<int> PIP_Indices;
+  for (int i = 0; i < PIPTotal.size(); i++)
+  {
+    double L = PIPTotal[i].L;
+    double theta = PIPTotal[i].theta;
+    // double thetadot = PIPTotal[i].thetadot;
+    double g = 9.81;      // We do not differentiate gravitational acceleration
+
+    double CP_x = L * sin(theta);
+    double CP_L = L * cos(theta);
+    double CP_xbar = CP_x;
+
+    if(CP_L<=0)
+    {
+      continue;
+    }
+    else
+    {
+      if(CP_xbar<0)
+      {
+        CP_Pos.push_back(CP_xbar);
+        PIP_Indices.push_back(i);
+      }
+    }
+    CP_Pos_All[i] = CP_xbar;
+  }
+
+  switch (PIP_Indices.size())
+  {
+    case 0:
+    {
+      // Hopefully this never happens!
+      int TipOverPIPIndex = std::distance(CP_Pos_All.begin(), std::min_element(CP_Pos_All.begin(), CP_Pos_All.end()));
+      return RawPIPTotal[TipOverPIPIndex];
+    }
+    break;
+    case 1:
+    {
+      return RawPIPTotal[PIP_Indices[0]];
+    }
+    break;
+    default:
+    {
+      // Here it's the case that at most two PIPs could have failures.
+      // Here the rotation is around a vertex.
+      double DisTol = 1e-8;
+      if((!PIPTotal[PIP_Indices[0]].InterOnSegFlag)&&(!PIPTotal[PIP_Indices[1]].InterOnSegFlag))
+      {
+        // In the middle area
+        Vector3 FirstEdgeA  =     PIPTotal[PIP_Indices[0]].EdgeA;
+        Vector3 FirstEdgeB  =     PIPTotal[PIP_Indices[0]].EdgeB;
+        Vector3 SecondEdgeA =     PIPTotal[PIP_Indices[1]].EdgeA;
+        Vector3 SecondEdgeB =     PIPTotal[PIP_Indices[1]].EdgeB;
+
+        double FirstEdgeADistA = FirstEdgeA.distanceSquared(SecondEdgeA);
+        double FirstEdgeADistB = FirstEdgeA.distanceSquared(SecondEdgeB);
+
+        double FirstEdgeBDistA = FirstEdgeB.distanceSquared(SecondEdgeA);
+        double FirstEdgeBDistB = FirstEdgeB.distanceSquared(SecondEdgeB);
+
+        Vector3 OriPoint;
+
+        if(FirstEdgeADistA<DisTol)  OriPoint = FirstEdgeA;
+        if(FirstEdgeADistB<DisTol)  OriPoint = FirstEdgeB;
+        if(FirstEdgeBDistA<DisTol)  OriPoint = SecondEdgeA;
+        if(FirstEdgeBDistB<DisTol)  OriPoint = SecondEdgeB;
+
+        Vector3 Normal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(OriPoint);
+        Vector3 Axis = cross(Normal, COMVel);
+        Axis.setNormalized(Axis);
+        return PIPGeneratorInner(OriPoint, OriPoint + Axis, COMPos, COMVel);
+      }
+      else
+      {
+        if(PIPTotal[PIP_Indices[0]].InterOnSegFlag)
+        {
+          return RawPIPTotal[PIP_Indices[0]];
+        }
+        else
+        {
+          return RawPIPTotal[PIP_Indices[1]];
+        }
+      }
+    }
+    break;
+  }
+  return RawPIPTotal[0];
+}
 
 // Calculates rotation matrix to euler angles
 // The result is the same as MATLAB except the order
@@ -142,7 +251,6 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
   double ThetaOffset = InvertedPendulumObj.Theta - ThetaInit;
 
   // The most interesting part is as follows.
-  // std::cout<<SimRobot.q<<endl;
   std::vector<double> UpdateConfig = GlobalFrameConfigUpdate(SimRobot, ThetaOffset, RotAxis, PIPObj.EdgeA);
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
   string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";

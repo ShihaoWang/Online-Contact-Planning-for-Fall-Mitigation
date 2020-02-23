@@ -13,11 +13,11 @@ import math
 import numpy as np
 import random
 
-ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
-ContactType = "/1Contact"
+ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/uneven"
+ContactType = "/3Contact"
 ExpNo = 1
-DataType = 2
-EnviName = "Envi1"
+DataType = 0
+EnviName = "Envi2"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
 VisMode = 0
 # This function is used solely for the visualization of online contact planning.
@@ -439,8 +439,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     SupportContacts_data = ContactDataLoader("SupportContact")
     # 5. Optimal Point
     OptimalContact_data = ContactDataLoader("OptimalContact")
-    # # 6.
-    # TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # 6.
+    TransitionPoints_data = ContactDataLoader("TransitionPoints")
 
     Ghostcolor = [88.0/255.0, 88.0/255.0, 88.0/255.0]
 
@@ -509,21 +509,22 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             COM_Pos = SimRobot.getCom()
             # RobotCOMPlot(SimRobot, vis)
             if (i >= (StateTrajLength - PIPTrajLength)):
-                EdgeAList_i = EdgeAList[i + PIPTrajLength - StateTrajLength]
-            # EdgeBList_i = EdgeBList[i]
-            # EdgeCOMList_i = EdgeCOMList[i]
-            # EdgexList_i = EdgexList[i]
-            # EdgeyList_i = EdgeyList[i]
-            # EdgezList_i = EdgezList[i]
-            #
-            # for j in range(0, len(EdgeAList_i)):
-            #     EdgeA = EdgeAList_i[j]
-            #     EdgeB = EdgeBList_i[j]
-            #     EdgeCOM = EdgeCOMList_i[j]
-            #     Edgex = EdgexList_i[j]
-            #     Edgey = EdgeyList_i[j]
-            #     Edgez = EdgezList_i[j]
-            #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
+                EdgeIndex = i + PIPTrajLength - StateTrajLength
+                EdgeAList_i = EdgeAList[EdgeIndex]
+                EdgeBList_i = EdgeBList[EdgeIndex]
+                EdgeCOMList_i = EdgeCOMList[EdgeIndex]
+                EdgexList_i = EdgexList[EdgeIndex]
+                EdgeyList_i = EdgeyList[EdgeIndex]
+                EdgezList_i = EdgezList[EdgeIndex]
+
+                for j in range(0, len(EdgeAList_i)):
+                    EdgeA = EdgeAList_i[j]
+                    EdgeB = EdgeBList_i[j]
+                    EdgeCOM = EdgeCOMList_i[j]
+                    Edgex = EdgexList_i[j]
+                    Edgey = EdgeyList_i[j]
+                    Edgez = EdgezList_i[j]
+                    PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
 
             # if CPFlag is 1 or 2:
             #     try:
@@ -552,15 +553,15 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
-            ContactDataPlot(vis, OptimalContact_data)
+            # ContactDataPlot(vis, OptimalContact_data)
 
             # ContactDataPlot(vis, CirclePointContact_data)
-            # ContactDataPlot(vis, TransitionPoints_data)
+            ContactDataPlot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(TimeStep)
-            if (i >= (StateTrajLength - PIPTrajLength)):
-                vis.remove("ContactPolytope")
+            # if (i >= (StateTrajLength - PIPTrajLength)):
+            #     vis.remove("ContactPolytope")
             # if plotIndex == 0:
             #     ContactDataUnplot(vis, ActiveReachableContacts_data)
             # elif plotIndex == 1:
@@ -572,12 +573,12 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # plotIndex = plotIndex + 1
             # if plotIndex == 4:
             #     plotIndex = 0
-        StateType = StateType + 1
-        if StateType == 3:
-            StateType = 0
+        # StateType = StateType + 1
+        # if StateType == 3:
+        #     StateType = 0
 
-        # for j in range(0, len(EdgeAList_i)):
-        #     PIP_Remove(j, vis)
+        for j in range(0, len(EdgeAList_i)):
+            PIP_Remove(j, vis)
 
         # ReachableContactPlot(vis, IdealReachableContacts_data)
 
