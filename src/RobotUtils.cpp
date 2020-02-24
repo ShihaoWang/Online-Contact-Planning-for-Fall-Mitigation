@@ -724,11 +724,20 @@ Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & 
   FacetInfo SPObj = FlatContactHullGeneration(SPVertices, FacetFlag);    // This is the support polygon
   COM_Pos.z = 0.0;
   std::vector<double> DistVec = SPObj.ProjPoint2EdgeDistVec(COM_Pos);
+  std::vector<int> DistVecIndices(DistVec.size());
   for (int i = 0; i < DistVec.size(); i++)
   {
     DistVec[i] = DistVec[i] * DistVec[i];
+    DistVecIndices[i] = i;
   }
+
+
   int MinIndex = std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
+  // It seems that a little randomness can increase complexity of the game!
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine e(seed);
+  std::shuffle(std::begin(DistVecIndices), std::end(DistVecIndices), e);
+  MinIndex = DistVecIndices[0];
   return -SPObj.EdgeNorms[MinIndex];
 }
 
@@ -838,4 +847,35 @@ void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name)
   fclose(SDFSpecsFile);
 
   return;
+}
+
+int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vector<double> & DistVec, const double & DisTol)
+{
+  std::vector<int> ValidEndEffector;
+  std::vector<double> ValidImpulseEndEffector;
+  for (int i = 0; i < DistVec.size(); i++)
+  {
+    if(DistVec[i]<DisTol)
+    {
+      ValidEndEffector.push_back(i);
+      ValidImpulseEndEffector.push_back(ImpulseVec[i]);
+    }
+  }
+  switch (ValidEndEffector.size())
+  {
+    case 0:
+    {
+      // Choose the one with the lowest signed distance to be modified.
+      return std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
+    }
+    break;
+    default:
+    {
+      // Choose the one with the lowest impulse to be modified.
+      int ValidEndEffectorIndex = std::distance(ValidImpulseEndEffector.begin(), std::min_element(ValidImpulseEndEffector.begin(), ValidImpulseEndEffector.end()));
+      return ValidEndEffector[ValidEndEffectorIndex];
+    }
+    break;
+  }
+  return 0;
 }

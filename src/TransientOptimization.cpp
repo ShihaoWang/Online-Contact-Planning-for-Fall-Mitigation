@@ -9,10 +9,8 @@ static Robot SimRobotObj;
 static int SwingLimbIndex;
 static std::vector<int> SwingLimbChain;
 static Vector3 PosGoal;
-static Vector3 GradGoal;
 static std::vector<double> RefConfig;
 static double PosGoalDist;
-static double ProjRatio = 0.975;
 
 struct TransientOpt: public NonlinearOptimizerInfo
 {
@@ -80,25 +78,17 @@ struct TransientOpt: public NonlinearOptimizerInfo
       F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos) - PosGoalDist;
       ConstraintIndex = ConstraintIndex + 1;
     }
-    RobotLink3D Link_i = SimRobotObj.links[NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex];
-    double Norm_x = Link_i.T_World.R.data[2][0];
-    double Norm_y = Link_i.T_World.R.data[2][1];
-    double Norm_z = Link_i.T_World.R.data[2][2];
-    Vector3 Link_i_Norm(Norm_x, Norm_y, Norm_z);
-
-    F[ConstraintIndex] = Link_i_Norm.dot(GradGoal) - ProjRatio;
     return F;
   }
 };
 
-std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, const Vector3 & _GradGoal, ReachabilityMap & RMObject, bool & OptFlag, const bool & LastFlag)
+std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, ReachabilityMap & RMObject, bool & OptFlag)
 {
   // This function is used to optimize robot's configuration such that a certain contact can be reached for that end effector.
   SimRobotObj = SimRobot;
   SwingLimbIndex = _SwingLimbIndex;
   SwingLimbChain = RMObject.EndEffectorLink2Pivotal[_SwingLimbIndex];
   PosGoal = _PosGoal;
-  GradGoal = _GradGoal;
   PosGoalDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(PosGoal);
   PosGoalDist = max(0.0, PosGoalDist);
   RefConfig = SimRobot.q;
@@ -113,7 +103,6 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   // Cost function on the norm difference between the reference avg position and the modified contact position.
   int neF = 1;
   neF = neF + NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LocalContacts.size();     // The only constraint is for the contact to be non-penetrated.
-  neF +=1;      // The the end effector normal alignment!
   TransientOptProblem.InnerVariableInitialize(n, neF);
 
   /*
@@ -133,20 +122,10 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     Initialize the bounds of variables
   */
   std::vector<double> Flow_vec(neF), Fupp_vec(neF);
-  for (int i = 0; i < neF-1; i++)
+  for (int i = 0; i < neF; i++)
   {
     Flow_vec[i] = 0;
     Fupp_vec[i] = 1e10;
-  }
-  if(LastFlag)
-  {
-    Flow_vec[neF-1] = 0;
-    Fupp_vec[neF-1] = 1e10;
-  }
-  else
-  {
-    Flow_vec[neF-1] = -1e10;
-    Fupp_vec[neF-1] = 1e10;
   }
   TransientOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
 
@@ -181,13 +160,13 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   SimRobotObj.UpdateConfig(Config(OptConfig));
   SimRobotObj.UpdateGeometry();
 
-  // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  // string _OptConfigFile = "InnerOptConfig.config";
-  // RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+  std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  string _OptConfigFile = "InnerOptConfig.config";
+  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   bool SelfCollisionTest = SimRobotObj.SelfCollision();        // Self-collision has been included.
   if(SelfCollisionTest) OptFlag = false;
-  
+
   if(OptConfig[5]>M_PI)
   {
     OptConfig[5]-=2.0 * M_PI;

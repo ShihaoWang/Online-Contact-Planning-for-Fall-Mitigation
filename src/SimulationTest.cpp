@@ -8,19 +8,18 @@
 
 static double DisTol = 0.01;      // 1cm
 
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath, const double & ForceMax, int & PushRecovSuccFlag, int & ActualFailureFlag)
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath, const double & ForceMax, const double & PushDuration, const double & DetectionWait, int & PushRecovSuccFlag, int & ActualFailureFlag)
 {
   /* Simulation parameters */
   double  TimeStep        = 0.025;
   int DOF = Sim.world->robots[0]->q.size();
   double  InitDuration    = 2.0;
-  double  PushDuration    = 0.5;                                      // Push lasts for 0.5s.
+  // double  PushDuration    = 0.2;                                      // Push lasts for 0.5s.
   double  PushDurationMeasure = 0.0;                                  // To measure how long push has been imposed to the robot body.
-  double  DetectionWait   = 2.0 * TimeStep;                           // After the push controller finishes, we would like to pause for sometime before failure detection!
+  // double  DetectionWait   = 0.25;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = DetectionWait;
   double  SimTotalTime    = 5.0;                                      // Simulation lasts for 5s.
   int     PushRecovFlag   = 0;                                        // Robot will switch to push recovery controller when PushRecovFlag = 1;
-  int     PlanRecorFlag   = 1;                                        // When its value is 1, this means that currently PlanRecords current
   int     FailureFlag     = 0;
   int     PlanningSteps   = 0;                                        // Total Planning Step Number
 
@@ -99,6 +98,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     {
       case 1:
       {
+        // However, one effect has been noticed is that the collision impulse.
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
         if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=DisTol))
@@ -107,7 +107,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           InitTime = Sim.time;
           RobotContactInfo = ControlReference.GoalContactInfo;
           PushRecovFlag = 0;
-          PlanRecorFlag = 1;
         }
       }
       break;
@@ -128,14 +127,12 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
               double PlanTime;
               SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps);
+              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol);
               if(ControlReference.ControlReferenceFlag == true)
               {
                 PlanTimeRecorder(PlanTime, SpecificPath);
                 PushRecovFlag = 1;
-                PlanRecorFlag = 0;
                 DetectionWaitMeasure = 0.0;
-                qDes = SimRobot.q;
                 PlanningSteps++;
               }
             }
@@ -154,21 +151,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
     StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
 
-    switch (PlanRecorFlag)
-    {
-      case 1:
-      {
-        StateTrajAppender(PlanStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-        PlanStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-      }
-      break;
-      default:
-      {
-        StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
-        PlanStateTraj.Append(Sim.time,    Config(qDes));
-      }
-      break;
-    }
+    StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
+    PlanStateTraj.Append(Sim.time,    Config(qDes));
 
     if(!FailureStateObj.FailureInitFlag)
     {

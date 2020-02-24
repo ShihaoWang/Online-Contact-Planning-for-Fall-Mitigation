@@ -668,16 +668,13 @@ int PIPIndexFinder(const std::vector<PIPInfo> & PIPTotal, const Vector3 & RefPos
 double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex)
 {
   PIPIndex = -1;
-
-  std::vector<double> CP_Pos;
-  std::vector<int> PIP_Indices;
+  std::vector<double> CP_Pos(PIPTotal.size());
   for (int i = 0; i < PIPTotal.size(); i++)
   {
     double L = PIPTotal[i].L;
     double theta = PIPTotal[i].theta;
     double thetadot = PIPTotal[i].thetadot;
-    // double g = PIPTotal[i].g;
-    double g = 9.81;      // We do not differentiate gravitational acceleration
+    double g =9.81;
 
     double CP_x = L * sin(theta);
     double CP_xdot = L * thetadot * cos(theta);
@@ -685,72 +682,27 @@ double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPInd
 
     if(CP_L<=0)
     {
-      continue;
+      CP_Pos[i] = 0.0;
     }
     else
     {
       double CP_g = g;
       double CP_xbar = CP_x + CP_xdot/sqrt(CP_g/CP_L);
-      if(CP_xbar<0)
-      {
-        CP_Pos.push_back(CP_xbar);
-        PIP_Indices.push_back(i);
-      }
+      CP_Pos[i] = CP_xbar;
     }
   }
-  switch (PIP_Indices.size())
+  double CPCECost = *min_element(CP_Pos.begin(), CP_Pos.end());
+  CPCECost = max(0.0, -CPCECost);
+  if(CPCECost>0)
   {
-    case 0:
-    {
-      PIPIndex = -1;
-      return 0.0;
-    }
-    break;
-    case 1:
-    {
-      if(PIPTotal[PIP_Indices[0]].InterOnSegFlag)
-      {
-        PIPIndex = PIP_Indices[0];
-        return -CP_Pos[0];
-      }
-      else
-      {
-        // It cannot happen!
-        PIPIndex = -1;
-        return 0.0;
-      }
-    }
-    break;
-    default:
-    {
-      std::vector<double> CPCECostVec;
-      for (int i = 0; i < PIP_Indices.size(); i++)
-      {
-        if(PIPTotal[PIP_Indices[i]].InterOnSegFlag)
-        {
-          CPCECostVec.push_back(CP_Pos[i]);
-        }
-      }
-      switch (CPCECostVec.size())
-      {
-        case 0:
-        {
-          PIPIndex = std::distance(CP_Pos.begin(), std::min_element(CP_Pos.begin(), CP_Pos.end()));
-          return -CP_Pos[PIPIndex];
-        }
-        break;
-        default:
-        {
-          int FailurePIPIndex = std::distance(CPCECostVec.begin(), std::min_element(CPCECostVec.begin(), CPCECostVec.end()));
-          PIPIndex = PIP_Indices[FailurePIPIndex];
-          return -CPCECostVec[PIPIndex];
-        }
-        break;
-      }
-    }
-    break;
+    // This indicates that robot's is going to have failure
+    PIPIndex = std::distance(CP_Pos.begin(), std::min_element(CP_Pos.begin(), CP_Pos.end()));
   }
-  return 0.0;
+  else
+  {
+    PIPIndex = -1;
+  }
+  return CPCECost;
 }
 
 double ZMPGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const Vector3 & COMPos, const Vector3 & COMAcc, const double & Margin)

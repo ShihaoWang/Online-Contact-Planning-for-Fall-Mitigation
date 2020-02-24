@@ -37,11 +37,15 @@ int main()
 
   const std::string ExperimentPath = "../result/" + ExpName + "/" + ContactType;
 
-  std::ifstream ForceFile(ExperimentPath + "/" + "ForceMax.txt");
-  std::string ForceMaxStr;
-  std::getline(ForceFile, ForceMaxStr);
-  ForceFile.close();
+  std::ifstream SettingsFile(ExperimentPath + "/" + "Settings.txt");
+  std::string ForceMaxStr, PushDurationStr, DetectionWaitStr;
+  std::getline(SettingsFile, ForceMaxStr);
+  std::getline(SettingsFile, PushDurationStr);
+  std::getline(SettingsFile, DetectionWaitStr);
+  SettingsFile.close();
   double ForceMax = std::stod(ForceMaxStr);
+  double PushDuration = std::stod(PushDurationStr);
+  double DetectionWait = std::stod(DetectionWaitStr);
 
   RobotWorld worldObj;
   SimGUIBackend BackendObj(&worldObj);
@@ -129,7 +133,7 @@ int main()
 
     int PushRecovFlag = 0;
     int FailureFlag = 0;
-    SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, ForceMax, PushRecovFlag, FailureFlag);
+    SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, ForceMax, PushDuration, DetectionWait, PushRecovFlag, FailureFlag);
     FileIndex++;
   }
   return 1;
