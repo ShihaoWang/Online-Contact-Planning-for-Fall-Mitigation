@@ -89,13 +89,13 @@ int main()
   int FileIndex = FileIndexFinder(false);
   int TotalNumber = 100;
 
-  /* 4. Internal Experimentation Loop */
+  /* 5. Internal Experimentation Loop */
   while(FileIndex<=TotalNumber)
   {
     string SpecificPath = ExperimentPath + "/" + std::to_string(FileIndex) + "/";
     // Let them be internal objects
     string str = "cd " + SpecificPath;
-    str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt";
+    str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt && rm -f *.bin && rm -f *OptConfig*.config";
     const char *command = str.c_str();
     system(command);
 

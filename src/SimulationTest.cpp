@@ -16,11 +16,13 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  InitDuration    = 2.0;
   double  PushDuration    = 0.5;                                      // Push lasts for 0.5s.
   double  PushDurationMeasure = 0.0;                                  // To measure how long push has been imposed to the robot body.
-  double  DetectionWait   = 0.5;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  double  DetectionWait   = 2.0 * TimeStep;                           // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = DetectionWait;
   double  SimTotalTime    = 5.0;                                      // Simulation lasts for 5s.
   int     PushRecovFlag   = 0;                                        // Robot will switch to push recovery controller when PushRecovFlag = 1;
   int     PlanRecorFlag   = 1;                                        // When its value is 1, this means that currently PlanRecords current
+  int     FailureFlag     = 0;
+  int     PlanningSteps   = 0;                                        // Total Planning Step Number
 
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath);
   // Three types of trajectories should be saved for visualization purpose.
@@ -71,8 +73,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   while(Sim.time <= SimTotalTime)
   {
     SimRobot = *Sim.world->robots[0];
-    if(PushDurationMeasure<PushDuration)
+    if((PushDurationMeasure<PushDuration)&&(FailureFlag == 0))
     {
+      // Push until fall has been detected.
       int LinkIndex = 19;
       PushDurationMeasure+=TimeStep;
       double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
@@ -116,6 +119,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           break;
           default:
           {
+            FailureFlag = 1;
             if(DetectionWaitMeasure>=DetectionWait)
             {
               InitTime = Sim.time;
@@ -124,13 +128,15 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
               double PlanTime;
               SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime);
+              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps);
               if(ControlReference.ControlReferenceFlag == true)
               {
                 PlanTimeRecorder(PlanTime, SpecificPath);
                 PushRecovFlag = 1;
                 PlanRecorFlag = 0;
                 DetectionWaitMeasure = 0.0;
+                qDes = SimRobot.q;
+                PlanningSteps++;
               }
             }
             else

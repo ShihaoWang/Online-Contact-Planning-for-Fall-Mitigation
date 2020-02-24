@@ -398,6 +398,7 @@ int FileIndexFinder(bool UpdateFlag)
     FileIndexWriter<<std::to_string(FileIndex + 1)<<"\n";
     FileIndexWriter.close();
   }
+
   return FileIndex;
 }
 
@@ -532,7 +533,6 @@ void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string
   FlatContactPointsFile = fopen(ContactPointFile_Name, "wb");
   fwrite(&FlatContactPoints[0], sizeof(double), FlatContactPoints.size(), FlatContactPointsFile);
   fclose(FlatContactPointsFile);
-
   return;
 }
 

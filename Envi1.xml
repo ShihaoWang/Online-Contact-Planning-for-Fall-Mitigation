@@ -9,10 +9,16 @@
   <simulation>
     <globals adaptiveTimeStepping="1" />
     <robot index="0" body="11">  <!-- right foot -->
-       <geometry kFriction="1.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
+       <geometry kFriction="10.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
     </robot>
     <robot index="0" body="17">  <!-- left foot -->
-       <geometry kFriction="1.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
+       <geometry kFriction="10.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
+    </robot>
+    <robot index="0" body="27">  <!-- left foot -->
+       <geometry kFriction="10.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
+    </robot>
+    <robot index="0" body="34">  <!-- left foot -->
+       <geometry kFriction="10.0" kRestitution="0.0" padding="0.005" stiffness="80000" damping="20000" />
     </robot>
   </simulation>
 </world>

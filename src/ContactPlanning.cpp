@@ -9,6 +9,11 @@
 #include <queue>
 #include <math.h>
 
+static bool ContactPairCMP(const pair<Vector3, double> & a, const pair<Vector3, double> & b)
+{
+    return (a.second > b.second);
+}
+
 static double NewContactsEval(const std::vector<Vector3> & FixedContacts, const std::vector<Vector3> & NewContacts, const Vector3 & COMPos, const Vector3 & COMVel)
 {
   // This function is used to evaluate the robot current NewContact according to our objective.
@@ -233,7 +238,7 @@ static AllContactStatusInfo SwingLimbIndices(Robot & SimRobot, const std::vector
   return AllContactStatusObj;
 }
 
-static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric)
+static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric, DataRecorderInfo & DataRecorderObj)
 {
   std::vector<Vector3> OptimalContact;
   // Get all the fixed contact positions.
@@ -273,8 +278,6 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
-
   // 1. Self-collision from other end effectors
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLimbIndex], ActiveReachableContact, ContactFreeInfo);
   switch (ContactFreeContact.size()){
@@ -283,8 +286,6 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
-
   // 2. Supportive
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
   switch (SupportContact.size()){
@@ -293,13 +294,104 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(SupportContact, "SupportContact");
-
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
-  Vector3Writer(OptimalContact, "OptimalContact");
+  switch (OptimalContact.size())
+  {
+    case 0:
+    {
+      return OptimalContact;
+    }
+    break;
+    default:
+    break;
+  }
 
-  return OptimalContact;
+  // 4. Selected Optimal Contact
+  // Select the contact point such that COM projection has the highest distance to edge.
+  std::vector<Vector3> SPVertices;
+  for (int i = 0; i < RobotLinkInfo.size(); i++)
+  {
+    int LinkiPNo = RobotLinkInfo[i].LocalContacts.size();
+    for (int j = 0; j < LinkiPNo; j++)
+    {
+      switch (FixedRobotContactInfo[i].LocalContactStatus[j])
+      {
+        case 0:
+        break;
+        case 1:
+        {
+          Vector3 LinkiPjPos;
+          SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+          LinkiPjPos.z = 0.0;
+          SPVertices.push_back(LinkiPjPos);
+        }
+        break;
+        default:
+        break;
+      }
+    }
+  }
+  Vector3 COM_Pos = SimRobot.GetCOM();
+  std::vector<std::pair<Vector3, double>> ContactPairVec;
+  ContactPairVec.reserve(OptimalContact.size());
+
+  // Here a little modification will be made to ensure a more accurate computation of contact points.
+  std::vector<Vector3> SwingLimbVertices;
+  SwingLimbVertices.reserve(RobotLinkInfo[SwingLimbIndex].LocalContacts.size());
+  for (int i = 0; i < RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
+  {
+    Vector3 LinkiPjPos;
+    SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].LocalContacts[i], RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
+    SwingLimbVertices.push_back(LinkiPjPos);
+  }
+
+  Vector3 SwingLimbAvg;
+  SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, SwingLimbAvg);
+
+  int FacetFlag = 0;
+  for (int i = 0; i < OptimalContact.size(); i++)
+  {
+    std::vector<Vector3> NewSPVertices = SPVertices;
+    Vector3 ShiftVec = OptimalContact[i] - SwingLimbAvg;
+    for (int j = 0; j < SwingLimbVertices.size(); j++)
+    {
+      NewSPVertices.push_back(SwingLimbVertices[j] + ShiftVec);
+    }
+    FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
+    COM_Pos.z = 0.0;
+    double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);
+    std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], COMDist) ;
+    ContactPairVec.push_back(ContactPair_i);
+  }
+  sort(ContactPairVec.begin(), ContactPairVec.end(), ContactPairCMP);
+  std::vector<Vector3> ReducedOptimalContact;
+
+  // Then we only choose 10 contact points for time concern.
+  const int CutOffNo = 10;
+  if(ContactPairVec.size()>CutOffNo)
+  {
+    for (int i = 0; i < CutOffNo; i++)
+    {
+      ReducedOptimalContact.push_back(ContactPairVec[i].first);
+    }
+  }
+  else
+  {
+    for (int i = 0; i < ContactPairVec.size(); i++)
+    {
+      ReducedOptimalContact.push_back(ContactPairVec[i].first);
+    }
+  }
+
+  // In The End we give all these values
+  DataRecorderObj.ActiveReachableContact = ActiveReachableContact;
+  DataRecorderObj.ContactFreeContact = ContactFreeContact;
+  DataRecorderObj.SupportContact = SupportContact;
+  DataRecorderObj.OptimalContact = OptimalContact;
+  DataRecorderObj.ReducedOptimalContact = ReducedOptimalContact;
+
+  return ReducedOptimalContact;
 }
 
 static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLimbChain, const Config & qInit, const Config & qGoal)
@@ -313,19 +405,14 @@ static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLi
   return *std::max_element(ExecutationTime.begin(), ExecutationTime.end());
 }
 
-static bool ContactPairCMP(const pair<Vector3, double> & a, const pair<Vector3, double> & b)
-{
-    return (a.second > b.second);
-}
-
-static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric)
+static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRobot, const PIPInfo & PIPObj, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & FixedRobotContactInfo, const int & SwingLimbIndex, const double & RefFailureMetric, DataRecorderInfo & DataRecorderObj)
 {
   ControlReferenceInfo ControlReferenceObj;
   Vector3 ContactInit;       // This is the position of the reference contact for robot's active end effector.
   SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, ContactInit);
   Vector3 COMPos(0.0, 0.0, 0.0), COMVel(0.0, 0.0, 0.0);
   CentroidalState(SimRobot, COMPos, COMVel);
-  std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLimbIndex, RefFailureMetric);
+  std::vector<Vector3> OptimalContact = OptimalContactSearcher(SimRobot, PIPObj, RMObject, RobotLinkInfo, FixedRobotContactInfo, SwingLimbIndex, RefFailureMetric, DataRecorderObj);
   switch (OptimalContact.size())
   {
     case 0:
@@ -335,73 +422,15 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
     break;
     default:
     {
-      // Select the contact point such that COM projection has the highest distance to edge.
-      std::vector<Vector3> SPVertices;
-      for (int i = 0; i < RobotLinkInfo.size(); i++)
-      {
-        int LinkiPNo = RobotLinkInfo[i].LocalContacts.size();
-        for (int j = 0; j < LinkiPNo; j++)
-        {
-          switch (FixedRobotContactInfo[i].LocalContactStatus[j])
-          {
-            case 0:
-            break;
-            case 1:
-            {
-              Vector3 LinkiPjPos;
-              SimRobot.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
-              LinkiPjPos.z = 0.0;
-              SPVertices.push_back(LinkiPjPos);
-            }
-            break;
-            default:
-            break;
-          }
-        }
-      }
-      Vector3 COM_Pos = SimRobot.GetCOM();
-      std::vector<std::pair<Vector3, double>> ContactPairVec;
-      ContactPairVec.reserve(OptimalContact.size());
-
-      // Here a little modification will be made to ensure a more accurate computation of contact points.
-      std::vector<Vector3> SwingLimbVertices;
-      SwingLimbVertices.reserve(RobotLinkInfo[SwingLimbIndex].LocalContacts.size());
-      for (int i = 0; i < RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
-      {
-        Vector3 LinkiPjPos;
-        SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].LocalContacts[i], RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
-        SwingLimbVertices.push_back(LinkiPjPos);
-      }
-
-      Vector3 SwingLimbAvg;
-      SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, SwingLimbAvg);
-
-      int FacetFlag = 0;
-      for (int i = 0; i < OptimalContact.size(); i++)
-      {
-        std::vector<Vector3> NewSPVertices = SPVertices;
-        Vector3 ShiftVec = OptimalContact[i] - SwingLimbAvg;
-        for (int j = 0; j < SwingLimbVertices.size(); j++)
-        {
-          NewSPVertices.push_back(SwingLimbVertices[j] + ShiftVec);
-        }
-        FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
-        COM_Pos.z = 0.0;
-        double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);
-        std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], COMDist) ;
-        ContactPairVec.push_back(ContactPair_i);
-      }
-      sort(ContactPairVec.begin(), ContactPairVec.end(), ContactPairCMP);
-
       // Now too early to assume that FailureFlag is true.
       bool FeasiFlag;
       std::vector<SplineLib::cSpline3> SplineObj;
       int OptimalContactIndex = 0;
-      while(OptimalContactIndex<ContactPairVec.size())
+      while(OptimalContactIndex<OptimalContact.size())
       {
         Robot SimRobotInner = SimRobot;
-        Vector3 ContactGoal = ContactPairVec[OptimalContactIndex].first;
-        SplineObj = TransientTrajGene(SimRobotInner, SwingLimbIndex, SelfLinkGeoObj, RobotLinkInfo, ContactInit, ContactGoal, RMObject, FeasiFlag);
+        Vector3 ContactGoal = OptimalContact[OptimalContactIndex];
+        SplineObj = TransientTrajGene(SimRobotInner, SwingLimbIndex, SelfLinkGeoObj, RobotLinkInfo, ContactInit, ContactGoal, RMObject, DataRecorderObj, FeasiFlag);
         if(FeasiFlag)
         {
           EndPathInfo EndPathObj(SplineObj, SwingLimbIndex);
@@ -414,7 +443,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
             4. Based on that time, robot's whole-body configuration is updated with inverted pendulum model.
             5. The whole algorithm terminates when robot's self-collision has been triggered or no feasible IK solution can be found.
           */
-          const int sNumber = 6;                 // 10 sampled points will be extracted from EndPathObj.
+          const int sNumber = 6;                 // 6 sampled points will be extracted from EndPathObj.
           int sIndex = 1;
           double sDiff = 1.0/(1.0 * sNumber - 1.0);
           double sVal = 0.0;
@@ -450,18 +479,28 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           TimeTraj.push_back(CurrentTime);
           SwingLimbTraj.push_back(CurrentContactPos);
 
-          std::string ConfigRMCMD = "cd /home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-          ConfigRMCMD += " && rm -f *OptConfig*.*";
-          const char *command = ConfigRMCMD.c_str();
-          system(command);
-
           bool OptFlag = true;
           while((sIndex<sNumber)&&(OptFlag == true))
           {
             sVal = 1.0 * sIndex * sDiff;
             EndPathObj.s2Pos(sVal, CurrentContactPos);
+            std::vector<double> OptConfig;
             bool LastFlag = false;
-            std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag, LastFlag);
+            switch (sIndex)
+            {
+              case 5:
+              {
+                LastFlag = true;
+                Vector3 CurrentContactGrad = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(CurrentContactPos);
+                OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, CurrentContactGrad, RMObject, OptFlag, LastFlag);
+              }
+              break;
+              default:
+              {
+                OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, CurrentContactPos, RMObject, OptFlag, LastFlag);
+              }
+              break;
+            }
             if(OptFlag)
             {
               // Minimum Time Estimation.
@@ -490,7 +529,11 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           if(OptFlag)
           {
             ControlReferenceObj.TrajectoryUpdate(ConfigTraj, TimeTraj, SwingLimbTraj);
-            CollisionImpulseFunc(SimRobotInner, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
+            // Impulse is not going to be computed at this stage!
+            ControlReferenceObj.Impulse = 0.0;
+            // CollisionImpulseFunc(SimRobotInner, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
+            DataRecorderObj.OptConfigs = ConfigTraj;
+
             return ControlReferenceObj;
           }
         }
@@ -502,7 +545,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
   return ControlReferenceObj;
 }
 
-ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const double & TimeStep, double & PlanTime)
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const double & TimeStep, double & PlanTime, const string & SpecificPath, const int & PlanningSteps)
 {
   // The whole planning algorithm should be written here.
   // The high-level idea is to plan individual end effector's configuration trajectory.
@@ -512,17 +555,19 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
   int ContactStatusOption = 0;
   std::vector<ControlReferenceInfo> RobotTrajVec;
   ControlReferenceInfo RobotTraj;
-  std::vector<double> ImpulseVec;
+  std::vector<double> ExeTimeVec;
   while(ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size())
   {
     std::vector<ContactStatusInfo> RobotContactInfo = AllContactStatusObj.ContactStatusInfoVec[ContactStatusOption];
     int SwingLimbIndex = AllContactStatusObj.SwingLimbIndices[ContactStatusOption];
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);    // From ContactInfoActive
 
+    DataRecorderInfo DataRecorderObj;
+
     // Here TipOverPIP needs to be computed given RobotContactInfo!
     PIPInfo TipOverPIP = TipOverPIPGene(ActContactPos, COMPos, COMVel);
 
-    RobotTraj = ControlReferenceGenerationInner(SimRobot, TipOverPIP, RMObject, SelfLinkGeoObj, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric);
+    RobotTraj = ControlReferenceGenerationInner(SimRobot, TipOverPIP, RMObject, SelfLinkGeoObj, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric, DataRecorderObj);
     RobotTraj.SwingLimbIndex = SwingLimbIndex;
     double duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
@@ -531,8 +576,17 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
     PlanTime+= 1000.0 * duration_time;
     if(RobotTraj.ControlReferenceFlag)
     {
+      DataRecorderObj.PlanningNo = PlanningSteps;
+      DataRecorderObj.LimbNo = ContactStatusOption;
+      DataRecorderObj.DataRecorder(SpecificPath);
+      for (int i = 0; i < DataRecorderObj.OptConfigs.size(); i++)
+      {
+        const string OptConfigFile = std::to_string(PlanningSteps) + "_" + std::to_string(ContactStatusOption) + "_" + "OptConfig" + std::to_string(i) + ".config";
+        RobotConfigWriter(DataRecorderObj.OptConfigs[i], SpecificPath, OptConfigFile);
+      }
+
       RobotTrajVec.push_back(RobotTraj);
-      ImpulseVec.push_back(RobotTraj.Impulse);
+      ExeTimeVec.push_back(RobotTraj.PlanStateTraj.EndTime());
     }
     ContactStatusOption++;
   }
@@ -548,7 +602,8 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
     break;
     default:
     {
-      int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
+      PlanningInfoFileAppender(PlanningSteps, RobotTrajVec.size()-1, SpecificPath);
+      int RobotTrajIndex = std::distance(ExeTimeVec.begin(), std::min_element(ExeTimeVec.begin(), ExeTimeVec.end()));
       std::printf("Planning successfully finds a feasible solution! \nRobot Limb Index: %d\n", NonlinearOptimizerInfo::RobotLinkInfo[RobotTrajVec[RobotTrajIndex].SwingLimbIndex].LinkIndex);
       RobotTraj = RobotTrajVec[RobotTrajIndex];
     }

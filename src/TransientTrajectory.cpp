@@ -316,7 +316,7 @@ static std::vector<cSpline3> SplineObjGene(SelfLinkGeoInfo & SelfLinkGeoObj, Rea
   return SplineObj;
 }
 
-std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, SelfLinkGeoInfo & SelfLinkGeoObj, const std::vector<LinkInfo> & RobotLinkInfo, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, bool & TransFeasFlag)
+std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, SelfLinkGeoInfo & SelfLinkGeoObj, const std::vector<LinkInfo> & RobotLinkInfo, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, DataRecorderInfo & DataRecorderObj, bool & TransFeasFlag)
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   // A Hermite spline is constructed with the information of position and velocity.
@@ -325,29 +325,31 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   std::vector<cSpline3> SplineObj = SplineObjGene(SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 
-  const int SplineNumber = SplineObj.size();
-  const int SplineGrid = 5;
-  std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
-
-  double sUnit = 1.0/(1.0 * SplineGrid);
-  int TransitionIndex = 0;
-  for (int i = 0; i < SplineNumber; i++)
+  if(TransFeasFlag)
   {
-    for (int j = 0; j < SplineGrid; j++)
+    const int SplineNumber = SplineObj.size();
+    const int SplineGrid = 5;
+    std::vector<Vector3> TransitionPoints(SplineNumber * SplineGrid + 1);
+
+    double sUnit = 1.0/(1.0 * SplineGrid);
+    int TransitionIndex = 0;
+    for (int i = 0; i < SplineNumber; i++)
     {
-      double s = 1.0 * j * sUnit;
-      Vec3f ps = Position (SplineObj[i], s);
-      Vector3 SplinePoint(ps.x, ps.y, ps.z);
-      TransitionPoints[TransitionIndex] = SplinePoint;
-      TransitionIndex++;
+      for (int j = 0; j < SplineGrid; j++)
+      {
+        double s = 1.0 * j * sUnit;
+        Vec3f ps = Position (SplineObj[i], s);
+        Vector3 SplinePoint(ps.x, ps.y, ps.z);
+        TransitionPoints[TransitionIndex] = SplinePoint;
+        TransitionIndex++;
+      }
     }
+    // The last waypoint
+    Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
+    Vector3 SplinePoint(ps.x, ps.y, ps.z);
+    TransitionPoints[TransitionIndex] = SplinePoint;
+    DataRecorderObj.TransitionPoints = TransitionPoints;
+
   }
-  // The last waypoint
-  Vec3f ps = Position (SplineObj[SplineNumber-1], 1.0);
-  Vector3 SplinePoint(ps.x, ps.y, ps.z);
-  TransitionPoints[TransitionIndex] = SplinePoint;
-  Vector3Writer(TransitionPoints, "TransitionPoints");
-
   return SplineObj;
-
 }

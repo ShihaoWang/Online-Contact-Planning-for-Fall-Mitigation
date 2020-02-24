@@ -417,12 +417,22 @@ void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const dou
   // This function is used to
   // This following part is used to save the robot's desired position, velocity and acceleration trajectory
   std::ofstream PushInfoFileWriter;
-
   string PushInfoFileStr = SpecificPath + "PushInfoFile.txt";
   const char *PushInfoFileStr_Name = PushInfoFileStr.c_str();
   PushInfoFileWriter.open(PushInfoFileStr_Name, std::ios_base::app);
   PushInfoFileWriter<<std::to_string(SimTime)<<" "<< std::to_string(Fx_t)<<" "<<std::to_string(Fy_t)<<" "<<std::to_string(Fz_t)<<"\n";
   PushInfoFileWriter.close();
+  return;
+}
+
+void PlanningInfoFileAppender(const int & PlanningSteps, const int & LimbNos, const string & SpecificPath)
+{
+  std::ofstream PlanningInfoFileWriter;
+  string PlanningInfoFileStr = SpecificPath + "PlanningInfoFile.txt";
+  const char *PlanningInfoFileStr_Name = PlanningInfoFileStr.c_str();
+  PlanningInfoFileWriter.open(PlanningInfoFileStr_Name, std::ios_base::app);
+  PlanningInfoFileWriter<<std::to_string(PlanningSteps)<<" "<< std::to_string(LimbNos)<<"\n";
+  PlanningInfoFileWriter.close();
   return;
 }
 

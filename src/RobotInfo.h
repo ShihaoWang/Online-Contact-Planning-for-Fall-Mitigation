@@ -901,7 +901,9 @@ struct SignedDistanceFieldInfo
     // The values at the edge give the jacobian to z
     double JacDistTo_z = (valMEFHG - valMABDC)/Envi_z_unit;
 
-    return Vector3(JacDistTo_x, JacDistTo_y, JacDistTo_z);
+    Vector3 RawNormal(JacDistTo_x, JacDistTo_y, JacDistTo_z);
+    RawNormal.setNormalized(RawNormal);
+    return RawNormal;
   }
   Eigen::Tensor<double, 3> SDFTensor;
   double Envi_x_min, Envi_x_max;
@@ -1022,7 +1024,7 @@ struct ReachabilityMap
       {
         Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
-        if(CurrentDist*CurrentDist<DisTol*DisTol)
+        if((CurrentDist>0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
         {
           Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
           double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
@@ -1489,6 +1491,66 @@ struct SelfLinkGeoInfo
   }
   std::vector<AABB3D> LinkBBs;
   std::map<int, std::vector<int>> SelfCollisionLinkMap;       // This map saves intermediate joint from End Effector Joint to Pivotal Joint.
+};
+
+struct DataRecorderInfo
+{
+  DataRecorderInfo(){};
+  void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName)
+  {
+    switch (ContactPoints.size())
+    {
+      case 0:
+      {
+        return;
+      }
+      break;
+      default:
+      break;
+    }
+    int NumberOfContactPoints = ContactPoints.size();
+    std::vector<double> FlatContactPoints(3 * NumberOfContactPoints);
+    int FlatContactPointIndex = 0;
+    for (int i = 0; i < NumberOfContactPoints; i++)
+    {
+      FlatContactPoints[FlatContactPointIndex] = ContactPoints[i].x;
+      FlatContactPointIndex++;
+      FlatContactPoints[FlatContactPointIndex] = ContactPoints[i].y;
+      FlatContactPointIndex++;
+      FlatContactPoints[FlatContactPointIndex] = ContactPoints[i].z;
+      FlatContactPointIndex++;
+    }
+
+    FILE * FlatContactPointsFile = NULL;
+    string ContactPointFile = ContactPointFileName + ".bin";
+    const char *ContactPointFile_Name = ContactPointFile.c_str();
+    FlatContactPointsFile = fopen(ContactPointFile_Name, "wb");
+    fwrite(&FlatContactPoints[0], sizeof(double), FlatContactPoints.size(), FlatContactPointsFile);
+    fclose(FlatContactPointsFile);
+    return;
+  }
+  void DataRecorder(const string & SpecificPath)
+  {
+    // This function will only be called if planning is successful!
+    const string InnerPath = SpecificPath + std::to_string(PlanningNo) + "_" + std::to_string(LimbNo) + "_";
+    Vector3Writer(ActiveReachableContact, InnerPath +  "ActiveReachableContact");
+    Vector3Writer(ContactFreeContact, InnerPath + "ContactFreeContact");
+    Vector3Writer(SupportContact, InnerPath + "SupportContact");
+    Vector3Writer(OptimalContact, InnerPath + "OptimalContact");
+    Vector3Writer(ReducedOptimalContact, InnerPath + "ReducedOptimalContact");
+    Vector3Writer(TransitionPoints, InnerPath + "TransitionPoints");
+  }
+  std::vector<Vector3> ActiveReachableContact;
+  std::vector<Vector3> ContactFreeContact;
+  std::vector<Vector3> SupportContact;
+  std::vector<Vector3> OptimalContact;
+  std::vector<Vector3> ReducedOptimalContact;
+  std::vector<Vector3> TransitionPoints;
+  std::vector<Config> OptConfigs;
+
+  int PlanningNo;
+  int LimbNo;
+
 };
 
 #endif
