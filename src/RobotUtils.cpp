@@ -732,11 +732,13 @@ Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & 
   }
 
   int MinIndex = std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
-  // It seems that a little randomness can increase complexity of the game!
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  std::default_random_engine e(seed);
-  std::shuffle(std::begin(DistVecIndices), std::end(DistVecIndices), e);
-  MinIndex = DistVecIndices[0];
+
+  // // It seems that a little randomness can increase complexity of the game!
+  // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  // std::default_random_engine e(seed);
+  // std::shuffle(std::begin(DistVecIndices), std::end(DistVecIndices), e);
+  // MinIndex = DistVecIndices[0];
+
   return -SPObj.EdgeNorms[MinIndex];
 }
 

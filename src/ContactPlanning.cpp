@@ -343,8 +343,8 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
       }
     }
   }
-  // Vector3 COM_Pos = SimRobot.GetCOM();
-  Vector3 COM_Pos = PredictedCOMPos;
+  Vector3 COM_Pos = SimRobot.GetCOM();
+  // Vector3 COM_Pos = PredictedCOMPos;
   std::vector<std::pair<Vector3, double>> ContactPairVec;
   ContactPairVec.reserve(OptimalContact.size());
 
