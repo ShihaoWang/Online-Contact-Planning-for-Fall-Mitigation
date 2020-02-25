@@ -135,7 +135,7 @@ int main()
     int PushRecovFlag = 0;
     int FailureFlag = 0;
     SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, ForceMax, PushDuration, DetectionWait, PushRecovFlag, FailureFlag);
-    if(FailureFlag)
+    if((FailureFlag)&&(PushRecovFlag))
     {
       PlanResWriter(SpecificPath, PushRecovFlag);
       FileIndex = FileIndexFinder(true);

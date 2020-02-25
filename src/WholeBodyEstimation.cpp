@@ -8,7 +8,7 @@
 /*
     This function computes the robot's whole-body configuration based on the inverted pendulum rotation motion around axis.
 */
-PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector3 & COMPos, const Vector3 & COMVel)
+PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector3 & COMPos, const Vector3 & COMVel, Vector3 & CPPos)
 {
   // Oops! Here I should use Jerry Pratt's Capture Point for TipOverPIP selection!
   double LowestHeight = 1000.0;
@@ -23,7 +23,7 @@ PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector
   double g = 9.81;
   Vector3 NewCOMVel = COMVel;
   NewCOMVel.z = 0.0;
-  Vector3 CPPos = COMPos + NewCOMVel * sqrt(L/g);                                                 // 3D capture point
+  CPPos = COMPos + NewCOMVel * sqrt(L/g);                                                 // 3D capture point
 
   std::vector<PIPInfo> RawPIPTotal = PIPGenerator(ActiveContacts, COMPos, COMVel);   // This is for Capture Point Position
   std::vector<PIPInfo> PIPTotal = PIPGenerator(ActiveContacts, CPPos, Vector3(0.0, 0.0, 0.0));   // This is for Capture Point Position
