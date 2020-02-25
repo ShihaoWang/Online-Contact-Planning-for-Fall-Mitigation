@@ -278,7 +278,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
 
   // 1. Self-collision from other end effectors
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLimbIndex], ActiveReachableContact, ContactFreeInfo);
@@ -288,7 +288,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
 
   // 2. Supportive
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
@@ -298,7 +298,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(SupportContact, "SupportContact");
+  // Vector3Writer(SupportContact, "SupportContact");
 
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
@@ -312,7 +312,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  Vector3Writer(OptimalContact, "OptimalContact");
+  // Vector3Writer(OptimalContact, "OptimalContact");
 
   const int CutOffNo = 10;
 
@@ -432,7 +432,6 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   sort(ContactPairVec.begin(), ContactPairVec.end(), ContactPairCMP);
   std::vector<Vector3> ReducedOptimalContact;
 
-  // Then we only choose 10 contact points for time concern.
   if(ContactPairVec.size()>CutOffNo)
   {
     for (int i = 0; i < CutOffNo; i++)
@@ -454,7 +453,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   DataRecorderObj.SupportContact = SupportContact;
   DataRecorderObj.OptimalContact = OptimalContact;
   DataRecorderObj.ReducedOptimalContact = ReducedOptimalContact;
-  Vector3Writer(ReducedOptimalContact, "ReducedOptimalContact");
+  // Vector3Writer(ReducedOptimalContact, "ReducedOptimalContact");
 
   return ReducedOptimalContact;
 }
@@ -549,7 +548,15 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           {
             sVal = 1.0 * sIndex * sDiff;
             EndPathObj.s2Pos(sVal, CurrentContactPos);
-            std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag);;
+            bool LastFlag;
+            switch (sIndex)
+            {
+              case 5:   LastFlag = true;
+              break;
+              default:  LastFlag = false;
+              break;
+            }
+            std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag, LastFlag);;
             if(OptFlag)
             {
               // Minimum Time Estimation.

@@ -108,7 +108,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           InitTime = Sim.time;
           RobotContactInfo = ControlReference.GoalContactInfo;
           PushRecovFlag = 0;
-          qDes = SimRobot.q;
+          // qDes = SimRobot.q;
         }
       }
       break;

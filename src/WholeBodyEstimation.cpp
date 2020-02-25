@@ -252,9 +252,9 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
 
   // The most interesting part is as follows.
   std::vector<double> UpdateConfig = GlobalFrameConfigUpdate(SimRobot, ThetaOffset, RotAxis, PIPObj.EdgeA);
-  std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";
-  RobotConfigWriter(_OptConfig, ConfigPath, _OptConfigFile);
+  // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  // string _OptConfigFile = "OptConfig" + std::to_string(StepIndex) + ".config";
+  // RobotConfigWriter(_OptConfig, ConfigPath, _OptConfigFile);
   std::vector<double> OptConfig = _OptConfig;
 
   OptConfig[0] = UpdateConfig[0];

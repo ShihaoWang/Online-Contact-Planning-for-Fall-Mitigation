@@ -353,7 +353,7 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
     Vector3 SplinePoint(ps.x, ps.y, ps.z);
     TransitionPoints[TransitionIndex] = SplinePoint;
     DataRecorderObj.TransitionPoints = TransitionPoints;
-    Vector3Writer(TransitionPoints, "TransitionPoints");
+    // Vector3Writer(TransitionPoints, "TransitionPoints");
   }
   return SplineObj;
 }

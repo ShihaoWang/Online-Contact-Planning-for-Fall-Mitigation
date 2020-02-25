@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 1
+ExpNo = 7
 DataType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -554,12 +554,12 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
             # ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
-            ContactDataPlot(vis, SupportContacts_data)
+            # ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)
             # ContactDataPlot(vis, ReducedOptimalContact_data)
 
             # ContactDataPlot(vis, CirclePointContact_data)
-            # ContactDataPlot(vis, TransitionPoints_data)
+            ContactDataPlot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(TimeStep)
