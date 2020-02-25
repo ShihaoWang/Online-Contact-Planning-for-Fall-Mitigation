@@ -64,7 +64,8 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   ControlReferenceInfo ControlReference;                            // Used for control reference generation.
   FailureStateInfo FailureStateObj;
 
-  Vector3 ImpulseDirection = ImpulseDirectionGene(*Sim.world->robots[0], NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);
+  // Vector3 ImpulseDirection = ImpulseDirectionGene(*Sim.world->robots[0], NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);
+  Vector3 ImpulseDirection = FlatRandomDirection();
   Vector3 ImpulseForceMax = ForceMax * ImpulseDirection;
 
   Robot SimRobot;
@@ -107,6 +108,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           InitTime = Sim.time;
           RobotContactInfo = ControlReference.GoalContactInfo;
           PushRecovFlag = 0;
+          qDes = SimRobot.q;
         }
       }
       break;

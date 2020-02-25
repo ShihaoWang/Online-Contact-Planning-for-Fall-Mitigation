@@ -100,6 +100,7 @@ int main()
     // Let them be internal objects
     string str = "cd " + SpecificPath;
     str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt && rm -f *.bin && rm -f *OptConfig*.config";
+    str+=" && rm -f PlanRes.txt";
     const char *command = str.c_str();
     system(command);
 
@@ -134,7 +135,12 @@ int main()
     int PushRecovFlag = 0;
     int FailureFlag = 0;
     SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, ForceMax, PushDuration, DetectionWait, PushRecovFlag, FailureFlag);
-    FileIndex++;
+    if(FailureFlag)
+    {
+      PlanResWriter(SpecificPath, PushRecovFlag);
+      FileIndex = FileIndexFinder(true);
+      FileIndex++;
+    }
   }
   return 1;
 }

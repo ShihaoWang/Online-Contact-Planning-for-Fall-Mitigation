@@ -79,6 +79,8 @@ Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & 
 bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol);
 void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name);
 int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vector<double> & DistVec, const double & DisTol);
+void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag);
+Vector3 FlatRandomDirection();
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);

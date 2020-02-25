@@ -314,7 +314,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   }
   Vector3Writer(OptimalContact, "OptimalContact");
 
-  const int CutOffNo = 15;
+  const int CutOffNo = 10;
 
   // 4. Selected Optimal Contact
 

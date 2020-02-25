@@ -731,7 +731,6 @@ Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & 
     DistVecIndices[i] = i;
   }
 
-
   int MinIndex = std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
   // It seems that a little randomness can increase complexity of the game!
   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -739,6 +738,15 @@ Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & 
   std::shuffle(std::begin(DistVecIndices), std::end(DistVecIndices), e);
   MinIndex = DistVecIndices[0];
   return -SPObj.EdgeNorms[MinIndex];
+}
+
+Vector3 FlatRandomDirection()
+{
+  double xDir = RandomValue(1.0);
+  double yDir = RandomValue(1.0);
+  Vector3 Dir(xDir, yDir, 0.0);
+  Dir.setNormalized(Dir);
+  return Dir;
 }
 
 void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name)
@@ -878,4 +886,15 @@ int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vecto
     break;
   }
   return 0;
+}
+
+void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag)
+{
+  const string PlanResStr = SpecificPath + "PlanRes.txt";
+  const char *PlanResStr_Name = PlanResStr.c_str();
+  std::ofstream PlanResWriter;
+  PlanResWriter.open(PlanResStr_Name);
+  PlanResWriter<<std::to_string(PushRecovFlag)<<"\n";
+  PlanResWriter.close();
+
 }
