@@ -12,8 +12,8 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
 {
   // This function is used to generate the reachability map for end effector.
   // Due to the fact that the area of sphere is propotional to r^2, the number of the sampled data is propotional to r^2 on each sphere.
-  double MaxRadius = 0.7;
-  int LayerNumber = 71;
+  double MaxRadius = 0.9;
+  int LayerNumber = 76;
   int PointNumberOnInner = 1;
   double LayerDiff = MaxRadius/(LayerNumber * 1.0);
   double MinRadius = LayerDiff;
@@ -55,12 +55,16 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
 
   // The next step is to estimate the end effector radius.
   int DOF = SimRobot.q.size();
-  std::vector<double> ZeroConfiguration(DOF);
+  std::vector<double> MeasureConfiguration(DOF);
   for (int i = 0; i < DOF; i++)
   {
-    ZeroConfiguration[i] = 0.0;
+    MeasureConfiguration[i] = 0.0;
   }
-  SimRobot.UpdateConfig(Config(ZeroConfiguration));
+
+  // These two values are modified to ensure the arms are straight.
+  MeasureConfiguration[23] = SimRobot.qMin[23];
+  MeasureConfiguration[30] = SimRobot.qMax[30];
+  SimRobot.UpdateConfig(Config(MeasureConfiguration));
   SimRobot.UpdateGeometry();
   std::vector<double> EndEffectorRadius(RobotLinkInfo.size());
   std::vector<double> EndEffectorCollisionRadius(RobotLinkInfo.size());

@@ -1393,6 +1393,7 @@ struct FailureStateInfo
 struct SelfLinkGeoInfo
 {
   // This struct is used to save the information of bounding boxes of robot's links.
+  SelfLinkGeoInfo(){};
   SelfLinkGeoInfo(const Robot & SimRobot, const std::map<int, std::vector<int>> & EndEffectorLink2Pivotal, const std::vector<int> & SelfCollisionFreeLink)
   {
     // Initial constructor

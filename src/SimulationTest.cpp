@@ -22,6 +22,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   int     PushRecovFlag   = 0;                                        // Robot will switch to push recovery controller when PushRecovFlag = 1;
   int     FailureFlag     = 0;
   int     PlanningSteps   = 0;                                        // Total Planning Step Number
+  double  SwingLimbSignedDist = 0.0;
 
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath);
   // Three types of trajectories should be saved for visualization purpose.
@@ -92,9 +93,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
-    double EndEffectorDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
-
-    std::printf("Simulation Time: %f, EndEffectorDist: %f, and Failure Metric: %f\n", Sim.time, EndEffectorDist, RefFailureMetric);
+    std::printf("Simulation Time: %f, and Failure Metric: %f\n", Sim.time, RefFailureMetric);
     switch (PushRecovFlag)
     {
       case 1:
@@ -102,13 +101,14 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         // However, one effect has been noticed is that the collision impulse.
         CurTime = Sim.time;
         qDes = ControlReference.ConfigReference(InitTime, CurTime);
-        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(EndEffectorDist<=DisTol))
+        SwingLimbSignedDist = SimRobot.geometry[RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex]->Distance(TerrColGeom);
+        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(SwingLimbSignedDist<=DisTol))
         {
           DetectionWaitMeasure = 0.0;
           InitTime = Sim.time;
           RobotContactInfo = ControlReference.GoalContactInfo;
           PushRecovFlag = 0;
-          qDes = SimRobot.q;
+          // qDes = SimRobot.q;
         }
       }
       break;

@@ -898,5 +898,21 @@ void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag)
   PlanResWriter.open(PlanResStr_Name);
   PlanResWriter<<std::to_string(PushRecovFlag)<<"\n";
   PlanResWriter.close();
+}
 
+std::vector<double> YPRShifter(const std::vector<double> & _OptConfig)
+{
+  std::vector<double> OptConfig = _OptConfig;
+  for (int i = 3; i < 6; i++)
+  {
+    if(OptConfig[i]>M_PI)
+    {
+      OptConfig[i]-=2.0 * M_PI;
+    }
+    if(OptConfig[i]<-M_PI)
+    {
+      OptConfig[i]+=2.0 * M_PI;
+    }
+  }
+  return OptConfig;
 }

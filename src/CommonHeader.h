@@ -81,6 +81,7 @@ void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name);
 int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vector<double> & DistVec, const double & DisTol);
 void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag);
 Vector3 FlatRandomDirection();
+std::vector<double> YPRShifter(const std::vector<double> & _OptConfig);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);
@@ -121,7 +122,7 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
 
 /*  12. TransientTraj */
 std::vector<SplineLib::cSpline3> TransientTrajGene(const Robot & SimRobot, const int & LinkInfoIndex, SelfLinkGeoInfo & SelfLinkGeoObj, const std::vector<LinkInfo> & RobotLinkInfo, const Vector3 & PosInit, const Vector3 & PosGoal, ReachabilityMap & RMObject, DataRecorderInfo & DataRecorderObj, bool & TransFeasFlag);
-std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, ReachabilityMap & RMObject, bool & OptFlag, const bool & LastFlag);
+std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, SelfLinkGeoInfo & SelfLinkGeoObj, const Vector3 & _PosGoal, ReachabilityMap & RMObject, bool & OptFlag, const bool & LastFlag);
 
 /* 13. Contact Controller*/
 std::vector<double> ContactController(const Robot & SimRobot, EndPathInfo & EndSplineObj, const double& dt, std::vector<Config>& qTrajDes, std::vector<Config> & qdotTrajDes, std::vector<Config> & qTrajAct, std::vector<Config> & qdotTrajAct, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo);

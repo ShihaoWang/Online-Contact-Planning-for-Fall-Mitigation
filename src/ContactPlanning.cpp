@@ -278,7 +278,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  // Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
+  Vector3Writer(ActiveReachableContact, "ActiveReachableContact");
 
   // 1. Self-collision from other end effectors
   std::vector<Vector3> ContactFreeContact = RMObject.ContactFreePointsFinder(RMObject.EndEffectorCollisionRadius[SwingLimbIndex], ActiveReachableContact, ContactFreeInfo);
@@ -288,7 +288,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  // Vector3Writer(ContactFreeContact, "ContactFreeContact");
+  Vector3Writer(ContactFreeContact, "ContactFreeContact");
 
   // 2. Supportive
   std::vector<Vector3> SupportContact = SupportContactFinder(COMPos, PIPObj, ContactFreeContact, NonlinearOptimizerInfo::SDFInfo);
@@ -298,7 +298,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  // Vector3Writer(SupportContact, "SupportContact");
+  Vector3Writer(SupportContact, "SupportContact");
 
   // 3. Optimal Contact
   OptimalContact = OptimalContactFinder(SupportContact, FixedContactPos, COMPos, COMVel, RefFailureMetric);
@@ -312,7 +312,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     default:
     break;
   }
-  // Vector3Writer(OptimalContact, "OptimalContact");
+  Vector3Writer(OptimalContact, "OptimalContact");
 
   const int CutOffNo = 10;
 
@@ -343,11 +343,10 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
       }
     }
   }
-  Vector3 COM_Pos = SimRobot.GetCOM();
-  // Vector3 COM_Pos = PredictedCOMPos;
+
+  Vector3 COM_Pos = PredictedCOMPos;
   std::vector<std::pair<Vector3, double>> ContactPairVec;
   ContactPairVec.reserve(OptimalContact.size());
-
   // Here a little modification will be made to ensure a more accurate computation of contact points.
   std::vector<Vector3> SwingLimbVertices;
   SwingLimbVertices.reserve(RobotLinkInfo[SwingLimbIndex].LocalContacts.size());
@@ -376,20 +375,6 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], COMDist) ;
     ContactPairVec.push_back(ContactPair_i);
   }
-
-  // int FacetFlag = 0;
-  // for (int i = 0; i < OptimalContact.size(); i++)
-  // {
-  //   std::vector<Vector3> NewSPVertices = SPVertices;
-  //   Vector3 OptimalContact_i = OptimalContact[i];
-  //   OptimalContact_i.z = 0.0;
-  //   NewSPVertices.push_back(OptimalContact_i);
-  //   FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
-  //   COM_Pos.z = 0.0;
-  //   double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);
-  //   std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], COMDist) ;
-  //   ContactPairVec.push_back(ContactPair_i);
-  // }
 
   /*    Method 2:  Random Selection */
   // std::vector<int> OptimalContactIndices(OptimalContact.size());
@@ -428,6 +413,16 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   //   ContactPairVec.push_back(ContactPair_i);
   // }
 
+  // /*    Method 4:  Centroidal Direction */
+  // std::vector<std::pair<Vector3, double>> ContactPairVec;
+  // ContactPairVec.reserve(OptimalContact.size());
+  // for (int i = 0; i < OptimalContact.size(); i++)
+  // {
+  //   double SupportMomentumProj = COMVel.dot(OptimalContact[i] - COMPos);
+  //   std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], SupportMomentumProj) ;
+  //   ContactPairVec.push_back(ContactPair_i);
+  // }
+
   sort(ContactPairVec.begin(), ContactPairVec.end(), ContactPairCMP);
   std::vector<Vector3> ReducedOptimalContact;
 
@@ -452,13 +447,16 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   DataRecorderObj.SupportContact = SupportContact;
   DataRecorderObj.OptimalContact = OptimalContact;
   DataRecorderObj.ReducedOptimalContact = ReducedOptimalContact;
-  // Vector3Writer(ReducedOptimalContact, "ReducedOptimalContact");
+  Vector3Writer(ReducedOptimalContact, "ReducedOptimalContact");
 
   return ReducedOptimalContact;
 }
 
 static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLimbChain, const Config & qInit, const Config & qGoal)
 {
+  std::cout<<"qInit[10]: "<<qInit[10]<<endl;
+  std::cout<<"qGoal[10]: "<<qGoal[10 ]<<endl;
+
   std::vector<double> ExecutationTime(SwingLimbChain.size());
   for (int i = 0; i < SwingLimbChain.size(); i++)
   {
@@ -511,22 +509,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           double sDiff = 1.0/(1.0 * sNumber - 1.0);
           double sVal = 0.0;
           Config CurrentConfig = SimRobotInner.q;
-          if(CurrentConfig[5]>M_PI)
-          {
-            CurrentConfig[5]-=2.0 * M_PI;
-          }
-          if(CurrentConfig[5]<-M_PI)
-          {
-            CurrentConfig[5]+=2.0 * M_PI;
-          }
-          if(CurrentConfig[3]>M_PI)
-          {
-            CurrentConfig[3]-=2.0 * M_PI;
-          }
-          if(CurrentConfig[3]<-M_PI)
-          {
-            CurrentConfig[3]+=2.0 * M_PI;
-          }
+          CurrentConfig = YPRShifter(CurrentConfig);
           double CurrentTime = 0.0;
           Vector3 CurrentContactPos = ContactInit;
 
@@ -555,7 +538,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
               default:  LastFlag = false;
               break;
             }
-            std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, CurrentContactPos, RMObject, OptFlag, LastFlag);;
+            std::vector<double> OptConfig = TransientOptFn(SimRobotInner, SwingLimbIndex, SelfLinkGeoObj, CurrentContactPos, RMObject, OptFlag, LastFlag);;
             if(OptFlag)
             {
               // Minimum Time Estimation.
@@ -574,8 +557,6 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
             }
             else
             {
-              // Stop testing the current ContactGoal and try a different one!
-              std::printf("Transient Optimization failure due to self-collision! \n");
               break;
             }
             sIndex++;

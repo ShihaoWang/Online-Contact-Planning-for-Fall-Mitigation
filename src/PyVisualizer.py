@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 11
+ExpNo = 6
 DataType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -398,7 +398,23 @@ def ContactDataPlot(vis, ReachableContacts_data):
 
         vis.add("Point:" + str(i), point_start)
         vis.hideLabel("Point:" + str(i), True)
-        vis.setColor("Point:" + str(i),65.0/255.0, 199.0/255.0, 244.0/255.0, 1.0)
+        vis.setColor("Point:" + str(i), 65.0/255.0, 199.0/255.0, 244.0/255.0, 1.0)
+
+def TransitionDataPlot(vis, ReachableContacts_data):
+    RowNo, ColumnNo = ReachableContacts_data.shape
+    RowStart = 0
+    RowEnd = RowNo
+
+    for i in range(RowStart, RowEnd):
+        point_start = [0.0, 0.0, 0.0]
+        ReachableContact_i = ReachableContacts_data[i]
+        point_start[0] = ReachableContact_i[0]
+        point_start[1] = ReachableContact_i[1]
+        point_start[2] = ReachableContact_i[2]
+
+        vis.add("TransPoint:" + str(i), point_start)
+        vis.hideLabel("TransPoint:" + str(i), True)
+        vis.setColor("TransPoint:" + str(i), 255.0/255.0, 255.0/255.0, 51.0/255.0, 1.0)
 
 def ContactDataLoader(IdealReachableContact):
     IdealReachableContacts = ExpName + "/../../build/" + IdealReachableContact + ".bin"
@@ -543,7 +559,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # ContactDataPlot(vis, IdealReachableContacts_data)
 
             # if plotIndex == 0:
-            #     ContactDataPlot(vis, ActiveReachableContacts_data)
+                # ContactDataPlot(vis, ActiveReachableContacts_data)
             # elif plotIndex == 1:
             #     ContactDataPlot(vis, ContactFreeContacts_data)
             # elif plotIndex == 2:
@@ -553,13 +569,12 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
 
             # ContactDataPlot(vis, ActiveReachableContacts_data)
-            # ContactDataPlot(vis, ContactFreeContacts_data)
+            ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)
             # ContactDataPlot(vis, ReducedOptimalContact_data)
 
-            # ContactDataPlot(vis, CirclePointContact_data)
-            ContactDataPlot(vis, TransitionPoints_data)
+            TransitionDataPlot(vis, TransitionPoints_data)
 
             vis.unlock()
             time.sleep(TimeStep)
