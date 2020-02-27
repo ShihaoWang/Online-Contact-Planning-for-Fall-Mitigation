@@ -376,6 +376,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     ContactPairVec.push_back(ContactPair_i);
   }
 
+
   /*    Method 2:  Random Selection */
   // std::vector<int> OptimalContactIndices(OptimalContact.size());
   // for (int i = 0; i < OptimalContact.size(); i++)
@@ -454,9 +455,6 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
 
 static double MinimumTimeEstimation(Robot & SimRobot, std::vector<int> & SwingLimbChain, const Config & qInit, const Config & qGoal)
 {
-  std::cout<<"qInit[10]: "<<qInit[10]<<endl;
-  std::cout<<"qGoal[10]: "<<qGoal[10 ]<<endl;
-
   std::vector<double> ExecutationTime(SwingLimbChain.size());
   for (int i = 0; i < SwingLimbChain.size(); i++)
   {
@@ -491,6 +489,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
       {
         Robot SimRobotInner = SimRobot;
         Vector3 ContactGoal = OptimalContact[OptimalContactIndex];
+        Vector3 ContactGoalGrad = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(ContactGoal);
         SplineObj = TransientTrajGene(SimRobotInner, SwingLimbIndex, SelfLinkGeoObj, RobotLinkInfo, ContactInit, ContactGoal, RMObject, DataRecorderObj, FeasiFlag);
         if(FeasiFlag)
         {
@@ -513,17 +512,14 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           double CurrentTime = 0.0;
           Vector3 CurrentContactPos = ContactInit;
 
-          std::vector<Config> ConfigTraj;
           std::vector<double> TimeTraj;
-          std::vector<Vector3> SwingLimbTraj;
+          std::vector<Config> ConfigTraj;
 
-          ConfigTraj.reserve(sNumber);
           TimeTraj.reserve(sNumber);
-          SwingLimbTraj.reserve(sNumber);
+          ConfigTraj.reserve(sNumber);
 
-          ConfigTraj.push_back(CurrentConfig);
           TimeTraj.push_back(CurrentTime);
-          SwingLimbTraj.push_back(CurrentContactPos);
+          ConfigTraj.push_back(CurrentConfig);
 
           bool OptFlag = true;
           while((sIndex<sNumber)&&(OptFlag == true))
@@ -545,10 +541,8 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
               double CurrentTime_i = MinimumTimeEstimation(SimRobotInner, RMObject.EndEffectorLink2Pivotal[SwingLimbIndex], CurrentConfig, Config(OptConfig));
 
               CurrentTime+=CurrentTime_i;
-
-              ConfigTraj.push_back(Config(OptConfig));
               TimeTraj.push_back(CurrentTime);
-              SwingLimbTraj.push_back(CurrentContactPos);
+              ConfigTraj.push_back(Config(OptConfig));
 
               // Then we should update the robot's CurrentConfig based on CurrentTime_i.
               Config UpdatedConfig  = WholeBodyDynamicsIntegrator(SimRobotInner, OptConfig, PIPObj, InvertedPendulumObj, CurrentTime_i, sIndex);
@@ -564,7 +558,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           // Here the inner optimiztion loop has been finished!
           if(OptFlag)
           {
-            ControlReferenceObj.TrajectoryUpdate(ConfigTraj, TimeTraj, SwingLimbTraj);
+            ControlReferenceObj.TrajectoryUpdate(TimeTraj, ConfigTraj, ContactGoal, ContactGoalGrad);
             // Impulse is not going to be computed at this stage!
             // ControlReferenceObj.Impulse = 0.0;
             CollisionImpulseFunc(SimRobotInner, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);

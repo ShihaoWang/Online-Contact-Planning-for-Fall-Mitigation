@@ -132,4 +132,7 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
 void CollisionImpulseFunc(Robot& SimRobot, const std::vector<ContactStatusInfo> & InitContactInfo, const int & SwingLimbIndex, ControlReferenceInfo & ControlReferenceObj);
 PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector3 & COMPos, const Vector3 & COMVel, Vector3 & CPPos);
 
+/* 15. Last Contact Optimization*/
+std::vector<double> LastControlReference(const Robot & _SimRobot, const double & InitTime, const double & CurTime, ControlReferenceInfo & ControlReferenceObj, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject);
+
 #endif

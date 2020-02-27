@@ -100,7 +100,23 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       {
         // However, one effect has been noticed is that the collision impulse.
         CurTime = Sim.time;
-        qDes = ControlReference.ConfigReference(InitTime, CurTime);
+        double InnerTime = CurTime - InitTime;
+        if(InnerTime<ControlReference.SwitchTime)
+        {
+          qDes = ControlReference.ConfigReference(InitTime, CurTime);
+        }
+        else
+        {
+          if(InnerTime<=ControlReference.FinalTime)
+          {
+            // Here an individual optimization needs to be conducted where robot's actual configuration should be considered.
+            std::vector<int> ActiveJoint = RMObject.EndEffectorLink2Pivotal[ControlReference.SwingLimbIndex];
+            SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
+            qDes = LastControlReference(SimRobot, InitTime, CurTime, ControlReference, SelfLinkGeoObj, RMObject);
+
+          }
+        }
+
         SwingLimbSignedDist = SimRobot.geometry[RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex]->Distance(TerrColGeom);
         if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(SwingLimbSignedDist<=DisTol))
         {
@@ -108,7 +124,6 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           InitTime = Sim.time;
           RobotContactInfo = ControlReference.GoalContactInfo;
           PushRecovFlag = 0;
-          // qDes = SimRobot.q;
         }
       }
       break;

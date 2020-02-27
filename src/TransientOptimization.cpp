@@ -9,9 +9,11 @@ static Robot SimRobotObj;
 static int SwingLimbIndex;
 static std::vector<int> SwingLimbChain;
 static Vector3 PosGoal;
+static Vector3 GradGoal;
 static std::vector<double> RefConfig;
 static double PosGoalDist;
 static SelfLinkGeoInfo SelfLinkGeoObj;
+static double AlignRatio = 0.9975;
 
 struct TransientOpt: public NonlinearOptimizerInfo
 {
@@ -88,7 +90,6 @@ struct TransientOpt: public NonlinearOptimizerInfo
       SelfLinkGeoObj.SelfCollisionDistNGrad(SwingLimbIndex, JointiCenterPos, SignedDist, SignedGrad);
       SelfCollisionDistVec[i] = SignedDist;
     }
-
     F[ConstraintIndex] = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end());
     ConstraintIndex+=1;
 
@@ -121,7 +122,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   // Cost function on the norm difference between the reference avg position and the modified contact position.
   int neF = 1;
   neF = neF + NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LocalContacts.size();        // The only constraint is for the contact to be non-penetrated.
-  neF += 1;                                                                                       // Self-collision
+  neF += 1;                                                                                       // Self-Collision
   neF += 1;                                                                                       // Signed Distance
   TransientOptProblem.InnerVariableInitialize(n, neF);
 
@@ -152,6 +153,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     Flow_vec[neF-1] = 0;
     Fupp_vec[neF-1] = 0;
   }
+  GradGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   TransientOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
 
   /*

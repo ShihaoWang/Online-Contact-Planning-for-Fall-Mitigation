@@ -1307,13 +1307,16 @@ struct AllContactStatusInfo
 struct ControlReferenceInfo
 {
   ControlReferenceInfo(){ControlReferenceFlag = false;};
-  void TrajectoryUpdate(const std::vector<Config> & _ConfigTraj, const std::vector<double> & _TimeTraj, const std::vector<Vector3> & _SwingLimbTraj)
+  void TrajectoryUpdate(const std::vector<double> & _TimeTraj, const std::vector<Config> & _ConfigTraj, const Vector3 & _GoalContactPos, const Vector3 & _GoalContactGrad)
   {
     // The three trajectories have been provided.
     LinearPath _PlanStateTraj(_TimeTraj, _ConfigTraj);
     PlanStateTraj = _PlanStateTraj;
-    SwingLimbTraj = _SwingLimbTraj;
+    GoalContactPos = _GoalContactPos;
+    GoalContactGrad = _GoalContactGrad;
     ControlReferenceFlag = true;
+    SwitchTime = PlanStateTraj.times[PlanStateTraj.times.size()-2];
+    FinalTime = PlanStateTraj.times[PlanStateTraj.times.size()-1];
     Impulse = 0.0;
     PlanningTime = 0.0;
   }
@@ -1345,11 +1348,14 @@ struct ControlReferenceInfo
 
   int SwingLimbIndex;
   LinearPath PlanStateTraj;
-  std::vector<Vector3> SwingLimbTraj;     // This save the trajectory for robot's end effector
   bool ControlReferenceFlag;
   double Impulse;
+  Vector3 GoalContactPos;
+  Vector3 GoalContactGrad;
   std::vector<ContactStatusInfo> InitContactInfo;
   std::vector<ContactStatusInfo> GoalContactInfo;
+  double SwitchTime;                      // SwitchTime is used for the last step to make sure that contact can be firmly estabilished!
+  double FinalTime;
   double PlanningTime;
 };
 

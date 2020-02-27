@@ -569,10 +569,10 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
 
             # ContactDataPlot(vis, ActiveReachableContacts_data)
-            ContactDataPlot(vis, ContactFreeContacts_data)
+            # ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)
-            # ContactDataPlot(vis, ReducedOptimalContact_data)
+            ContactDataPlot(vis, ReducedOptimalContact_data)
 
             TransitionDataPlot(vis, TransitionPoints_data)
 
