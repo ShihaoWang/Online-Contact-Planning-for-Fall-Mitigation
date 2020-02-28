@@ -13,6 +13,7 @@ static Vector3 GradGoal;
 static std::vector<double> RefConfig;
 static double PosGoalDist;
 static SelfLinkGeoInfo SelfLinkGeoObj;
+static double SelfCollisionTol = 0.01;
 
 struct TransientOpt: public NonlinearOptimizerInfo
 {
@@ -88,8 +89,10 @@ struct TransientOpt: public NonlinearOptimizerInfo
       Vector3 SignedGrad;
       SelfLinkGeoObj.SelfCollisionDistNGrad(SwingLimbIndex, JointiCenterPos, SignedDist, SignedGrad);
       SelfCollisionDistVec[i] = SignedDist;
+      std::vector<Vector3> Vertices = SelfLinkGeoObj.BBVertices(SwingLimbChain[i]-5);
     }
-    F[ConstraintIndex] = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end());
+
+    F[ConstraintIndex] = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end()) - SelfCollisionTol;
     ConstraintIndex+=1;
 
     F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiCenterPos);

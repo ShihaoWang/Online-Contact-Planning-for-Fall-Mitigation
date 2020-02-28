@@ -14,15 +14,14 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   double  TimeStep        = 0.025;
   int DOF = Sim.world->robots[0]->q.size();
   double  InitDuration    = 2.0;
-  // double  PushDuration    = 0.2;                                      // Push lasts for 0.5s.
-  double  PushDurationMeasure = 0.0;                                  // To measure how long push has been imposed to the robot body.
-  // double  DetectionWait   = 0.25;                                      // After the push controller finishes, we would like to pause for sometime before failure detection!
+  // double  DetectionWait   = 0.25;                                  // After the push controller finishes, we would like to pause for sometime before failure detection!
   double  DetectionWaitMeasure = DetectionWait;
   double  SimTotalTime    = 5.0;                                      // Simulation lasts for 5s.
-  int     PushRecovFlag   = 0;                                        // Robot will switch to push recovery controller when PushRecovFlag = 1;
-  int     FailureFlag     = 0;
+  bool    PushRecovFlag   = false;                                        // Robot will switch to push recovery controller when PushRecovFlag = 1;
+  bool    FailureFlag     = false;
   int     PlanningSteps   = 0;                                        // Total Planning Step Number
-  double  SwingLimbSignedDist = 0.0;
+  double  MPCCount        = 0.0;
+  double  MPCDuration     = 0.1;                                      // Duration for MPC executation until the next planning
 
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath);
   // Three types of trajectories should be saved for visualization purpose.
@@ -40,20 +39,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
   // Initial Simulation
   LinearPath FailureStateTraj, CtrlStateTraj, PlanStateTraj;
-  while(Sim.time <= InitDuration)
-  {
-    FailureStateTraj.Append(Sim.time, Sim.world->robots[0]->q);
-    CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-    PlanStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-    std::printf("Initial Simulation Time: %f\n", Sim.time);
-
-    StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-    StateTrajAppender(CtrlStateTrajStr_Name,    Sim.time, Sim.world->robots[0]->q);
-    StateTrajAppender(PlanStateTrajStr_Name,    Sim.time, Sim.world->robots[0]->q);
-
-    Sim.Advance(TimeStep);
-    Sim.UpdateModel();
-  }
+  InitialSimulation(Sim, FailureStateTraj, CtrlStateTraj, PlanStateTraj, InitDuration, TimeStep, SpecificPath);
   SimTotalTime           += Sim.time;
   std::printf("Initial Simulation Done!\n");
 
@@ -74,16 +60,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   while(Sim.time <= SimTotalTime)
   {
     SimRobot = *Sim.world->robots[0];
-    if((PushDurationMeasure<PushDuration)&&(FailureFlag == 0))
-    {
-      // Push until fall has been detected.
-      int LinkIndex = 19;
-      PushDurationMeasure+=TimeStep;
-      double ImpulseScale = 1.0 * PushDurationMeasure/PushDuration;
-      Vector3 ImpulseForce = ImpulseScale * ImpulseForceMax;
-      dBodyAddForceAtRelPos(Sim.odesim.robot(0)->body(LinkIndex), ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, 0.0, 0.0, 0.0);
-      PushInfoFileAppender(Sim.time, ImpulseForce.x, ImpulseForce.y, ImpulseForce.z, SpecificPath);
-    }
+    PushImposer(Sim, ImpulseForceMax,  InitTime, PushDuration, FailureFlag, SpecificPath);
 
     /* Robot's COMPos and COMVel */
     CentroidalState(SimRobot, COMPos, COMVel);
@@ -94,89 +71,57 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
     std::printf("Simulation Time: %f, and Failure Metric: %f\n", Sim.time, RefFailureMetric);
-    switch (PushRecovFlag)
+
+    if(PushRecovFlag)
     {
-      case 1:
+      // Push Recovery Controller will be used!
+      if(MPCCount<MPCDuration)
       {
-        // However, one effect has been noticed is that the collision impulse.
-        CurTime = Sim.time;
-        double InnerTime = CurTime - InitTime;
-        if(InnerTime<ControlReference.SwitchTime)
+        qDes = OnlineConfigReference(Sim, InitTime, ControlReference, TerrColGeom, SelfLinkGeoObj, DisTol, DetectionWaitMeasure, PushRecovFlag, RobotContactInfo, RMObject);
+        MPCCount+=TimeStep;
+      }
+      else
+      {
+        PushRecovFlag = false;
+        MPCCount = 0.0;
+      }
+    }
+    else
+    {
+      switch (CPPIPIndex)
+      {
+        case -1:
+        break;
+        default:
         {
-          qDes = ControlReference.ConfigReference(InitTime, CurTime);
-        }
-        else
-        {
-          if(InnerTime<=ControlReference.FinalTime)
+          FailureFlag = true;
+          if(DetectionWaitMeasure>=DetectionWait)
           {
-            // Here an individual optimization needs to be conducted where robot's actual configuration should be considered.
-            std::vector<int> ActiveJoint = RMObject.EndEffectorLink2Pivotal[ControlReference.SwingLimbIndex];
+            InitTime = Sim.time;
+            if(!FailureStateObj.FailureInitFlag)
+            FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
+
+            double PlanTime;
             SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-            qDes = LastControlReference(SimRobot, InitTime, CurTime, ControlReference, SelfLinkGeoObj, RMObject);
-
+            ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol);
+            if(ControlReference.ControlReferenceFlag == true)
+            {
+              PlanTimeRecorder(PlanTime, SpecificPath);
+              PushRecovFlag = 1;
+              DetectionWaitMeasure = 0.0;
+              PlanningSteps++;
+            }
           }
-        }
-
-        SwingLimbSignedDist = SimRobot.geometry[RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex]->Distance(TerrColGeom);
-        if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(SwingLimbSignedDist<=DisTol))
-        {
-          DetectionWaitMeasure = 0.0;
-          InitTime = Sim.time;
-          RobotContactInfo = ControlReference.GoalContactInfo;
-          PushRecovFlag = 0;
-        }
-      }
-      break;
-      default:
-      {
-        switch (CPPIPIndex)
-        {
-          case -1:
-          break;
-          default:
+          else
           {
-            FailureFlag = 1;
-            if(DetectionWaitMeasure>=DetectionWait)
-            {
-              InitTime = Sim.time;
-              if(!FailureStateObj.FailureInitFlag)
-              FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
-
-              double PlanTime;
-              SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol);
-              if(ControlReference.ControlReferenceFlag == true)
-              {
-                PlanTimeRecorder(PlanTime, SpecificPath);
-                PushRecovFlag = 1;
-                DetectionWaitMeasure = 0.0;
-                PlanningSteps++;
-              }
-            }
-            else
-            {
-              DetectionWaitMeasure+=TimeStep;
-            }
+            DetectionWaitMeasure+=TimeStep;
           }
         }
       }
-      break;
     }
     // Send the control command!
     NewControllerPtr->SetConstant(Config(qDes));
-
-    CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-    StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-
-    StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
-    PlanStateTraj.Append(Sim.time,    Config(qDes));
-
-    if(!FailureStateObj.FailureInitFlag)
-    {
-      FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
-      StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
-    }
-
+    StateLogger(Sim, FailureStateObj, CtrlStateTraj, PlanStateTraj, FailureStateTraj, qDes, SpecificPath);
     Sim.Advance(TimeStep);
     Sim.UpdateModel();
   }

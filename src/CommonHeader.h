@@ -135,4 +135,10 @@ PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector
 /* 15. Last Contact Optimization*/
 std::vector<double> LastControlReference(const Robot & _SimRobot, const double & InitTime, const double & CurTime, ControlReferenceInfo & ControlReferenceObj, SelfLinkGeoInfo & SelfLinkGeoObj, ReachabilityMap & RMObject);
 
+/* 16. Simulation Related */
+void InitialSimulation(WorldSimulation & Sim, LinearPath & FailureStateTraj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, const double & InitDuration, const double & TimeStep, const string & SpecificPath);
+void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const double & InitTime, const double & PushDuration, const int & FailureFlag, const string & SpecificPath);
+std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const double & DisTol, double & DetectionWaitMeasure, bool & PushRecovFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject);
+void StateLogger(WorldSimulation & Sim, FailureStateInfo & FailureStateObj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, LinearPath & FailureStateTraj, std::vector<double> & qDes, const string & SpecificPath);
+
 #endif

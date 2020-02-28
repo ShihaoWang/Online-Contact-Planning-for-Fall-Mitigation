@@ -320,12 +320,21 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   // A Hermite spline is constructed with the information of position and velocity.
-  Vector3 NormalInit = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosInit);
+  Vector3 NormalInit(0.0, 0.0, 0.0);
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   RobotLink3D Link_i = SimRobot.links[RobotLinkInfo[LinkInfoIndex].LinkIndex];
-  NormalInit.x = Link_i.T_World.R.data[2][0];
-  NormalInit.y = Link_i.T_World.R.data[2][1];
-  NormalInit.z = Link_i.T_World.R.data[2][2];
+
+  Vector3 EnviDirection;
+  double PosInitSelfCollisionDist;
+  SelfLinkGeoObj.SingleLinkDistNGrad(LinkInfoIndex, PosInit, PosInitSelfCollisionDist, EnviDirection);
+
+  Vector3 AlignDirection;
+  AlignDirection.x = Link_i.T_World.R.data[2][0];
+  AlignDirection.y = Link_i.T_World.R.data[2][1];
+  AlignDirection.z = Link_i.T_World.R.data[2][2];
+
+  NormalInit = AlignDirection + EnviDirection;
+  NormalInit.setNormalized(NormalInit);
 
   std::vector<cSpline3> SplineObj = SplineObjGene(SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 

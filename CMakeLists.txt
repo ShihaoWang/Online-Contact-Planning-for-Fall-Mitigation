@@ -108,7 +108,8 @@ add_executable(MyApp
 	       src/ContactController.cpp
 	       src/WholeBodyEstimation.cpp
 	       src/CollisionImpulse.cpp
-	       src/LastContactControl.cpp)
+	       src/LastContactControl.cpp
+	       src/SimulationRelated.cpp)
 
 target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY} ${Qt5Widgets_LIBRARIES})
 #set_property(TARGET MyApp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)

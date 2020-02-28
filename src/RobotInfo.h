@@ -1406,7 +1406,9 @@ struct SelfLinkGeoInfo
     for (int i = 5; i < SimRobot.q.size(); i++)
     {
       AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABB();
+      Frame3D LinkTransforms_i = SimRobot.links[i].T_World;
       LinkBBs.push_back(AABB3D_i);
+      LinkTransforms.push_back(LinkTransforms_i);
     }
 
     for (int i = 0; i < EndEffectorLink2Pivotal.size(); i++)
@@ -1431,6 +1433,8 @@ struct SelfLinkGeoInfo
     {
       AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABB();
       LinkBBs[i-5] = AABB3D_i;
+      Frame3D LinkTransforms_i = SimRobot.links[i].T_World;
+      LinkTransforms[i-5] = LinkTransforms_i;
     }
   }
   void SingleLinkDistNGrad(const int & LinkCountIndex, const Vector3 & GlobalPoint, double & Dist, Vector3 & DistGrad)
@@ -1459,6 +1463,51 @@ struct SelfLinkGeoInfo
     DistGrad.y = (Disty - Dist)/dy;
     DistGrad.z = (Distz - Dist)/dz;
     DistGrad.getNormalized(DistGrad);
+  }
+  // double Dist2OtherBoxes(const int & EndLimbIndex, const int & CurLinkIndex)
+  // {
+  //   std::vector<int> OtherLinkIndices = SelfCollisionLinkMap[EndLimbIndex];
+  //   const int ActLinkNo = OtherLinkIndices.size();
+  //   AABB3D CurLinkBB = LinkBBs[CurLinkIndex - 5];
+  //   std::vector<double> Dist2OtherBBs(ActLinkNo);
+  //   for (int i = 0; i < ActLinkNo; i++)
+  //   {
+  //     AABB3D OtherBBIndex = LinkBBs[OtherLinkIndices[i]];
+  //     Dist2OtherBBs[i] = CurLinkBB.distance(OtherBBIndex);
+  //   }
+  //   return *std::min_element(Dist2OtherBBs.begin(), Dist2OtherBBs.end());
+  // }
+  std::vector<Vector3> BBVertices(const int & BBIndex)
+  {
+    std::vector<Vector3> Vertices(8);
+    // This function calculates the vertices for current bounding box.
+    AABB3D CurBB = LinkBBs[BBIndex];
+    RigidTransform CurBBtoWorld = LinkTransforms[BBIndex];
+
+    Vector3 bmin = CurBB.bmin;
+    Vector3 bmax = CurBB.bmax;
+
+    Vector3 bmin2bmax = bmax - bmin;
+
+    Vector3 xAxis(CurBBtoWorld.R.data[0][0], CurBBtoWorld.R.data[0][1], CurBBtoWorld.R.data[0][2]);
+    Vector3 yAxis(CurBBtoWorld.R.data[1][0], CurBBtoWorld.R.data[1][1], CurBBtoWorld.R.data[1][2]);
+    Vector3 zAxis(CurBBtoWorld.R.data[2][0], CurBBtoWorld.R.data[2][1], CurBBtoWorld.R.data[2][2]);
+
+    double xbmin2bmax = xAxis.dot(bmin2bmax);
+    double ybmin2bmax = yAxis.dot(bmin2bmax);
+    double zbmin2bmax = zAxis.dot(bmin2bmax);
+
+    // Now we can have eight points explicitly.
+    Vertices[0] = bmin;
+    Vertices[1] = bmin + xbmin2bmax * xAxis;
+    Vertices[2] = bmin + zbmin2bmax * zAxis;
+    Vertices[3] = bmin + xbmin2bmax * xAxis + zbmin2bmax * zAxis;
+
+    Vertices[4] = bmin + ybmin2bmax * yAxis;
+    Vertices[5] = bmin + ybmin2bmax * yAxis + xbmin2bmax * xAxis;
+    Vertices[6] = bmin + ybmin2bmax * yAxis + zbmin2bmax * zAxis;
+    Vertices[7] = bmin + ybmin2bmax * yAxis + xbmin2bmax * xAxis + zbmin2bmax * zAxis;
+    return Vertices;
   }
   void SelfCollisionDistNGrad(const int & LinkIndex, const Vector3 & GlobalPoint, double & Dist, Vector3 & Grad)
   {
@@ -1497,6 +1546,7 @@ struct SelfLinkGeoInfo
     Grad.getNormalized(Grad);
   }
   std::vector<AABB3D> LinkBBs;
+  std::vector<RigidTransform> LinkTransforms;
   std::map<int, std::vector<int>> SelfCollisionLinkMap;       // This map saves intermediate joint from End Effector Joint to Pivotal Joint.
 };
 
