@@ -376,7 +376,6 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
     ContactPairVec.push_back(ContactPair_i);
   }
 
-
   /*    Method 2:  Random Selection */
   // std::vector<int> OptimalContactIndices(OptimalContact.size());
   // for (int i = 0; i < OptimalContact.size(); i++)
@@ -419,7 +418,7 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   // ContactPairVec.reserve(OptimalContact.size());
   // for (int i = 0; i < OptimalContact.size(); i++)
   // {
-  //   double SupportMomentumProj = COMVel.dot(OptimalContact[i] - COMPos);
+  //   double SupportMomentumProj = COMVel.dot(OptimalContact[i] - COM_Pos);
   //   std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], SupportMomentumProj) ;
   //   ContactPairVec.push_back(ContactPair_i);
   // }
@@ -559,9 +558,18 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           if(OptFlag)
           {
             ControlReferenceObj.TrajectoryUpdate(TimeTraj, ConfigTraj, ContactGoal, ContactGoalGrad);
-            // Impulse is not going to be computed at this stage!
-            // ControlReferenceObj.Impulse = 0.0;
-            CollisionImpulseFunc(SimRobotInner, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
+            // Impulse is not going to be computed due to numerical infeasibility!
+            ControlReferenceObj.Impulse = 0.0;
+            // CollisionImpulseFunc(SimRobotInner, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
+
+            std::vector<ContactStatusInfo> GoalContactInfo = FixedRobotContactInfo;
+            for(int i = 0; i<FixedRobotContactInfo[SwingLimbIndex].LocalContactStatus.size(); i++)
+            {
+              GoalContactInfo[SwingLimbIndex].LocalContactStatus[i] = 1;
+            }
+            ControlReferenceObj.InitContactInfo = FixedRobotContactInfo;
+            ControlReferenceObj.GoalContactInfo = GoalContactInfo;
+
             DataRecorderObj.OptConfigs = ConfigTraj;
 
             return ControlReferenceObj;
@@ -587,7 +595,6 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
   std::vector<ControlReferenceInfo> RobotTrajVec;
   ControlReferenceInfo RobotTraj;
   std::vector<double> ExeTimeVec;
-  std::vector<double> ImpulseVec;
   std::vector<double> EndDistVec;
   while(ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size())
   {
@@ -622,7 +629,6 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
 
       RobotTrajVec.push_back(RobotTraj);
       ExeTimeVec.push_back(RobotTraj.PlanStateTraj.EndTime());
-      ImpulseVec.push_back(RobotTraj.Impulse);
 
       double EndDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
       EndDistVec.push_back(EndDist);
@@ -642,9 +648,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
     default:
     {
       PlanningInfoFileAppender(PlanningSteps, RobotTrajVec.size()-1, SpecificPath);
-      // int RobotTrajIndex = std::distance(ExeTimeVec.begin(), std::min_element(ExeTimeVec.begin(), ExeTimeVec.end()));
-      // int RobotTrajIndex = std::distance(ImpulseVec.begin(), std::min_element(ImpulseVec.begin(), ImpulseVec.end()));
-      int RobotTrajIndex = EndEffectorSelector(ImpulseVec, EndDistVec, DistTol);
+      int RobotTrajIndex = EndEffectorSelector(ExeTimeVec, EndDistVec, DistTol);
       std::printf("Planning successfully finds a feasible solution! \nRobot Limb Index: %d\n", NonlinearOptimizerInfo::RobotLinkInfo[RobotTrajVec[RobotTrajIndex].SwingLimbIndex].LinkIndex);
       RobotTraj = RobotTrajVec[RobotTrajIndex];
     }

@@ -13,7 +13,6 @@ static Vector3 GradGoal;
 static std::vector<double> RefConfig;
 static double PosGoalDist;
 static SelfLinkGeoInfo SelfLinkGeoObj;
-static double AlignRatio = 0.9975;
 
 struct TransientOpt: public NonlinearOptimizerInfo
 {
