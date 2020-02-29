@@ -82,6 +82,7 @@ int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vecto
 void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag);
 Vector3 FlatRandomDirection();
 std::vector<double> YPRShifter(const std::vector<double> & _OptConfig);
+std::vector<Vector3> BoxVertices(const Box3D & Box3DObj);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);

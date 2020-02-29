@@ -62,6 +62,7 @@ struct LastControlOpt: public NonlinearOptimizerInfo
       RefqOpt[ActiveJointIndices[i]] = ActiveConfigOpt[i];
     }
     SimRobotObj.UpdateConfig(Config(RefqOpt));
+    SimRobotObj.UpdateGeometry();
     Vector3 LinkiCenterPos;
     SimRobotObj.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
     Vector3 AvgDiff = LinkiCenterPos - RefContact;

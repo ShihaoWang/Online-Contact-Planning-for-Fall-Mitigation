@@ -21,7 +21,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   bool    FailureFlag     = false;
   int     PlanningSteps   = 0;                                        // Total Planning Step Number
   double  MPCCount        = 0.0;
-  double  MPCDuration     = 0.1;                                      // Duration for MPC executation until the next planning
+  double  MPCDuration     = 10.0;                                      // Duration for MPC executation until the next planning
 
   std::vector<string> EdgeFileNames = EdgeFileNamesGene(SpecificPath);
   // Three types of trajectories should be saved for visualization purpose.

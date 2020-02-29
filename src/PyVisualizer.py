@@ -416,6 +416,38 @@ def TransitionDataPlot(vis, ReachableContacts_data):
         vis.hideLabel("TransPoint:" + str(i), True)
         vis.setColor("TransPoint:" + str(i), 255.0/255.0, 255.0/255.0, 51.0/255.0, 1.0)
 
+def BBDataPlot(vis, ReachableContacts_data):
+    RowNo, ColumnNo = ReachableContacts_data.shape
+    RowStart = 0
+    RowEnd = RowNo
+
+    for i in range(RowStart, RowEnd):
+        point_start = [0.0, 0.0, 0.0]
+        ReachableContact_i = ReachableContacts_data[i]
+        point_start[0] = ReachableContact_i[0]
+        point_start[1] = ReachableContact_i[1]
+        point_start[2] = ReachableContact_i[2]
+
+        vis.add("BBPoint:" + str(i), point_start)
+        vis.hideLabel("BBPoint:" + str(i), True)
+        vis.setColor("BBPoint:" + str(i), 255.0/255.0, 153.0/255.0, 153.0/255.0, 1.0)
+
+def BoxDataPlot(vis, ReachableContacts_data):
+    RowNo, ColumnNo = ReachableContacts_data.shape
+    RowStart = 0
+    RowEnd = RowNo
+
+    for i in range(RowStart, RowEnd):
+        point_start = [0.0, 0.0, 0.0]
+        ReachableContact_i = ReachableContacts_data[i]
+        point_start[0] = ReachableContact_i[0]
+        point_start[1] = ReachableContact_i[1]
+        point_start[2] = ReachableContact_i[2]
+
+        vis.add("BBPoint:" + str(i), point_start)
+        vis.hideLabel("BBPoint:" + str(i), True)
+        vis.setColor("BBPoint:" + str(i), 252.0/255.0, 157.0/255.0, 3.0/255.0, 1.0)
+
 def ContactDataLoader(IdealReachableContact):
     IdealReachableContacts = ExpName + "/../../build/" + IdealReachableContact + ".bin"
     f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
@@ -457,8 +489,12 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     OptimalContact_data = ContactDataLoader("OptimalContact")
     # 6. Reduced Optimal Point
     ReducedOptimalContact_data = ContactDataLoader("ReducedOptimalContact")
-    # 7.
+    # 7. Transition Point
     TransitionPoints_data = ContactDataLoader("TransitionPoints")
+    # 8. BB Points
+    BBPoints_data = ContactDataLoader("BBPoints")
+    # 9. Box Points
+    BoxPoints_data = ContactDataLoader("BoxPoints")
 
     Ghostcolor = [88.0/255.0, 88.0/255.0, 88.0/255.0]
 
@@ -547,7 +583,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # if CPFlag is 1 or 2:
             #     try:
             # h = ConvexHull(EdgeAList_i)
-            #     except:
+            #     except:BBPoints_data
             #         InfeasiFlag = 1
             #     if InfeasiFlag is 0:
                 h = ConvexHull(EdgeAList_i)
@@ -573,8 +609,20 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)
             ContactDataPlot(vis, ReducedOptimalContact_data)
-
             TransitionDataPlot(vis, TransitionPoints_data)
+
+            # BBDataPlot(vis, BBPoints_data)
+            # bb = ConvexHull(BBPoints_data)
+            # bbrender = draw_hull.PrettyHullRenderer(bb)
+            # vis.add("BB", bb)
+            # vis.setDrawFunc("BB", my_draw_hull)
+
+            BoxDataPlot(vis, BoxPoints_data)
+            box = ConvexHull(BoxPoints_data)
+            boxbrender = draw_hull.PrettyHullRenderer(box)
+            vis.add("Box", box)
+            vis.setDrawFunc("Box", my_draw_hull)
+
 
             vis.unlock()
             time.sleep(TimeStep)

@@ -916,3 +916,24 @@ std::vector<double> YPRShifter(const std::vector<double> & _OptConfig)
   }
   return OptConfig;
 }
+
+std::vector<Vector3> BoxVertices(const Box3D & Box3DObj)
+{
+  std::vector<Vector3> Vertices(8);
+  Vector3 GlobalPoint;
+  Vector3 LocalPoint(0.0, 0.0, 0.0);
+  Box3DObj.fromLocal(LocalPoint, GlobalPoint);
+  Vector3 xBox3DOffset = Box3DObj.dims.x * Box3DObj.xbasis;
+  Vector3 yBox3DOffset = Box3DObj.dims.y * Box3DObj.ybasis;
+  Vector3 zBox3DOffset = Box3DObj.dims.z * Box3DObj.zbasis;
+
+  Vertices[0] = GlobalPoint;
+  Vertices[1] = GlobalPoint + xBox3DOffset;
+  Vertices[2] = GlobalPoint + xBox3DOffset + zBox3DOffset;
+  Vertices[3] = GlobalPoint + zBox3DOffset;
+  Vertices[4] = GlobalPoint + yBox3DOffset;
+  Vertices[5] = GlobalPoint + xBox3DOffset + yBox3DOffset;
+  Vertices[6] = GlobalPoint + xBox3DOffset + zBox3DOffset + yBox3DOffset;
+  Vertices[7] = GlobalPoint + zBox3DOffset + yBox3DOffset;
+  return Vertices;
+}

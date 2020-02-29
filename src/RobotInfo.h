@@ -1405,7 +1405,7 @@ struct SelfLinkGeoInfo
     // Initial constructor
     for (int i = 5; i < SimRobot.q.size(); i++)
     {
-      AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABB();
+      AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABBTight();
       Frame3D LinkTransforms_i = SimRobot.links[i].T_World;
       LinkBBs.push_back(AABB3D_i);
       LinkTransforms.push_back(LinkTransforms_i);
@@ -1431,12 +1431,18 @@ struct SelfLinkGeoInfo
     // Must be updated firstly for Self-Collision-Dist computation
     for (int i = 5; i < SimRobot.q.size(); i++)
     {
-      AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABB();
+      AABB3D AABB3D_i = SimRobot.geometry[i]->GetAABBTight();
       LinkBBs[i-5] = AABB3D_i;
       Frame3D LinkTransforms_i = SimRobot.links[i].T_World;
       LinkTransforms[i-5] = LinkTransforms_i;
     }
   }
+  double SingleLinkDist(const int & LinkCountIndex, const Vector3 & GlobalPoint)
+  {
+    double Dist = LinkBBs[LinkCountIndex].signedDistance(GlobalPoint);
+    return Dist;
+  }
+
   void SingleLinkDistNGrad(const int & LinkCountIndex, const Vector3 & GlobalPoint, double & Dist, Vector3 & DistGrad)
   {
     // The signed distance of bounding box is with respect to the global bounding box
@@ -1482,6 +1488,7 @@ struct SelfLinkGeoInfo
     std::vector<Vector3> Vertices(8);
     // This function calculates the vertices for current bounding box.
     AABB3D CurBB = LinkBBs[BBIndex];
+    Vector3 CurBBSize = CurBB.size();
     RigidTransform CurBBtoWorld = LinkTransforms[BBIndex];
 
     Vector3 bmin = CurBB.bmin;
@@ -1509,6 +1516,64 @@ struct SelfLinkGeoInfo
     Vertices[7] = bmin + ybmin2bmax * yAxis + xbmin2bmax * xAxis + zbmin2bmax * zAxis;
     return Vertices;
   }
+  void Vector3Writer(const std::vector<Vector3> & ContactPoints, const std::string &ContactPointFileName)
+  {
+    switch (ContactPoints.size())
+    {
+      case 0:
+      {
+        return;
+      }
+      break;
+      default:
+      break;
+    }
+    int NumberOfContactPoints = ContactPoints.size();
+    std::vector<double> FlatContactPoints(3 * NumberOfContactPoints);
+    int FlatContactPointIndex = 0;
+    for (int i = 0; i < NumberOfContactPoints; i++)
+    {
+      FlatContactPoints[FlatContactPointIndex] = ContactPoints[i].x;
+      FlatContactPointIndex++;
+      FlatContactPoints[FlatContactPointIndex] = ContactPoints[i].y;
+      FlatContactPointIndex++;
+      FlatContactPoints[FlatContactPointIndex] = ContactPoints[i].z;
+      FlatContactPointIndex++;
+    }
+
+    FILE * FlatContactPointsFile = NULL;
+    string ContactPointFile = ContactPointFileName + ".bin";
+    const char *ContactPointFile_Name = ContactPointFile.c_str();
+    FlatContactPointsFile = fopen(ContactPointFile_Name, "wb");
+    fwrite(&FlatContactPoints[0], sizeof(double), FlatContactPoints.size(), FlatContactPointsFile);
+    fclose(FlatContactPointsFile);
+    return;
+  }
+  void BBDebug(const int & LinkIndex)
+  {
+    std::vector<int> SelfCollisionLinks = SelfCollisionLinkMap[LinkIndex];
+    for (int i = 0; i < SelfCollisionLinks.size(); i++)
+    {
+      std::vector<Vector3> Vertices = BBVertices(SelfCollisionLinks[i]);
+      Vector3Writer(Vertices, "BBPoints");
+    }
+  }
+
+  double SelfCollisionDist(const int & LinkIndex, const Vector3 & GlobalPoint)
+  {
+    const int ActLinkNo = SelfCollisionLinkMap[LinkIndex].size();
+    std::vector<double> DistVec;
+    DistVec.reserve(ActLinkNo);
+    for (int i = 0; i < ActLinkNo; i++)
+    {
+      int SelfLinkIndex = SelfCollisionLinkMap[LinkIndex][i];
+      double Dist_i = LinkBBs[SelfLinkIndex].signedDistance(GlobalPoint);
+      DistVec.push_back(Dist_i);
+    }
+    double Dist = *std::min_element(DistVec.begin(), DistVec.end());
+    return Dist;
+  }
+
   void SelfCollisionDistNGrad(const int & LinkIndex, const Vector3 & GlobalPoint, double & Dist, Vector3 & Grad)
   {
     // This function is used to calculate robot's self-collision distance given a point

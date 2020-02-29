@@ -13,7 +13,6 @@ static Vector3 GradGoal;
 static std::vector<double> RefConfig;
 static double PosGoalDist;
 static SelfLinkGeoInfo SelfLinkGeoObj;
-static double SelfCollisionTol = 0.01;
 
 struct TransientOpt: public NonlinearOptimizerInfo
 {
@@ -64,6 +63,7 @@ struct TransientOpt: public NonlinearOptimizerInfo
       RefConfig[SwingLimbChain[i]] = ActiveConfigOpt[i];
     }
     SimRobotObj.UpdateConfig(Config(RefConfig));
+    SimRobotObj.UpdateGeometry();
     Vector3 LinkiCenterPos;
     SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
     Vector3 AvgDiff = LinkiCenterPos - PosGoal;
@@ -82,17 +82,17 @@ struct TransientOpt: public NonlinearOptimizerInfo
     std::vector<double> SelfCollisionDistVec(SwingLimbChain.size()-3);
     for (int i = 0; i < SwingLimbChain.size()-3; i++)     // Due to the bounding box size of torso link
     {
-      // Active Limb Center of Mass Position
-      Vector3 JointiCenterPos;
-      SimRobotObj.GetWorldPosition(Vector3(0.0, 0.0, 0.0), SwingLimbChain[i], JointiCenterPos);
-      double SignedDist;
-      Vector3 SignedGrad;
-      SelfLinkGeoObj.SelfCollisionDistNGrad(SwingLimbIndex, JointiCenterPos, SignedDist, SignedGrad);
-      SelfCollisionDistVec[i] = SignedDist;
-      std::vector<Vector3> Vertices = SelfLinkGeoObj.BBVertices(SwingLimbChain[i]-5);
+      Box3D Box3DObj = SimRobotObj.geometry[SwingLimbChain[i]]->GetBB();
+      std::vector<Vector3> BoxVerticesVec = BoxVertices(Box3DObj);
+      std::vector<double> DistVec(BoxVerticesVec.size());
+      for (int j = 0; j < BoxVerticesVec.size(); j++)
+      {
+        DistVec[j] = SelfLinkGeoObj.SelfCollisionDist(SwingLimbIndex, BoxVerticesVec[j]);
+      }
+      SelfCollisionDistVec[i] = *std::min_element(DistVec.begin(), DistVec.end());
     }
 
-    F[ConstraintIndex] = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end()) - SelfCollisionTol;
+    F[ConstraintIndex] = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end());
     ConstraintIndex+=1;
 
     F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiCenterPos);
