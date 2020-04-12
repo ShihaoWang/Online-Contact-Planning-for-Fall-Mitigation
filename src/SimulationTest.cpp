@@ -86,6 +86,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           if(TouchDownFlag){
             if(DetectionWaitMeasure>=DetectionWait){
               InitTime = Sim.time;
+              ContactStatusOptionRef = -1;
               if(!FailureStateObj.FailureInitFlag)  FailureStateObj.FailureStateUpdate(InitTime, SimRobot.q, SimRobot.dq);
 
               double PlanTime;

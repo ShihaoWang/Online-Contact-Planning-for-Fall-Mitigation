@@ -105,6 +105,7 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   SwingLimbIndex = _SwingLimbIndex;
   SwingLimbChain = RMObject.EndEffectorLink2Pivotal[_SwingLimbIndex];
   RefConfig = SimRobot.q;
+  InitConfig = SimRobot.q;;
   SelfLinkGeoObj = _SelfLinkGeoObj;
   OptFlag = true;
 
@@ -160,8 +161,8 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   TouchDownConfigOptProblem.ProblemNameUpdate("TouchDownConfigOptProblem", 0);
 
   // Here we would like allow much more time to be spent on IK
-  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Iterations limit", 250);
-  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 25);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Iterations limit", 2500);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 50);
   TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
   TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
   /*
@@ -201,20 +202,9 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   double SelfCollisionDistTol = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end());
 
   if(SelfCollisionDistTol<-0.0025){
-      std::printf("Transient Optimization Failure due to Self-collision for Link %d! \n", NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex);
+      std::printf("Touch Down Optimization Failure due to Self-collision for Link %d! \n", NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex);
       OptFlag = false;
   }
-
-  Vector3 LinkiCenterPos;
-  SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
-  Vector3 AvgDiff = LinkiCenterPos - PosGoal;
-  double DistTestTol = 0.0225;
-  double DistTest = AvgDiff.normSquared();
-  if(DistTest>DistTestTol){
-    std::printf("Transient Optimization Failure due to Goal Contact Non-reachability for Link %d! \n", NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex);
-    OptFlag = false;
-  }
-
   OptConfig = YPRShifter(OptConfig);
   return OptConfig;
 }

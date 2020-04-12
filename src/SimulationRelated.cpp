@@ -72,14 +72,12 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
         // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
         SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
         std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
-        if(OptFlag){
-          qDes = qDesTouch;
-          ControlReference.TouchDownConfigFlag = true;
-          ControlReference.TouchDownConfig = qDes;
-          InMPCFlag = false;
-          DetectionWaitMeasure = 0.0;
-          RobotContactInfo = ControlReference.GoalContactInfo;
-        }
+        if(OptFlag) qDes = qDesTouch;
+        ControlReference.TouchDownConfigFlag = true;
+        ControlReference.TouchDownConfig = qDes;
+        InMPCFlag = false;
+        DetectionWaitMeasure = 0.0;
+        RobotContactInfo = ControlReference.GoalContactInfo;
       }
     }
   }else{
@@ -87,14 +85,12 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
       // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
       std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
-      if(OptFlag){
-        qDes = qDesTouch;
-        ControlReference.TouchDownConfigFlag = true;
-        ControlReference.TouchDownConfig = qDes;
-        InMPCFlag = false;
-        DetectionWaitMeasure = 0.0;
-        RobotContactInfo = ControlReference.GoalContactInfo;
-      }
+      if(OptFlag) qDes = qDesTouch;
+      ControlReference.TouchDownConfigFlag = true;
+      ControlReference.TouchDownConfig = qDes;
+      InMPCFlag = false;
+      DetectionWaitMeasure = 0.0;
+      RobotContactInfo = ControlReference.GoalContactInfo;
     }
   }
   return qDes;
