@@ -67,7 +67,7 @@ static std::vector<Vector3> BasePointsGene(const Vector3 & PosInit, const Vector
   // This function is used to generate the cubic spline for given robot's end effector path.
   const double scale = 0.5;
   SplineInfo BaseSpline = SplinePiece3DObjGene(0.0, 1.0, PosInit, scale * NormalInit, PosGoal, -scale * NormalGoal);
-  const int segmentNo = 3;
+  const int segmentNo = 5;
   double sUnit = 1.0/(1.0 * segmentNo);
   std::vector<Vector3> BasePoints(segmentNo+1);
   for (int i = 0; i < segmentNo + 1; i++)
@@ -275,11 +275,11 @@ static std::vector<cSpline3> SplineObjGene(SelfLinkGeoInfo & SelfLinkGeoObj, Rea
   // This function is used to generate a collision-free path!
   std::vector<cSpline3> SplineObj;
   std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);
-  // Vector3Writer(Points, "TransitionPoints");
+  Vector3Writer(Points, "TransitionPoints");
   double SelfTol = SelfCollisionDist(SelfLinkGeoObj, LinkInfoIndex, PosInit, PosGoal);
   bool InitShiftFeasFlag;     // For the shift of initial pts.
   Points = SpatialPointShifter(Points, LinkInfoIndex, SelfTol, SelfLinkGeoObj, RMObject, InitShiftFeasFlag);
-  // Vector3Writer(Points, "TransitionPoints");
+  Vector3Writer(Points, "TransitionPoints");
   FeasiFlag = false;
   if(!InitShiftFeasFlag)
   {

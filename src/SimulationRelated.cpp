@@ -45,33 +45,57 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
   }
 }
 
-std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const double & DisTol, double & DetectionWaitMeasure, bool & PushRecovFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
+  double ExeTimeTol = 0.2;
+  double TouchTol  = 0.025;             //  2.5 cm as a Touch Down tolerance.
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
   double InnerTime = CurTime - InitTime;
-  if(InnerTime<ControlReference.SwitchTime)
-  {
-    qDes = ControlReference.ConfigReference(InitTime, CurTime);
+
+  if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
+  qDes = ControlReference.ConfigReference(InitTime, CurTime);
+
+  std::vector<double> SwingContactDistVec;
+  Vector3 SwingLimbContactPos;
+  for (Vector3 & LocalContact:NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LocalContacts) {
+    SimRobot.GetWorldPosition(LocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbContactPos);
+    double CurrentDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SwingLimbContactPos);
+    SwingContactDistVec.push_back(CurrentDist);
   }
-  else
-  {
-    if(InnerTime<=ControlReference.FinalTime)
-    {
-      // Here an individual optimization needs to be conducted where robot's actual configuration should be considered.
-      std::vector<int> ActiveJoint = RMObject.EndEffectorLink2Pivotal[ControlReference.SwingLimbIndex];
-      SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      qDes = LastControlReference(SimRobot, InitTime, CurTime, ControlReference, SelfLinkGeoObj, RMObject);
+  double SwingContactDist = *min_element(SwingContactDistVec.begin(), SwingContactDistVec.end());
+  bool OptFlag;
+  if(ControlReference.FinalTime>ExeTimeTol){
+    if(InnerTime>=ControlReference.SwitchTime){
+      if(SwingContactDist<=TouchTol){
+        // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
+        SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
+        std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
+        if(OptFlag){
+          qDes = qDesTouch;
+          ControlReference.TouchDownConfigFlag = true;
+          ControlReference.TouchDownConfig = qDes;
+          InMPCFlag = false;
+          DetectionWaitMeasure = 0.0;
+          RobotContactInfo = ControlReference.GoalContactInfo;
+        }
+      }
     }
-  }
-  double SwingLimbSignedDist = SimRobot.geometry[NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex]->Distance(TerrColGeom);
-  if(((CurTime - InitTime)>ControlReference.PlanStateTraj.EndTime())&&(SwingLimbSignedDist<=DisTol))
-  {
-    DetectionWaitMeasure = 0.0;
-    InitTime = Sim.time;
-    RobotContactInfo = ControlReference.GoalContactInfo;
-    PushRecovFlag = false;
+  }else{
+    if(SwingContactDist<=TouchTol){
+      // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
+      SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
+      if(OptFlag){
+        qDes = qDesTouch;
+        ControlReference.TouchDownConfigFlag = true;
+        ControlReference.TouchDownConfig = qDes;
+        InMPCFlag = false;
+        DetectionWaitMeasure = 0.0;
+        RobotContactInfo = ControlReference.GoalContactInfo;
+      }
+    }
   }
   return qDes;
 }

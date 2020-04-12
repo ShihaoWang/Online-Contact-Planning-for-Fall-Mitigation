@@ -1026,13 +1026,13 @@ struct ReachabilityMap
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
         if((CurrentDist>0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
         {
-          Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
-          double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
-          if(Proj<=0.0)
-          {
+          // Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
+          // double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
+          // if(Proj<=0.0)
+          // {
             ReachablePoints.push_back(RMPointPos);
             ReachablePointNo++;
-          }
+          // }
         }
       }
     }
@@ -1315,8 +1315,9 @@ struct ControlReferenceInfo
     GoalContactPos = _GoalContactPos;
     GoalContactGrad = _GoalContactGrad;
     ControlReferenceFlag = true;
-    SwitchTime = PlanStateTraj.times[PlanStateTraj.times.size()-2];
+    TouchDownConfigFlag = false;
     FinalTime = PlanStateTraj.times[PlanStateTraj.times.size()-1];
+    SwitchTime = FinalTime/2.0;       // The switch time is after robot's mid time.
     Impulse = 0.0;
     PlanningTime = 0.0;
   }
@@ -1347,11 +1348,14 @@ struct ControlReferenceInfo
   }
 
   int SwingLimbIndex;
+  int ContactStatusOptionIndex;     // For MPC purpose
   LinearPath PlanStateTraj;
   bool ControlReferenceFlag;
   double Impulse;
   Vector3 GoalContactPos;
   Vector3 GoalContactGrad;
+  bool TouchDownConfigFlag;
+  std::vector<double> TouchDownConfig;
   std::vector<ContactStatusInfo> InitContactInfo;
   std::vector<ContactStatusInfo> GoalContactInfo;
   double SwitchTime;                      // SwitchTime is used for the last step to make sure that contact can be firmly estabilished!

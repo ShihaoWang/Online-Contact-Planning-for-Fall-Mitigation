@@ -583,7 +583,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
   return ControlReferenceObj;
 }
 
-ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const double & TimeStep, double & PlanTime, const string & SpecificPath, const int & PlanningSteps, const double & DistTol)
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const double & TimeStep, double & PlanTime, const string & SpecificPath, const int & PlanningSteps, const double & DistTol, const int & ContactStatusOptionRef)
 {
   // The whole planning algorithm should be written here.
   // The high-level idea is to plan individual end effector's configuration trajectory.
@@ -596,8 +596,13 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
   ControlReferenceInfo RobotTraj;
   std::vector<double> ExeTimeVec;
   std::vector<double> EndDistVec;
-  while(ContactStatusOption < AllContactStatusObj.ContactStatusInfoVec.size())
-  {
+
+  for(ContactStatusOption = 0; ContactStatusOption< AllContactStatusObj.ContactStatusInfoVec.size(); ContactStatusOption++){
+    if(ContactStatusOptionRef!=-1){
+      if(ContactStatusOption!=ContactStatusOptionRef){
+        continue;
+      }
+    }
     std::vector<ContactStatusInfo> RobotContactInfo = AllContactStatusObj.ContactStatusInfoVec[ContactStatusOption];
     int SwingLimbIndex = AllContactStatusObj.SwingLimbIndices[ContactStatusOption];
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);    // From ContactInfoActive
@@ -610,6 +615,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
 
     RobotTraj = ControlReferenceGenerationInner(SimRobot, TipOverPIP, PredictedCOMPos, RMObject, SelfLinkGeoObj, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, SwingLimbIndex, RefFailureMetric, DataRecorderObj);
     RobotTraj.SwingLimbIndex = SwingLimbIndex;
+    RobotTraj.ContactStatusOptionIndex = ContactStatusOption;
     double duration_time = (std::clock() - start_time)/(double)CLOCKS_PER_SEC;
     std::printf("Planning takes: %f ms\n", 1000.0 * duration_time);
     start_time = std::clock();          // get current time

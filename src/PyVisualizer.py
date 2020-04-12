@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 6
+ExpNo = 1
 DataType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -491,8 +491,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     ReducedOptimalContact_data = ContactDataLoader("ReducedOptimalContact")
     # 7. Transition Point
     TransitionPoints_data = ContactDataLoader("TransitionPoints")
-    # 8. BB Points
-    BBPoints_data = ContactDataLoader("BBPoints")
+    # # 8. BB Points
+    # BBPoints_data = ContactDataLoader("BBPoints")
     # 9. Box Points
     BoxPoints_data = ContactDataLoader("BoxPoints")
 
@@ -571,14 +571,14 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
                 EdgeyList_i = EdgeyList[EdgeIndex]
                 EdgezList_i = EdgezList[EdgeIndex]
 
-                for j in range(0, len(EdgeAList_i)):
-                    EdgeA = EdgeAList_i[j]
-                    EdgeB = EdgeBList_i[j]
-                    EdgeCOM = EdgeCOMList_i[j]
-                    Edgex = EdgexList_i[j]
-                    Edgey = EdgeyList_i[j]
-                    Edgez = EdgezList_i[j]
-                    PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
+                # for j in range(0, len(EdgeAList_i)):
+                #     EdgeA = EdgeAList_i[j]
+                #     EdgeB = EdgeBList_i[j]
+                #     EdgeCOM = EdgeCOMList_i[j]
+                #     Edgex = EdgexList_i[j]
+                #     Edgey = EdgeyList_i[j]
+                #     Edgez = EdgezList_i[j]
+                #     PIP_Subplot(j, EdgeA, EdgeB, EdgeCOM, Edgex, Edgey, Edgez, COM_Pos, vis)
 
             # if CPFlag is 1 or 2:
             #     try:
@@ -618,11 +618,10 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # vis.setDrawFunc("BB", my_draw_hull)
 
             BoxDataPlot(vis, BoxPoints_data)
-            box = ConvexHull(BoxPoints_data)
-            boxbrender = draw_hull.PrettyHullRenderer(box)
-            vis.add("Box", box)
-            vis.setDrawFunc("Box", my_draw_hull)
-
+            # box = ConvexHull(BoxPoints_data)
+            # boxbrender = draw_hull.PrettyHullRenderer(box)
+            # vis.add("Box", box)
+            # vis.setDrawFunc("Box", my_draw_hull)
 
             vis.unlock()
             time.sleep(TimeStep)
@@ -643,8 +642,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
         # if StateType == 3:
         #     StateType = 0
 
-        for j in range(0, len(EdgeAList_i)):
-            PIP_Remove(j, vis)
+        # for j in range(0, len(EdgeAList_i)):
+        #     PIP_Remove(j, vis)
 
         # ReachableContactPlot(vis, IdealReachableContacts_data)
 

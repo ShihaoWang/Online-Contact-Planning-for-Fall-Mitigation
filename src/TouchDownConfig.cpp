@@ -11,12 +11,12 @@ static std::vector<int> SwingLimbChain;
 static Vector3 PosGoal;
 static Vector3 GradGoal;
 static std::vector<double> RefConfig;
-static double PosGoalDist;
+static std::vector<double> InitConfig;
 static SelfLinkGeoInfo SelfLinkGeoObj;
 
-struct TransientOpt: public NonlinearOptimizerInfo
+struct TouchDownConfigOpt: public NonlinearOptimizerInfo
 {
-  TransientOpt():NonlinearOptimizerInfo(){};
+  TouchDownConfigOpt():NonlinearOptimizerInfo(){};
 
   // This struct inherits the NonlinearOptimizerInfo struct and we just need to defined the Constraint function
   static void ObjNConstraint(int    *Status, int *n,    double x[],
@@ -31,7 +31,7 @@ struct TransientOpt: public NonlinearOptimizerInfo
       {
         x_vec[i] = x[i];
       }
-      std::vector<double> F_val = TransientOptNCons(*n, *neF, x_vec);
+      std::vector<double> F_val = TouchDownConfigOptNCons(*n, *neF, x_vec);
       for (int i = 0; i < *neF; i++)
       {
         F[i] = F_val[i];
@@ -54,30 +54,22 @@ struct TransientOpt: public NonlinearOptimizerInfo
       delete []F;      delete []Flow;   delete []Fupp;
       delete []Fmul;   delete []Fstate;
   }
-  static std::vector<double> TransientOptNCons(const int & nVar, const int & nObjNCons, const std::vector<double> & ActiveConfigOpt)
+  static std::vector<double> TouchDownConfigOptNCons(const int & nVar, const int & nObjNCons, const std::vector<double> & ActiveConfigOpt)
   {
     // This funciton provides the constraint for the configuration variable
     std::vector<double> F(nObjNCons);
+    double ConfigDiff = 0.0;
     for (int i = 0; i < SwingLimbChain.size(); i++)
     {
       RefConfig[SwingLimbChain[i]] = ActiveConfigOpt[i];
+      double ConfigDiff_i = InitConfig[SwingLimbChain[i]] - ActiveConfigOpt[i];
+      ConfigDiff+=ConfigDiff_i*ConfigDiff_i;
     }
     SimRobotObj.UpdateConfig(Config(RefConfig));
     SimRobotObj.UpdateGeometry();
-    Vector3 LinkiCenterPos;
-    SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
-    Vector3 AvgDiff = LinkiCenterPos - PosGoal;
-    F[0] = AvgDiff.normSquared();
+    F[0] = ConfigDiff;
 
     int ConstraintIndex = 1;
-    for (int i = 0; i < NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
-    {
-      Vector3 LinkiPjPos;
-      SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts[i], NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
-      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos) - PosGoalDist;
-      ConstraintIndex+=1;
-    }
-
     // Self-collision constraint
     std::vector<double> SelfCollisionDistVec(SwingLimbChain.size()-3);
     for (int i = 0; i < SwingLimbChain.size()-3; i++)     // Due to the bounding box size of torso link
@@ -95,27 +87,28 @@ struct TransientOpt: public NonlinearOptimizerInfo
     F[ConstraintIndex] = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end());
     ConstraintIndex+=1;
 
-    F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiCenterPos);
-    ConstraintIndex+=1;
-
+    for (int i = 0; i < NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
+    {
+      Vector3 LinkiPjPos;
+      SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts[i], NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
+      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos);
+      ConstraintIndex+=1;
+    }
     return F;
   }
 };
 
-std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, SelfLinkGeoInfo & _SelfLinkGeoObj, const Vector3 & _PosGoal, ReachabilityMap & RMObject, bool & OptFlag, const bool & LastFlag)
+std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag)
 {
-  // This function is used to optimize robot's configuration such that a certain contact can be reached for that end effector.
+  // This function is used to optimize robot's touch down configuration such that the end effector touches the environment without self-collision.
   SimRobotObj = SimRobot;
   SwingLimbIndex = _SwingLimbIndex;
   SwingLimbChain = RMObject.EndEffectorLink2Pivotal[_SwingLimbIndex];
-  PosGoal = _PosGoal;
-  PosGoalDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(PosGoal);
-  PosGoalDist = max(0.0, PosGoalDist);
   RefConfig = SimRobot.q;
   SelfLinkGeoObj = _SelfLinkGeoObj;
   OptFlag = true;
 
-  TransientOpt TransientOptProblem;
+  TouchDownConfigOpt TouchDownConfigOptProblem;
 
   // Static Variable Substitution
   std::vector<double> InitSwingLimbChain(SwingLimbChain.size());
@@ -123,10 +116,9 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
 
   // Cost function on the norm difference between the reference avg position and the modified contact position.
   int neF = 1;
-  neF = neF + NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LocalContacts.size();        // The only constraint is for the contact to be non-penetrated.
   neF += 1;                                                                                       // Self-Collision
-  neF += 1;                                                                                       // Signed Distance
-  TransientOptProblem.InnerVariableInitialize(n, neF);
+  neF = neF + NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LocalContacts.size();        // Touch-down constraint
+  TouchDownConfigOptProblem.InnerVariableInitialize(n, neF);
 
   /*
     Initialize the bounds of variables
@@ -139,47 +131,45 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     xupp_vec[i] = SimRobot.qMax(SwingLimbChain[i]);
     InitSwingLimbChain[i] = RefConfig[SwingLimbChain[i]];
   }
-  TransientOptProblem.VariableBoundsUpdate(xlow_vec, xupp_vec);
+  TouchDownConfigOptProblem.VariableBoundsUpdate(xlow_vec, xupp_vec);
 
   /*
     Initialize the bounds of variables
   */
   std::vector<double> Flow_vec(neF), Fupp_vec(neF);
-  for (int i = 0; i < neF; i++)
+  for (int i = 0; i < 2; i++)
   {
     Flow_vec[i] = 0;
     Fupp_vec[i] = 1e10;
   }
-  if(LastFlag)
+  for (int i = 2; i < neF; i++)
   {
-    Flow_vec[neF-1] = 0;
-    Fupp_vec[neF-1] = 0;
+    Flow_vec[i] = 0;
+    Fupp_vec[i] = 0;
   }
-  GradGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
-  TransientOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
+  TouchDownConfigOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
 
   /*
     Initialize the seed guess
   */
-  // InitSwingLimbChain = RandomVector(n);
-  TransientOptProblem.SeedGuessUpdate(InitSwingLimbChain);
+  TouchDownConfigOptProblem.SeedGuessUpdate(InitSwingLimbChain);
 
   /*
     Given a name of this problem for the output
   */
-  TransientOptProblem.ProblemNameUpdate("TransientOptProblem", 0);
+  TouchDownConfigOptProblem.ProblemNameUpdate("TouchDownConfigOptProblem", 0);
 
   // Here we would like allow much more time to be spent on IK
-  TransientOptProblem.NonlinearProb.setIntParameter("Iterations limit", 250);
-  TransientOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 25);
-  TransientOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
-  TransientOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Iterations limit", 250);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 25);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
   /*
     ProblemOptions seting
   */
   // Solve with Finite-Difference
-  TransientOptProblem.ProblemOptionsUpdate(0, 3);
-  TransientOptProblem.Solve(InitSwingLimbChain);
+  TouchDownConfigOptProblem.ProblemOptionsUpdate(0, 3);
+  TouchDownConfigOptProblem.Solve(InitSwingLimbChain);
 
   std::vector<double> OptConfig = RefConfig;
 
@@ -191,7 +181,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   SimRobotObj.UpdateGeometry();
 
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  string _OptConfigFile = "InnerOptConfig.config";
+  string _OptConfigFile = "TouchDownConfig.config";
   RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   // Self-collision constraint numerical checker
@@ -224,17 +214,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
     std::printf("Transient Optimization Failure due to Goal Contact Non-reachability for Link %d! \n", NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex);
     OptFlag = false;
   }
-  if(LastFlag)
-  {
-    // Then check signed distance of end effector!
-    SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
-    double EndEffectorDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(LinkiCenterPos);
-    if(EndEffectorDist>0.01)
-    {
-      std::printf("Transient Optimization Failure due to Goal Contact Distance Failure for Link %d! \n", NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex);
-      OptFlag = false;
-    }
-  }
+
   OptConfig = YPRShifter(OptConfig);
   return OptConfig;
 }

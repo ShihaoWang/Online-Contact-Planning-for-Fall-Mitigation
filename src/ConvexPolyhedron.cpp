@@ -674,7 +674,7 @@ double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPInd
     double L = PIPTotal[i].L;
     double theta = PIPTotal[i].theta;
     double thetadot = PIPTotal[i].thetadot;
-    double g =9.81;
+    double g = 9.81;
 
     double CP_x = L * sin(theta);
     double CP_xdot = L * thetadot * cos(theta);
