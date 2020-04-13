@@ -859,16 +859,18 @@ void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name)
   return;
 }
 
-int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vector<double> & DistVec, const double & DisTol)
+int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<double> & DistVec, const std::vector<int> & ContactStatusVec, const int & PreviousContactStatusIndex, const double & DisTol)
 {
   std::vector<int> ValidEndEffector;
-  std::vector<double> ValidImpulseEndEffector;
+  std::vector<int> ValidContactEndEffector;
+  std::vector<double> ValidTimeEffector;
   for (int i = 0; i < DistVec.size(); i++)
   {
     if(DistVec[i]<DisTol)
     {
       ValidEndEffector.push_back(i);
-      ValidImpulseEndEffector.push_back(ImpulseVec[i]);
+      ValidTimeEffector.push_back(TimeVec[i]);
+      ValidContactEndEffector.push_back(ContactStatusVec[i]);
     }
   }
   switch (ValidEndEffector.size())
@@ -881,8 +883,15 @@ int EndEffectorSelector(const std::vector<double> & ImpulseVec, const std::vecto
     break;
     default:
     {
-      // Choose the one with the lowest impulse to be modified.
-      int ValidEndEffectorIndex = std::distance(ValidImpulseEndEffector.begin(), std::min_element(ValidImpulseEndEffector.begin(), ValidImpulseEndEffector.end()));
+      if((ValidEndEffector.size()>=2)&&(std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex)!= ValidContactEndEffector.end()))
+      {
+        int PreviousIndex = std::distance(ValidContactEndEffector.begin(), std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex));
+        ValidTimeEffector.erase (ValidTimeEffector.begin() + PreviousIndex);
+        int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
+        return ValidEndEffector[ValidEndEffectorIndex];
+      }
+      // Choose the one with the lowest time to be modified.
+      int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
       return ValidEndEffector[ValidEndEffectorIndex];
     }
     break;

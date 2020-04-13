@@ -109,6 +109,7 @@ add_executable(MyApp
 	       src/WholeBodyEstimation.cpp
 	       src/CollisionImpulse.cpp
 	       src/TouchDownConfig.cpp
+	       src/EuclideanInterpolation.cpp
 	       src/SimulationRelated.cpp)
 
 target_link_libraries(MyApp  ${KLAMPT_LIBRARIES} ${SNOPT_LIBRARIES} ${CILANTRO_LIBRARIES} ${GUROBI_LIBRARIES} ${Cddlib_LIBRARY} ${Qt5Widgets_LIBRARIES})

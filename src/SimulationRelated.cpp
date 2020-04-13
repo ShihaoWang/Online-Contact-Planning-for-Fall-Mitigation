@@ -47,8 +47,8 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
 
 std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  double ExeTimeTol = 0.2;
   double TouchTol  = 0.025;             //  2.5 cm as a Touch Down tolerance.
+  double TouchRadiusSquared = 0.04;             //  20.0 cm as radius to goal
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
@@ -57,30 +57,32 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
   if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
   qDes = ControlReference.ConfigReference(InitTime, CurTime);
 
+  Vector EndEffectorPos;
+  ControlReference.EndEffectorTraj.Eval(InnerTime, EndEffectorPos);
+  bool InterpolationFlag;
+  Vector3 EndEffectorPos3D(EndEffectorPos);
+  if(!ControlReference.Type){
+    std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag);
+    if(InterpolationFlag) qDes = qDesref;
+  }
+
   std::vector<double> SwingContactDistVec;
   Vector3 SwingLimbContactPos;
+  Vector3 SwingLimbAvgPos;
   for (Vector3 & LocalContact:NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LocalContacts) {
     SimRobot.GetWorldPosition(LocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbContactPos);
     double CurrentDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SwingLimbContactPos);
     SwingContactDistVec.push_back(CurrentDist);
   }
   double SwingContactDist = *min_element(SwingContactDistVec.begin(), SwingContactDistVec.end());
+  SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbAvgPos);
+
+  Vector3 GoalContactPos = ControlReference.GoalContactPos;
+  Vector3 ContactGoalDiff = SwingLimbAvgPos - GoalContactPos;
+  double TouchDistSquared = ContactGoalDiff.normSquared();
+
   bool OptFlag;
-  if(ControlReference.FinalTime>ExeTimeTol){
-    if(InnerTime>=ControlReference.SwitchTime){
-      if(SwingContactDist<=TouchTol){
-        // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
-        SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-        std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
-        if(OptFlag) qDes = qDesTouch;
-        ControlReference.TouchDownConfigFlag = true;
-        ControlReference.TouchDownConfig = qDes;
-        InMPCFlag = false;
-        DetectionWaitMeasure = 0.0;
-        RobotContactInfo = ControlReference.GoalContactInfo;
-      }
-    }
-  }else{
+  if(TouchDistSquared<=TouchRadiusSquared){
     if(SwingContactDist<=TouchTol){
       // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);

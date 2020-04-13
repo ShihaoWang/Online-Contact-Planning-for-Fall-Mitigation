@@ -1024,15 +1024,11 @@ struct ReachabilityMap
       {
         Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
-        if((CurrentDist>0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
+        // if((CurrentDist>0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
+        if(CurrentDist*CurrentDist<DisTol*DisTol)
         {
-          // Vector3 RMPointNormal = SDFInfo.SignedDistanceNormal(RMPointPos);
-          // double Proj = RMPointNormal.x * COMVel.x + RMPointNormal.y * COMVel.y + RMPointNormal.z * COMVel.z;
-          // if(Proj<=0.0)
-          // {
-            ReachablePoints.push_back(RMPointPos);
-            ReachablePointNo++;
-          // }
+          ReachablePoints.push_back(RMPointPos);
+          ReachablePointNo++;
         }
       }
     }
@@ -1293,25 +1289,39 @@ struct AllContactStatusInfo
 {
   // This struct saves the information of the contact status of each link end effector
   AllContactStatusInfo(){};
-  void ContactStatusAppender(std::vector<ContactStatusInfo> & _ContactStatusInfoVec, const int & SwingLimbIndex)
+  void ContactStatusAppender(std::vector<ContactStatusInfo> & _ContactStatusInfoVec, const int & _SwingLimbIndex, const int & _Type)
   {
     // Here the SwingLimbIndex is the sequence index not the link index.
     ContactStatusInfoVec.push_back(_ContactStatusInfoVec);
-    SwingLimbIndices.push_back(SwingLimbIndex);
+    SwingLimbIndices.push_back(_SwingLimbIndex);
+    ContactTypeVec.push_back(_Type);
   };
   std::vector<std::vector<ContactStatusInfo>> ContactStatusInfoVec;
   std::vector<int> SwingLimbIndices;
+  std::vector<int> ContactTypeVec;
 };
 
 
 struct ControlReferenceInfo
 {
-  ControlReferenceInfo(){ControlReferenceFlag = false;};
-  void TrajectoryUpdate(const std::vector<double> & _TimeTraj, const std::vector<Config> & _ConfigTraj, const Vector3 & _GoalContactPos, const Vector3 & _GoalContactGrad)
+  ControlReferenceInfo(){ControlReferenceFlag = false;  Type = -1;};
+  void TrajectoryUpdate(const std::vector<double> & _TimeTraj, const std::vector<Config> & _ConfigTraj, const std::vector<Vector3> & _EndEffectorPosTraj, const Vector3 & _GoalContactPos, const Vector3 & _GoalContactGrad, const int & _Type)
   {
     // The three trajectories have been provided.
     LinearPath _PlanStateTraj(_TimeTraj, _ConfigTraj);
     PlanStateTraj = _PlanStateTraj;
+    std::vector<Vector> EndEffectorVector;
+    for (Vector3 EndEffectorPos: _EndEffectorPosTraj)
+    {
+      Vector EndEffectorPosVec;
+      EndEffectorPosVec.resize(3);
+      EndEffectorPosVec[0] = EndEffectorPos[0];
+      EndEffectorPosVec[1] = EndEffectorPos[1];
+      EndEffectorPosVec[2] = EndEffectorPos[2];
+      EndEffectorVector.push_back(EndEffectorPosVec);
+    }
+    LinearPath _EndEffectorTraj(_TimeTraj, EndEffectorVector);
+    EndEffectorTraj = _EndEffectorTraj;
     GoalContactPos = _GoalContactPos;
     GoalContactGrad = _GoalContactGrad;
     ControlReferenceFlag = true;
@@ -1320,6 +1330,7 @@ struct ControlReferenceInfo
     SwitchTime = FinalTime/2.0;       // The switch time is after robot's mid time.
     Impulse = 0.0;
     PlanningTime = 0.0;
+    Type = _Type;       // 1 addition, 0 contact modification
   }
 
   std::vector<double> ConfigReference(const double & InitTime, const double & CurTime)
@@ -1350,6 +1361,7 @@ struct ControlReferenceInfo
   int SwingLimbIndex;
   int ContactStatusOptionIndex;     // For MPC purpose
   LinearPath PlanStateTraj;
+  LinearPath EndEffectorTraj;
   bool ControlReferenceFlag;
   double Impulse;
   Vector3 GoalContactPos;
@@ -1361,6 +1373,7 @@ struct ControlReferenceInfo
   double SwitchTime;                      // SwitchTime is used for the last step to make sure that contact can be firmly estabilished!
   double FinalTime;
   double PlanningTime;
+  int Type;
 };
 
 struct InvertedPendulumInfo

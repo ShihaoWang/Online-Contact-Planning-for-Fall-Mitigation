@@ -55,7 +55,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   Vector3 ImpulseForceMax = ForceMax * ImpulseDirection;
 
   Robot SimRobot;
-  int ContactStatusOptionRef = -1;
+  int ContactStatusOptionRef = -1, PreviousContactStatusIndex = -1;
   // This loop is used for push recovery experimentation.
   while(Sim.time <= SimTotalTime){
     SimRobot = *Sim.world->robots[0];
@@ -75,6 +75,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
       qDes = OnlineConfigReference(Sim, InitTime, ControlReference, TerrColGeom, SelfLinkGeoObj, DetectionWaitMeasure, InMPCFlag, RobotContactInfo, RMObject);
       TouchDownFlag = ControlReference.TouchDownConfigFlag;
       MPCCount+=TimeStep;
+      printf("MPC count: %f\n", MPCCount);
       if(!InMPCFlag) MPCCount = 0.0;
     }
     else{
@@ -91,7 +92,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
               double PlanTime;
               SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol, ContactStatusOptionRef);
+              ControlReference = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol, ContactStatusOptionRef, PreviousContactStatusIndex);
               if(ControlReference.ControlReferenceFlag){
                 PlanTimeRecorder(PlanTime, SpecificPath);
                 ContactStatusOptionRef = ControlReference.ContactStatusOptionIndex;
@@ -106,7 +107,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
           }else{  // Then this is the MPC planning
             double PlanTime;
             SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-            ControlReferenceInfo ControlReferenceMPC = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol, ContactStatusOptionRef);
+            ControlReferenceInfo ControlReferenceMPC = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol, ContactStatusOptionRef, PreviousContactStatusIndex);
             if(ControlReferenceMPC.ControlReferenceFlag){
               ControlReference = ControlReferenceMPC;
               PlanTimeRecorder(PlanTime, SpecificPath);
