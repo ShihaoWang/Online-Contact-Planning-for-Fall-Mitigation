@@ -81,6 +81,20 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     else{
       switch (CPPIPIndex){
         case -1:
+        {
+          if(MPCCount>=MPCDuration){
+            bool OptFlag;
+            std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
+            if(OptFlag) {
+              ControlReference.TouchDownConfigFlag = true;
+              ControlReference.TouchDownConfig = qDesTouch;
+              InMPCFlag = false;
+              MPCCount = 0.0;
+              DetectionWaitMeasure = 0.0;
+              RobotContactInfo = ControlReference.GoalContactInfo;
+            }
+          }
+        }
         break;
         default:{
           FailureFlag = true;
