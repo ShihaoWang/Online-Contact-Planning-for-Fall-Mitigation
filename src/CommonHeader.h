@@ -78,7 +78,7 @@ bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, Reac
 Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo);
 bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol);
 void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name);
-int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<double> & DistVec, const std::vector<int> & ContactStatusVec, const int & PreviousContactStatusIndex, const double & DisTol);
+int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<double> & LengthVec, const std::vector<int> & ContactStatusVec, const int & PreviousContactStatusIndex);
 void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag);
 Vector3 FlatRandomDirection();
 std::vector<double> YPRShifter(const std::vector<double> & _OptConfig);

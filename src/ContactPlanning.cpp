@@ -561,7 +561,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           // Here the inner optimiztion loop has been finished!
           if(OptFlag)
           {
-            ControlReferenceObj.TrajectoryUpdate(TimeTraj, ConfigTraj, EndEffectorTraj, ContactGoal, ContactGoalGrad, Type);
+            ControlReferenceObj.TrajectoryUpdate(TimeTraj, ConfigTraj, EndEffectorTraj, ContactGoal, ContactGoalGrad, EndPathObj.TotalLength, Type);
             std::vector<ContactStatusInfo> GoalContactInfo = FixedRobotContactInfo;
             for(int i = 0; i<FixedRobotContactInfo[SwingLimbIndex].LocalContactStatus.size(); i++)
             {
@@ -596,7 +596,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
   ControlReferenceInfo RobotTraj;
   std::vector<double> ExeTimeVec;
   std::vector<int> ContactStatusOptionVec;
-  std::vector<double> EndDistVec;
+  std::vector<double> EndPathLengthVec;
 
   for(ContactStatusOption = 0; ContactStatusOption< AllContactStatusObj.ContactStatusInfoVec.size(); ContactStatusOption++){
     if(ContactStatusOptionRef!=-1){
@@ -637,9 +637,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
       RobotTrajVec.push_back(RobotTraj);
       ExeTimeVec.push_back(RobotTraj.PlanStateTraj.EndTime());
       ContactStatusOptionVec.push_back(ContactStatusOption);
-
-      double EndDist = PresumeContactMinDis(SimRobot, RobotContactInfo);
-      EndDistVec.push_back(EndDist);
+      EndPathLengthVec.push_back(RobotTraj.PathLength);
     }
   }
   // Based on the value of the impulse, let's select the one with the lowest impulse.
@@ -655,7 +653,7 @@ ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 
     default:
     {
       PlanningInfoFileAppender(PlanningSteps, RobotTrajVec.size()-1, SpecificPath);
-      int RobotTrajIndex = EndEffectorSelector(ExeTimeVec, EndDistVec, ContactStatusOptionVec, PreviousContactStatusIndex, DistTol);
+      int RobotTrajIndex = EndEffectorSelector(ExeTimeVec, EndPathLengthVec, ContactStatusOptionVec, PreviousContactStatusIndex);
       std::printf("Planning successfully finds a feasible solution! \nRobot Limb Index: %d\n", NonlinearOptimizerInfo::RobotLinkInfo[RobotTrajVec[RobotTrajIndex].SwingLimbIndex].LinkIndex);
       RobotTraj = RobotTrajVec[RobotTrajIndex];
       if(PreviousContactStatusIndex!=RobotTraj.ContactStatusOptionIndex) PreviousContactStatusIndex = RobotTraj.ContactStatusOptionIndex;

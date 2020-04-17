@@ -47,24 +47,13 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
 
 std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  double TouchTol  = 0.05;                      //  5 cm as a Touch Down tolerance.
-  double TouchRadiusSquared = 0.01;             //  10.0 cm as radius to goal
+  double TouchTol  = 0.1;                         //  10 cm as a Touch Down tolerance.
+  double StrictTouchTol  = 0.025;                 //  2.5 cm as a StrictTouchTol Down tolerance.
+  double RunningTimeTol = 0.15;                   //  After this time of period, we all consider to be landing phase!
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
   double InnerTime = CurTime - InitTime;
-
-  if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
-  qDes = ControlReference.ConfigReference(InitTime, CurTime);
-
-  Vector EndEffectorPos;
-  ControlReference.EndEffectorTraj.Eval(InnerTime, EndEffectorPos);
-  bool InterpolationFlag;
-  Vector3 EndEffectorPos3D(EndEffectorPos);
-  if(!ControlReference.Type){
-    std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag);
-    if(InterpolationFlag) qDes = qDesref;
-  }
 
   std::vector<double> SwingContactDistVec;
   Vector3 SwingLimbContactPos;
@@ -77,14 +66,34 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
   double SwingContactDist = *min_element(SwingContactDistVec.begin(), SwingContactDistVec.end());
   SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbAvgPos);
 
-  Vector3 GoalContactPos = ControlReference.GoalContactPos;
-  Vector3 ContactGoalDiff = SwingLimbAvgPos - GoalContactPos;
-  double TouchDistSquared = ContactGoalDiff.normSquared();
+  if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
+  qDes = ControlReference.ConfigReference(InitTime, CurTime);
 
+  Vector EndEffectorPos;
+  ControlReference.EndEffectorTraj.Eval(InnerTime, EndEffectorPos);
+  bool InterpolationFlag;
+  Vector3 EndEffectorPos3D(EndEffectorPos);
+  if(!ControlReference.Type){
+    std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag);
+    if(InterpolationFlag) qDes = qDesref;
+  }
+  // For TouchDown configuration
   bool OptFlag;
-  if(TouchDistSquared<=TouchRadiusSquared){
+  if(ControlReference.Type){    // Contact Addition
+    if(SwingContactDist<=StrictTouchTol) EndEffectorPos3D = SwingLimbAvgPos;
     if(SwingContactDist<=TouchTol){
-      // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
+      SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, OptFlag);
+      if(OptFlag) qDes = qDesTouch;
+      ControlReference.TouchDownConfigFlag = true;
+      ControlReference.TouchDownConfig = qDes;
+      InMPCFlag = false;
+      DetectionWaitMeasure = 0.0;
+      RobotContactInfo = ControlReference.GoalContactInfo;
+    }
+  }else{                        // Contact Modification
+    if((ControlReference.RunningTime>=RunningTimeTol)&&(SwingContactDist<=TouchTol)){
+      if(SwingContactDist<=StrictTouchTol) EndEffectorPos3D = SwingLimbAvgPos;
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
       std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, OptFlag);
       if(OptFlag) qDes = qDesTouch;

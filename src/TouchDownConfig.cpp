@@ -162,8 +162,8 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   TouchDownConfigOptProblem.ProblemNameUpdate("TouchDownConfigOptProblem", 0);
 
   // Here we would like allow much more time to be spent on IK
-  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Iterations limit", 2500);
-  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 50);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Iterations limit", 5000);
+  TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 150);
   TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
   TouchDownConfigOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
   /*

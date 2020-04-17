@@ -336,10 +336,11 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   AlignDirection.y = Link_i.T_World.R.data[2][1];
   AlignDirection.z = Link_i.T_World.R.data[2][2];
 
-  // Vector3 InitDir = PosGoal - PosInit;
-  NormalInit = AlignDirection + EnviDirection;
+  Vector3 InitDir = PosGoal - PosInit;
+  // NormalInit = AlignDirection + EnviDirection;
   // NormalInit = EnviDirection;
-  // NormalInit = InitDir;
+  // NormalInit = InitDir + AlignDirection;
+  NormalInit = InitDir;
   NormalInit.setNormalized(NormalInit);
   // NormalGoal = -GoalGrad;
 

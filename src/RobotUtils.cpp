@@ -859,26 +859,23 @@ void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name)
   return;
 }
 
-int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<double> & DistVec, const std::vector<int> & ContactStatusVec, const int & PreviousContactStatusIndex, const double & DisTol)
+int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<double> & LengthVec, const std::vector<int> & ContactStatusVec, const int & PreviousContactStatusIndex)
 {
   std::vector<int> ValidEndEffector;
   std::vector<int> ValidContactEndEffector;
   std::vector<double> ValidTimeEffector;
-  for (int i = 0; i < DistVec.size(); i++)
+  for (int i = 0; i < LengthVec.size(); i++)
   {
-    if(DistVec[i]<DisTol)
-    {
-      ValidEndEffector.push_back(i);
-      ValidTimeEffector.push_back(TimeVec[i]);
-      ValidContactEndEffector.push_back(ContactStatusVec[i]);
-    }
+    ValidEndEffector.push_back(i);
+    ValidTimeEffector.push_back(TimeVec[i]);
+    ValidContactEndEffector.push_back(ContactStatusVec[i]);
   }
   switch (ValidEndEffector.size())
   {
     case 0:
     {
       // Choose the one with the lowest signed distance to be modified.
-      return std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
+      return std::distance(LengthVec.begin(), std::min_element(LengthVec.begin(), LengthVec.end()));
     }
     break;
     default:
