@@ -47,8 +47,8 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
 
 std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  double TouchTol  = 0.025;             //  2.5 cm as a Touch Down tolerance.
-  double TouchRadiusSquared = 0.04;             //  20.0 cm as radius to goal
+  double TouchTol  = 0.05;                      //  5 cm as a Touch Down tolerance.
+  double TouchRadiusSquared = 0.01;             //  10.0 cm as radius to goal
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
@@ -86,7 +86,7 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
     if(SwingContactDist<=TouchTol){
       // Run a configuration optimization to make sure that a facet contact can be estabilished at swing limb
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, OptFlag);
       if(OptFlag) qDes = qDesTouch;
       ControlReference.TouchDownConfigFlag = true;
       ControlReference.TouchDownConfig = qDes;

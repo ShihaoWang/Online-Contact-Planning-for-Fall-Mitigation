@@ -107,7 +107,6 @@ add_executable(MyApp
 	       src/Splines.cpp
 	       src/ContactController.cpp
 	       src/WholeBodyEstimation.cpp
-	       src/CollisionImpulse.cpp
 	       src/TouchDownConfig.cpp
 	       src/EuclideanInterpolation.cpp
 	       src/SimulationRelated.cpp)

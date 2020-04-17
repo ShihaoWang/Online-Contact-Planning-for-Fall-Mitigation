@@ -324,6 +324,9 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   RobotLink3D Link_i = SimRobot.links[RobotLinkInfo[LinkInfoIndex].LinkIndex];
 
+  // double GoalDist; Vector3 GoalGrad;
+  // SelfLinkGeoObj.SelfCollisionDistNGrad(LinkInfoIndex, PosGoal, GoalDist, GoalGrad);
+
   Vector3 EnviDirection;
   double PosInitSelfCollisionDist;
   SelfLinkGeoObj.SingleLinkDistNGrad(LinkInfoIndex, PosInit, PosInitSelfCollisionDist, EnviDirection);
@@ -333,8 +336,12 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   AlignDirection.y = Link_i.T_World.R.data[2][1];
   AlignDirection.z = Link_i.T_World.R.data[2][2];
 
+  // Vector3 InitDir = PosGoal - PosInit;
   NormalInit = AlignDirection + EnviDirection;
+  // NormalInit = EnviDirection;
+  // NormalInit = InitDir;
   NormalInit.setNormalized(NormalInit);
+  // NormalGoal = -GoalGrad;
 
   std::vector<cSpline3> SplineObj = SplineObjGene(SelfLinkGeoObj, RMObject, LinkInfoIndex, PosInit, NormalInit, PosGoal, NormalGoal, TransFeasFlag);
 

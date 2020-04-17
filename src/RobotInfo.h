@@ -1328,8 +1328,8 @@ struct ControlReferenceInfo
     TouchDownConfigFlag = false;
     FinalTime = PlanStateTraj.times[PlanStateTraj.times.size()-1];
     SwitchTime = FinalTime/2.0;       // The switch time is after robot's mid time.
-    Impulse = 0.0;
     PlanningTime = 0.0;
+    RunningTime = 0.0;
     Type = _Type;       // 1 addition, 0 contact modification
   }
 
@@ -1363,7 +1363,6 @@ struct ControlReferenceInfo
   LinearPath PlanStateTraj;
   LinearPath EndEffectorTraj;
   bool ControlReferenceFlag;
-  double Impulse;
   Vector3 GoalContactPos;
   Vector3 GoalContactGrad;
   bool TouchDownConfigFlag;
@@ -1373,6 +1372,7 @@ struct ControlReferenceInfo
   double SwitchTime;                      // SwitchTime is used for the last step to make sure that contact can be firmly estabilished!
   double FinalTime;
   double PlanningTime;
+  double RunningTime;                     // How long has this control reference been adopted
   int Type;
 };
 

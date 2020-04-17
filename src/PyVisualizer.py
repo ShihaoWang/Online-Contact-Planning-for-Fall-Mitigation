@@ -15,7 +15,7 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 1
+ExpNo = 2
 DataType = 0
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
@@ -450,6 +450,7 @@ def BoxDataPlot(vis, ReachableContacts_data):
 
 def ContactDataLoader(IdealReachableContact):
     IdealReachableContacts = ExpName + "/../../build/" + IdealReachableContact + ".bin"
+    # IdealReachableContacts = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat/1Contact/2/" + IdealReachableContact + ".bin"
     f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
     IdealReachableContacts_data = np.fromfile(f_IdealReachableContacts, dtype=np.double)
     IdealReachableContacts_data = IdealReachableContacts_data.reshape((IdealReachableContacts_data.size/3, 3))
@@ -493,8 +494,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
     TransitionPoints_data = ContactDataLoader("TransitionPoints")
     # # 8. BB Points
     # BBPoints_data = ContactDataLoader("BBPoints")
-    # 9. Box Points
-    BoxPoints_data = ContactDataLoader("BoxPoints")
+    # # 9. Box Points
+    # BoxPoints_data = ContactDataLoader("BoxPoints")
 
     Ghostcolor = [88.0/255.0, 88.0/255.0, 88.0/255.0]
 
@@ -606,9 +607,9 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
 
             # ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
-            # ContactDataPlot(vis, SupportContacts_data)
+            ContactDataPlot(vis, SupportContacts_data)
             # ContactDataPlot(vis, OptimalContact_data)
-            ContactDataPlot(vis, ReducedOptimalContact_data)
+            # ContactDataPlot(vis, ReducedOptimalContact_data)
             TransitionDataPlot(vis, TransitionPoints_data)
 
             # BBDataPlot(vis, BBPoints_data)
@@ -617,7 +618,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # vis.add("BB", bb)
             # vis.setDrawFunc("BB", my_draw_hull)
 
-            BoxDataPlot(vis, BoxPoints_data)
+            # BoxDataPlot(vis, BoxPoints_data)
             # box = ConvexHull(BoxPoints_data)
             # boxbrender = draw_hull.PrettyHullRenderer(box)
             # vis.add("Box", box)
@@ -626,7 +627,7 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             vis.unlock()
             time.sleep(TimeStep)
             # if (i >= (StateTrajLength - PIPTrajLength)):
-            #     vis.remove("ContactPolytope")
+        vis.remove("ContactPolytope")
             # if plotIndex == 0:
             #     ContactDataUnplot(vis, ActiveReachableContacts_data)
             # elif plotIndex == 1:

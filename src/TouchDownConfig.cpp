@@ -58,16 +58,16 @@ struct TouchDownConfigOpt: public NonlinearOptimizerInfo
   {
     // This funciton provides the constraint for the configuration variable
     std::vector<double> F(nObjNCons);
-    double ConfigDiff = 0.0;
     for (int i = 0; i < SwingLimbChain.size(); i++)
     {
       RefConfig[SwingLimbChain[i]] = ActiveConfigOpt[i];
-      double ConfigDiff_i = InitConfig[SwingLimbChain[i]] - ActiveConfigOpt[i];
-      ConfigDiff+=ConfigDiff_i*ConfigDiff_i;
     }
     SimRobotObj.UpdateConfig(Config(RefConfig));
     SimRobotObj.UpdateGeometry();
-    F[0] = ConfigDiff;
+    Vector3 LinkiCenterPos;
+    SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
+    Vector3 AvgDiff = LinkiCenterPos - PosGoal;
+    F[0] = AvgDiff.normSquared();
 
     int ConstraintIndex = 1;
     // Self-collision constraint
@@ -98,12 +98,13 @@ struct TouchDownConfigOpt: public NonlinearOptimizerInfo
   }
 };
 
-std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag)
+std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag)
 {
   // This function is used to optimize robot's touch down configuration such that the end effector touches the environment without self-collision.
   SimRobotObj = SimRobot;
   SwingLimbIndex = _SwingLimbIndex;
   SwingLimbChain = RMObject.EndEffectorLink2Pivotal[_SwingLimbIndex];
+  PosGoal = _PosGoal;
   RefConfig = SimRobot.q;
   InitConfig = SimRobot.q;;
   SelfLinkGeoObj = _SelfLinkGeoObj;

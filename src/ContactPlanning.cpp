@@ -562,10 +562,6 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
           if(OptFlag)
           {
             ControlReferenceObj.TrajectoryUpdate(TimeTraj, ConfigTraj, EndEffectorTraj, ContactGoal, ContactGoalGrad, Type);
-            // Impulse is not going to be computed due to numerical infeasibility!
-            ControlReferenceObj.Impulse = 0.0;
-            // CollisionImpulseFunc(SimRobotInner, FixedRobotContactInfo, SwingLimbIndex, ControlReferenceObj);
-
             std::vector<ContactStatusInfo> GoalContactInfo = FixedRobotContactInfo;
             for(int i = 0; i<FixedRobotContactInfo[SwingLimbIndex].LocalContactStatus.size(); i++)
             {

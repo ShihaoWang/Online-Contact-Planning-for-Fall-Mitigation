@@ -73,6 +73,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
 
     if((InMPCFlag)&&(MPCCount<MPCDuration)){
       qDes = OnlineConfigReference(Sim, InitTime, ControlReference, TerrColGeom, SelfLinkGeoObj, DetectionWaitMeasure, InMPCFlag, RobotContactInfo, RMObject);
+      ControlReference.RunningTime+=TimeStep;
       TouchDownFlag = ControlReference.TouchDownConfigFlag;
       MPCCount+=TimeStep;
       printf("MPC count: %f\n", MPCCount);
@@ -84,7 +85,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         {
           if(MPCCount>=MPCDuration){
             bool OptFlag;
-            std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SelfLinkGeoObj, RMObject, OptFlag);
+            std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, ControlReference.GoalContactPos, SelfLinkGeoObj, RMObject, OptFlag);
             if(OptFlag) {
               ControlReference.TouchDownConfigFlag = true;
               ControlReference.TouchDownConfig = qDesTouch;
@@ -123,7 +124,9 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
             SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
             ControlReferenceInfo ControlReferenceMPC = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol, ContactStatusOptionRef, PreviousContactStatusIndex);
             if(ControlReferenceMPC.ControlReferenceFlag){
+              double RunningTime = ControlReference.RunningTime;
               ControlReference = ControlReferenceMPC;
+              ControlReference.RunningTime+=RunningTime;
               PlanTimeRecorder(PlanTime, SpecificPath);
               ContactStatusOptionRef = ControlReference.ContactStatusOptionIndex;
               DetectionWaitMeasure = 0.0;
