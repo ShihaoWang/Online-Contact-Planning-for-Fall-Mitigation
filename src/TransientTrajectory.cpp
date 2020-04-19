@@ -275,11 +275,11 @@ static std::vector<cSpline3> SplineObjGene(SelfLinkGeoInfo & SelfLinkGeoObj, Rea
   // This function is used to generate a collision-free path!
   std::vector<cSpline3> SplineObj;
   std::vector<Vector3> Points = BasePointsGene(PosInit, NormalInit, PosGoal, NormalGoal);
-  Vector3Writer(Points, "TransitionPoints");
+  // Vector3Writer(Points, "TransitionPoints");
   double SelfTol = SelfCollisionDist(SelfLinkGeoObj, LinkInfoIndex, PosInit, PosGoal);
   bool InitShiftFeasFlag;     // For the shift of initial pts.
   Points = SpatialPointShifter(Points, LinkInfoIndex, SelfTol, SelfLinkGeoObj, RMObject, InitShiftFeasFlag);
-  Vector3Writer(Points, "TransitionPoints");
+  // Vector3Writer(Points, "TransitionPoints");
   FeasiFlag = false;
   if(!InitShiftFeasFlag)
   {
@@ -320,7 +320,7 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
 {
   // This function is used to generate robot' tranistion trajecotries given initial configuration and final configuration.
   // A Hermite spline is constructed with the information of position and velocity.
-  Vector3 NormalInit(0.0, 0.0, 0.0);
+  Vector3 NormalInit = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosInit);
   Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
   RobotLink3D Link_i = SimRobot.links[RobotLinkInfo[LinkInfoIndex].LinkIndex];
 
@@ -337,10 +337,10 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
   AlignDirection.z = Link_i.T_World.R.data[2][2];
 
   Vector3 InitDir = PosGoal - PosInit;
-  // NormalInit = AlignDirection + EnviDirection;
+  NormalInit += AlignDirection + EnviDirection + InitDir;
   // NormalInit = EnviDirection;
   // NormalInit = InitDir + AlignDirection;
-  NormalInit = InitDir;
+  // NormalInit = InitDir;
   NormalInit.setNormalized(NormalInit);
   // NormalGoal = -GoalGrad;
 
@@ -370,7 +370,7 @@ std::vector<cSpline3> TransientTrajGene(const Robot & SimRobot, const int & Link
     Vector3 SplinePoint(ps.x, ps.y, ps.z);
     TransitionPoints[TransitionIndex] = SplinePoint;
     DataRecorderObj.TransitionPoints = TransitionPoints;
-    Vector3Writer(TransitionPoints, "TransitionPoints");
+    // Vector3Writer(TransitionPoints, "TransitionPoints");
   }
   return SplineObj;
 }

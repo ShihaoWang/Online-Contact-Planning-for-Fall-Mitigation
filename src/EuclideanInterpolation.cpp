@@ -99,7 +99,7 @@ struct EuclideanInterOpt: public NonlinearOptimizerInfo
   }
 };
 
-std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag)
+std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag, double & Proj)
 {
   // This function is used to optimize robot's touch down configuration such that the end effector touches the environment without self-collision.
   SimRobotObj = SimRobot;
@@ -112,6 +112,7 @@ std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _Swi
   InitConfig = SimRobot.q;;
   SelfLinkGeoObj = _SelfLinkGeoObj;
   OptFlag = true;
+  Proj = 1.0;
 
   EuclideanInterOpt EuclideanInterOptProblem;
 
@@ -160,8 +161,8 @@ std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _Swi
   EuclideanInterOptProblem.ProblemNameUpdate("EuclideanInterOptProblem", 0);
 
   // Here we would like allow much more time to be spent on IK
-  EuclideanInterOptProblem.NonlinearProb.setIntParameter("Iterations limit", 2500);
-  EuclideanInterOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 50);
+  EuclideanInterOptProblem.NonlinearProb.setIntParameter("Iterations limit", 5000);
+  EuclideanInterOptProblem.NonlinearProb.setIntParameter("Major iterations limit", 100);
   EuclideanInterOptProblem.NonlinearProb.setIntParameter("Major print level", 0);
   EuclideanInterOptProblem.NonlinearProb.setIntParameter("Minor print level", 0);
   /*
@@ -184,6 +185,14 @@ std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _Swi
   string _OptConfigFile = "EuclideanInter.config";
   RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
+  Vector3 NormalGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
+  RobotLink3D Link_i = SimRobotObj.links[NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex];
+  Vector3 AlignDirection;
+  AlignDirection.x = Link_i.T_World.R.data[2][0];
+  AlignDirection.y = Link_i.T_World.R.data[2][1];
+  AlignDirection.z = Link_i.T_World.R.data[2][2];
+  Proj = AlignDirection.dot(NormalGoal);
+
   // Self-collision constraint numerical checker
   std::vector<double> SelfCollisionDistVec(SwingLimbChain.size()-3);
   for (int i = 0; i < SwingLimbChain.size()-3; i++)     // Due to the bounding box size of torso link
@@ -199,7 +208,6 @@ std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _Swi
     SelfCollisionDistVec[i] = *std::min_element(DistVec.begin(), DistVec.end());
   }
   double SelfCollisionDistTol = *std::min_element(SelfCollisionDistVec.begin(), SelfCollisionDistVec.end());
-
   if(SelfCollisionDistTol<-0.0025){
       std::printf("Touch Down Optimization Failure due to Self-collision for Link %d! \n", NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex);
       OptFlag = false;

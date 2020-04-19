@@ -7,13 +7,44 @@
 #include <map>
 #include <random>
 
+static std::vector<RMPoint> RMLayerGene(const double & r, const int & n)
+{
+  std::vector<RMPoint> RMLayer;
+  RMLayer.reserve(n);
+  double phi = M_PI * (3.0 - sqrt(5.0)); // golden angle in radians
+
+  const double gr=(sqrt(5.0) + 1.0) / 2.0;  // golden ratio = 1.6180339887498948482
+  const double ga=(2.0 - gr) * (2.0*M_PI);  // golden angle = 2.39996322972865332
+  for (int i = 1; i <= n; i++) {
+    // double y = 1.0 - (1.0 * i / (1.0 * n - 1.0)) * 2.0; // y goes from 1.0 to -1.0
+    // double radius = sqrt(1.0 - y * y);                  // radius at y
+    // double theta = phi * (1.0 * i);                     // golden angle increment
+    // double x = cos(theta) * r;
+    // double z = sin(theta) * r;
+
+    const double lat = asin(-1.0 + 2.0 * double(i) / (n+1));
+    const double lon = ga * i;
+
+    const double x = cos(lon)*cos(lat);
+    const double y = sin(lon)*cos(lat);
+    const double z = sin(lat);
+
+    double PointNorm = std::sqrt(x * x + y * y + z * z);
+    double Ratio = PointNorm/r;
+    Vector3 RMPointPos(x/Ratio, y/Ratio, z/Ratio);
+    RMPoint RMPoint_i(r, RMPointPos);
+    RMLayer.push_back(RMPoint_i);
+  }
+  return RMLayer;
+}
+
 // Here this function is used to generate a sufficiently dense reachability map for end effector(s)
 ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<int> & TorsoLink)
 {
   // This function is used to generate the reachability map for end effector.
   // Due to the fact that the area of sphere is propotional to r^2, the number of the sampled data is propotional to r^2 on each sphere.
   double MaxRadius = 0.9;
-  int LayerNumber = 91;
+  int LayerNumber = 61;
   int PointNumberOnInner = 1;
   double LayerDiff = MaxRadius/(LayerNumber * 1.0);
   double MinRadius = LayerDiff;
@@ -34,20 +65,21 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
     int LayerPointLimit = (i + 1) * (i + 1) * PointNumberOnInner;
     int LayerPointNumber = 0;
     std::vector<RMPoint> RMLayer;
-    RMLayer.reserve(LayerPointLimit);
-    while (LayerPointNumber<LayerPointLimit)
-    {
-      double PointX = Xdis(gen);
-      double PointY = Ydis(gen);
-      double PointZ = Zdis(gen);
-      double PointNorm = std::sqrt(PointX * PointX + PointY * PointY + PointZ * PointZ);
-      double Ratio = PointNorm/Radius;
-      Vector3 RMPointPos(PointX/Ratio, PointY/Ratio, PointZ/Ratio);
-      RMPoint RMPoint_i(Radius, RMPointPos);
-      RMLayer.push_back(RMPoint_i);
-      LayerPointNumber++;
-      TotalPoint++;
-    }
+    // RMLayer.reserve(LayerPointLimit);
+    // while (LayerPointNumber<LayerPointLimit)
+    // {
+    //   double PointX = Xdis(gen);
+    //   double PointY = Ydis(gen);
+    //   double PointZ = Zdis(gen);
+    //   double PointNorm = std::sqrt(PointX * PointX + PointY * PointY + PointZ * PointZ);
+    //   double Ratio = PointNorm/Radius;
+    //   Vector3 RMPointPos(PointX/Ratio, PointY/Ratio, PointZ/Ratio);
+    //   RMPoint RMPoint_i(Radius, RMPointPos);
+    //   RMLayer.push_back(RMPoint_i);
+    //   LayerPointNumber++;
+    //   TotalPoint++;
+    // }
+    RMLayer = RMLayerGene(Radius, LayerPointLimit);
     RMObj[i] = RMLayer;
   }
   ReachabilityMap RMObject(RMObj);
@@ -98,7 +130,7 @@ ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<Lin
     std::vector<double> CollisionRadius(RobotLinkInfo[i].LocalContacts.size());
     for (int j = 0; j < RobotLinkInfo[i].LocalContacts.size(); j++)
     {
-      Vector3 Center2Edge = RobotLinkInfo[i].LocalContacts[j]  - RobotLinkInfo[i].AvgLocalContact;
+      Vector3 Center2Edge = RobotLinkInfo[i].LocalContacts[j] - RobotLinkInfo[i].AvgLocalContact;
       CollisionRadius[j] = sqrt(Center2Edge.x * Center2Edge.x + Center2Edge.y * Center2Edge.y + Center2Edge.z * Center2Edge.z);
     }
     EndEffectorCollisionRadius[i] = *std::max_element(CollisionRadius.begin(), CollisionRadius.end());

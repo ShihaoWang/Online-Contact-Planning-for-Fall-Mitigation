@@ -35,7 +35,7 @@ void CentroidalFailureMetricWriter(const Vector3 & COM, const Vector3 & COMVel, 
 void COMDesWriter(const int & FileIndex, const Vector3 & COMPosdes);
 void IntersectionsWriter(const std::vector<Vector3> & Intersections, const string &user_path, const string &inters_file_name);
 void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const double & Fy_t, const double & Fz_t, const string & SpecificPath);
-void PlanningInfoFileAppender(const int & PlanningSteps, const int & LimbNos, const string & SpecificPath);
+void PlanningInfoFileAppender(const int & PlanningSteps, const int & LimbNos, const string & SpecificPath, const double & CurTime);
 
 /* 3. Robot Initial State Optimization */
 bool InitialStateOptFn(Robot& _SimRobotObj, const std::vector<LinkInfo> & _RobotLinkInfo, const std::vector<ContactStatusInfo> &  _RobotContactInfo, const std::vector<double>& _RobotConfigRef, const double & _KEInit, const Vector3& _CentDirection, std::vector<double> & RobotConfig, std::vector<double> & RobotVelocity, const bool & ConfigFlag, const bool & VelocityFlag);
@@ -83,6 +83,8 @@ void PlanResWriter(const string & SpecificPath, const int & PushRecovFlag);
 Vector3 FlatRandomDirection();
 std::vector<double> YPRShifter(const std::vector<double> & _OptConfig);
 std::vector<Vector3> BoxVertices(const Box3D & Box3DObj);
+bool IsPathExist(const std::string &s);
+void FilePathManager(const string & SpecificPath);
 
 /* 5. Contact Polyhedron functions */
 FacetInfo FlatContactHullGeneration(const std::vector<Vector3> & _CPVertices, int& FacetFlag);
@@ -104,7 +106,7 @@ double FailureMetricEval(Robot & SimRobot, std::vector<LinkInfo> & RobotLinkInfo
 int PIPIndexFinder(const std::vector<PIPInfo> & PIPTotal, const Vector3 & RefPos);
 
 /* 8. Simulation Test */
-void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath, const double & ForceMax, const double & PushDuration, const double & DetectionWait, int & PushRecovSuccFlag, int & ActualFailureFlag);
+void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, const string & SpecificPath, const double & ForceMax, const double & PushDuration, const double & DetectionWait, int & PushRecovSuccFlag, int & ActualFailureFlag, const string & PlanningType);
 
 /* 9. Stabilizing Controller */
 std::vector<double> StabilizingControllerContact(const Robot& SimRobot, const std::vector<Matrix> & _ActJacobians, const std::vector<Vector3>& _ConeAllUnits, const int & _EdgeNo, const int& _DOF, const double& dt, std::vector<Config>& qTrajDes, std::vector<Config> & qdotTrajDes, std::vector<Config> & qTrajAct, std::vector<Config> & qdotTrajAct, std::vector<LinkInfo> & _RobotLinkInfo, std::vector<ContactStatusInfo> & _RobotContactInfo, const std::vector<Vector3> & _ContactPositionsRef, std::vector<Vector3> & _ContactPositions, std::vector<Vector3> & _ContactVelocities, const int & _ContactPointNo, const int & StepIndex);
@@ -116,7 +118,7 @@ EndPathInfo EndEffectorPlanner(Robot & SimRobot, const PIPInfo & PIPObj, const d
 double CollisionTimeEstimator(const Vector3 & EdgeA, const Vector3 & EdgeB, const Vector3 & COMPos, const Vector3 & COMVel, SignedDistanceFieldInfo & SDFInfo, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, int & CollisionIndex, const double & dt);
 double ContactModiPreEstimation(Robot & SimRobot, const PIPInfo & PIPObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, SignedDistanceFieldInfo & SDFInfo, int & FixerInfoIndex, std::vector<Vector3> & COMPosTraj, std::vector<Vector3> & COMVelTraj, const double & dt);
 int ContactFeasibleOptFn(const Robot& SimRobot, const int & _LinkInfoIndex, const Vector3 & RefPos, const std::vector<LinkInfo> & _RobotLinkInfo, ReachabilityMap & RMObject, std::vector<double> & RobotConfig, std::vector<Vector3> & NewContacts);
-ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const double & TimeStep, double & PlanTime, const string & SpecificPath, const int & PlanningSteps, const double & DistTol, const int & ContactStatusOptionRef, int & PreviousContactStatusIndex);
+ControlReferenceInfo ControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const double & RefFailureMetric, const std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, const double & TimeStep, double & PlanTime, const string & SpecificPath, const int & PlanningSteps, const double & DistTol, const int & ContactStatusOptionRef, int & PreviousContactStatusIndex, const double & CurTime);
 
 /*  11. Reachability Map */
 ReachabilityMap ReachabilityMapGenerator(Robot & SimRobot, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<int> & TorsoLink);
@@ -138,10 +140,12 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
 /* 16. Simulation Related */
 void InitialSimulation(WorldSimulation & Sim, LinearPath & FailureStateTraj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, const double & InitDuration, const double & TimeStep, const string & SpecificPath);
 void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const double & InitTime, const double & PushDuration, const int & FailureFlag, const string & SpecificPath);
+std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject);
 std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject);
 void StateLogger(WorldSimulation & Sim, FailureStateInfo & FailureStateObj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, LinearPath & FailureStateTraj, std::vector<double> & qDes, const string & SpecificPath);
 
 /*  17. Euclidean Interpolation */
-std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag);
+std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag, double & Proj);
+std::vector<double> EndEffectorOriOptFn(const Robot & SimRobot, const std::vector<double> & _RefConfig, const int & _SwingLimbIndex, const Vector3 & _NormGoal, ReachabilityMap & RMObject, bool & OptFlag, const double & _EndEffectorProjTol);
 
 #endif

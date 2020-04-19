@@ -192,7 +192,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
 
   std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
   string _OptConfigFile = "InnerOptConfig.config";
-  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+  // RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   // Self-collision constraint numerical checker
   std::vector<double> SelfCollisionDistVec(SwingLimbChain.size()-3);
@@ -200,7 +200,7 @@ std::vector<double> TransientOptFn(const Robot & SimRobot, const int & _SwingLim
   {
     Box3D Box3DObj = SimRobotObj.geometry[SwingLimbChain[i]]->GetBB();
     std::vector<Vector3> BoxVerticesVec = BoxVertices(Box3DObj);
-    Vector3Writer(BoxVerticesVec, "BoxPoints");
+    // Vector3Writer(BoxVerticesVec, "BoxPoints");
     std::vector<double> DistVec(BoxVerticesVec.size());
     for (int j = 0; j < BoxVerticesVec.size(); j++)
     {

@@ -425,13 +425,13 @@ void PushInfoFileAppender(const double & SimTime, const double & Fx_t, const dou
   return;
 }
 
-void PlanningInfoFileAppender(const int & PlanningSteps, const int & LimbNos, const string & SpecificPath)
+void PlanningInfoFileAppender(const int & PlanningSteps, const int & LimbNos, const string & SpecificPath, const double & CurTime)
 {
   std::ofstream PlanningInfoFileWriter;
   string PlanningInfoFileStr = SpecificPath + "PlanningInfoFile.txt";
   const char *PlanningInfoFileStr_Name = PlanningInfoFileStr.c_str();
   PlanningInfoFileWriter.open(PlanningInfoFileStr_Name, std::ios_base::app);
-  PlanningInfoFileWriter<<std::to_string(PlanningSteps)<<" "<< std::to_string(LimbNos)<<"\n";
+  PlanningInfoFileWriter<<std::to_string(PlanningSteps)<<" "<< std::to_string(LimbNos)<<" "<<std::to_string(CurTime)<<"\n";
   PlanningInfoFileWriter.close();
   return;
 }

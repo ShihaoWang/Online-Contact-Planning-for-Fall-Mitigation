@@ -93,16 +93,13 @@ int main()
   int FileIndex = FileIndexFinder(false);
   int TotalNumber = 100;
 
+  string PlanningType = "RHP";
+  // string PlanningType = "OLP";
+
   /* 5. Internal Experimentation Loop */
   while(FileIndex<=TotalNumber)
   {
     string SpecificPath = ExperimentPath + "/" + std::to_string(FileIndex) + "/";
-    // Let them be internal objects
-    string str = "cd " + SpecificPath;
-    str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt && rm -f *.bin && rm -f *OptConfig*.config";
-    str+=" && rm -f PlanRes.txt";
-    const char *command = str.c_str();
-    system(command);
 
     RobotWorld world;
     SimGUIBackend Backend(&world);
@@ -134,7 +131,10 @@ int main()
 
     int PushRecovFlag = 0;
     int FailureFlag = 0;
-    SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, ForceMax, PushDuration, DetectionWait, PushRecovFlag, FailureFlag);
+    SpecificPath+= PlanningType + "/";
+    FilePathManager(SpecificPath);
+
+    SimulationTest(Sim, NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, RMObject, TerrColGeom, SelfLinkGeoObj, SpecificPath, ForceMax, PushDuration, DetectionWait, PushRecovFlag, FailureFlag, PlanningType);
     if(FailureFlag)
     {
       PlanResWriter(SpecificPath, PushRecovFlag);

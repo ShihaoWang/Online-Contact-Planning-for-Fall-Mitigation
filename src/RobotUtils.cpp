@@ -4,7 +4,14 @@
 #include <KrisLibrary/robotics/Inertia.h>
 #include <random>
 #include <limits>
+#include <sys/stat.h>
 using namespace std;
+
+bool IsPathExist(const std::string &s)
+{
+  struct stat buffer;
+  return (stat (s.c_str(), &buffer) == 0);
+}
 
 void SimRobotToRobotState(const Robot &_SimRobot, std::vector<double>& _Config, std::vector<double>& _Velocity)
 {
@@ -667,7 +674,6 @@ Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileNa
 
 void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath)
 {
-  // This function is used to generate the ROC curve
   string PlanTimeFileStr = SpecificPath + "PlanTime.txt";
   const char *PlanTimeFile_Name = PlanTimeFileStr.c_str();
 
@@ -880,16 +886,19 @@ int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<d
     break;
     default:
     {
-      if((ValidEndEffector.size()>=2)&&(std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex)!= ValidContactEndEffector.end()))
-      {
-        int PreviousIndex = std::distance(ValidContactEndEffector.begin(), std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex));
-        ValidTimeEffector.erase (ValidTimeEffector.begin() + PreviousIndex);
+      if(ValidEndEffector.size()>=2){
+        if(std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex)!= ValidContactEndEffector.end())
+        {
+          int PreviousIndex = std::distance(ValidContactEndEffector.begin(), std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex));
+          ValidTimeEffector.erase (ValidTimeEffector.begin() + PreviousIndex);
+          ValidEndEffector.erase(ValidEndEffector.begin() + PreviousIndex);
+          int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
+          return ValidEndEffector[ValidEndEffectorIndex];
+        }
+        // Choose the one with the lowest time to be modified.
         int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
         return ValidEndEffector[ValidEndEffectorIndex];
       }
-      // Choose the one with the lowest time to be modified.
-      int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
-      return ValidEndEffector[ValidEndEffectorIndex];
     }
     break;
   }
@@ -987,4 +996,19 @@ std::vector<Vector3> BoxVertices(const Box3D & Box3DObj)
   Vertices.push_back(H);
   Vertices.insert(Vertices.end(), HEEdge.begin(), HEEdge.end());
   return Vertices;
+}
+
+void FilePathManager(const string & SpecificPath){
+  if(IsPathExist(SpecificPath)) printf("%s exist!\n", SpecificPath.c_str());
+  else {
+    string str = "mkdir " + SpecificPath;
+    const char *command = str.c_str();
+    system(command);
+  }
+  // Let them be internal objects
+  string str = "cd " + SpecificPath;
+  str+="&& rm -f *Traj.txt && rm -f *.path && rm -f *InfoFile.txt && rm -f PlanTime.txt && rm -f *.bin && rm -f *OptConfig*.config";
+  str+=" && rm -f PlanRes.txt";
+  const char *command = str.c_str();
+  system(command);
 }

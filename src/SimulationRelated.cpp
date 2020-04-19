@@ -5,6 +5,8 @@
 #include "Control/JointTrackingController.h"
 #include "NonlinearOptimizerInfo.h"
 
+static double EndEffectorProjTol = 0.995;
+
 void InitialSimulation(WorldSimulation & Sim, LinearPath & FailureStateTraj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, const double & InitDuration, const double & TimeStep, const string & SpecificPath)
 {
   string FailureStateTrajStr =  SpecificPath + "FailureStateTraj.path";
@@ -45,11 +47,8 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
   }
 }
 
-std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  double TouchTol  = 0.1;                         //  10 cm as a Touch Down tolerance.
-  double StrictTouchTol  = 0.025;                 //  2.5 cm as a StrictTouchTol Down tolerance.
-  double RunningTimeTol = 0.15;                   //  After this time of period, we all consider to be landing phase!
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
@@ -70,20 +69,72 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
   qDes = ControlReference.ConfigReference(InitTime, CurTime);
 
   Vector EndEffectorPos;
+  double EndEffectorProj;
   ControlReference.EndEffectorTraj.Eval(InnerTime, EndEffectorPos);
   bool InterpolationFlag;
   Vector3 EndEffectorPos3D(EndEffectorPos);
   if(!ControlReference.Type){
-    std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag);
+    std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag, EndEffectorProj);
     if(InterpolationFlag) qDes = qDesref;
   }
   // For TouchDown configuration
+  if(InnerTime>=ControlReference.FinalTime){
+    ControlReference.TouchDownConfigFlag = true;
+    ControlReference.TouchDownConfig = qDes;
+    InMPCFlag = false;
+    DetectionWaitMeasure = 0.0;
+    RobotContactInfo = ControlReference.GoalContactInfo;
+  }
+  return qDes;
+}
+
+std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+{
+  double AddTouchTol  = 0.05;                             //  5 cm as a Touch Down tolerance.
+  double ModiTouchTol  = 0.025;                           //  2.5 cm as a Touch Down tolerance.
+  double RunningTimeTol = 0.15;                           //  After this time of period, we all consider to be landing phase!
+  Robot SimRobot = *Sim.world->robots[0];
+  std::vector<double> qDes;
+  double CurTime = Sim.time;
+  double InnerTime = CurTime - InitTime;
+
+  std::vector<double> SwingContactDistVec;
+  Vector3 SwingLimbContactPos;
+  Vector3 SwingLimbAvgPos;
+  for (Vector3 & LocalContact:NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LocalContacts) {
+    SimRobot.GetWorldPosition(LocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbContactPos);
+    double CurrentDist = NonlinearOptimizerInfo::SDFInfo.SignedDistance(SwingLimbContactPos);
+    SwingContactDistVec.push_back(CurrentDist);
+  }
+  double SwingContactDist = *min_element(SwingContactDistVec.begin(), SwingContactDistVec.end());
+  SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbAvgPos);
   bool OptFlag;
+  if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
+  qDes = ControlReference.ConfigReference(InitTime, CurTime);
+
+  Vector EndEffectorPos;
+  double EndEffectorProj;
+  ControlReference.EndEffectorTraj.Eval(InnerTime, EndEffectorPos);
+  bool InterpolationFlag;
+  Vector3 EndEffectorPos3D(EndEffectorPos);
+  if(!ControlReference.Type){
+    std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag, EndEffectorProj);
+    if(InterpolationFlag){
+      qDes = qDesref;
+      if(EndEffectorProj<EndEffectorProjTol){
+        std::vector<double> qDesEndRef = EndEffectorOriOptFn(SimRobot, SimRobot.q, ControlReference.SwingLimbIndex, ControlReference.GoalContactGrad, RMObject, OptFlag, EndEffectorProjTol);
+        if(OptFlag) qDes = qDesEndRef;
+      }
+    }else{ // End Effector Orientation has to be optimized
+      std::vector<double> qDesEndRef = EndEffectorOriOptFn(SimRobot, SimRobot.q, ControlReference.SwingLimbIndex, ControlReference.GoalContactGrad, RMObject, OptFlag, EndEffectorProjTol);
+      if(OptFlag) qDes = qDesEndRef;
+    }
+  }
+  // For TouchDown configuration
   if(ControlReference.Type){    // Contact Addition
-    if(SwingContactDist<=StrictTouchTol) EndEffectorPos3D = SwingLimbAvgPos;
-    if(SwingContactDist<=TouchTol){
+    if(SwingContactDist<=AddTouchTol){
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, OptFlag);
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, ControlReference.GoalContactPos, SelfLinkGeoObj, RMObject, OptFlag);
       if(OptFlag) qDes = qDesTouch;
       ControlReference.TouchDownConfigFlag = true;
       ControlReference.TouchDownConfig = qDes;
@@ -92,10 +143,9 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
       RobotContactInfo = ControlReference.GoalContactInfo;
     }
   }else{                        // Contact Modification
-    if((ControlReference.RunningTime>=RunningTimeTol)&&(SwingContactDist<=TouchTol)){
-      if(SwingContactDist<=StrictTouchTol) EndEffectorPos3D = SwingLimbAvgPos;
+    if((ControlReference.RunningTime>=RunningTimeTol)&&(SwingContactDist<=ModiTouchTol)){
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, OptFlag);
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SwingLimbAvgPos, SelfLinkGeoObj, RMObject, OptFlag);
       if(OptFlag) qDes = qDesTouch;
       ControlReference.TouchDownConfigFlag = true;
       ControlReference.TouchDownConfig = qDes;

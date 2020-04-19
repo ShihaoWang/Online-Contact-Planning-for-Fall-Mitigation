@@ -1024,7 +1024,6 @@ struct ReachabilityMap
       {
         Vector3 RMPointPos = RMLayer_i[j].Position + RefPoint;
         double CurrentDist = SDFInfo.SignedDistance(RMPointPos);
-        // if((CurrentDist>0)&&(CurrentDist*CurrentDist<DisTol*DisTol))
         if(CurrentDist*CurrentDist<DisTol*DisTol)
         {
           ReachablePoints.push_back(RMPointPos);

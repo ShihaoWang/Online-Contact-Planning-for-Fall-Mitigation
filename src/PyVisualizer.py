@@ -15,8 +15,10 @@ import random
 
 ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
 ContactType = "/1Contact"
-ExpNo = 2
+ExpNo = 1
 DataType = 0
+PlanningType = "RHP"
+# PlanningType = "OLP"
 EnviName = "Envi1"
 # There are three VisMode: 0 -> Pure Traj, 1 -> Convex Hull, 2-> PIPs
 VisMode = 0
@@ -450,7 +452,7 @@ def BoxDataPlot(vis, ReachableContacts_data):
 
 def ContactDataLoader(IdealReachableContact):
     IdealReachableContacts = ExpName + "/../../build/" + IdealReachableContact + ".bin"
-    # IdealReachableContacts = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat/1Contact/2/" + IdealReachableContact + ".bin"
+    # IdealReachableContacts = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat/1Contact/3/0_0_" + IdealReachableContact + ".bin"
     f_IdealReachableContacts = open(IdealReachableContacts, 'rb')
     IdealReachableContacts_data = np.fromfile(f_IdealReachableContacts, dtype=np.double)
     IdealReachableContacts_data = IdealReachableContacts_data.reshape((IdealReachableContacts_data.size/3, 3))
@@ -608,8 +610,8 @@ def RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTr
             # ContactDataPlot(vis, ActiveReachableContacts_data)
             # ContactDataPlot(vis, ContactFreeContacts_data)
             # ContactDataPlot(vis, SupportContacts_data)
-            # ContactDataPlot(vis, OptimalContact_data)
-            ContactDataPlot(vis, ReducedOptimalContact_data)
+            ContactDataPlot(vis, OptimalContact_data)
+            # ContactDataPlot(vis, ReducedOptimalContact_data)
             TransitionDataPlot(vis, TransitionPoints_data)
 
             # BBDataPlot(vis, BBPoints_data)
@@ -685,13 +687,15 @@ def main(*arg):
         CtrlStateTraj = Trajectory(world.robot(0))
         FailureStateTraj = Trajectory(world.robot(0))
 
-        PlanStateTraj.load(ExpName + ContactType + "/" + str(ExpNo) + "/PlanStateTraj.path")
-        CtrlStateTraj.load(ExpName + ContactType + "/"+ str(ExpNo) + "/CtrlStateTraj.path")
-        FailureStateTraj.load(ExpName + ContactType + "/"+ str(ExpNo) + "/FailureStateTraj.path")
+        SpecificPath = ExpName + ContactType + "/" + str(ExpNo) + "/" + str(PlanningType)
 
-        PIPInfoList = PIPTrajReader(ExpName + ContactType + "/" + str(ExpNo))
+        PlanStateTraj.load(SpecificPath + "/PlanStateTraj.path")
+        CtrlStateTraj.load(SpecificPath+ "/CtrlStateTraj.path")
+        FailureStateTraj.load(SpecificPath + "/FailureStateTraj.path")
+
+        PIPInfoList = PIPTrajReader(SpecificPath)
         # One missing part is the reader for impulse information.
-        StartTime, EndTime, ImpulForce = ImpulseInfoReader(ExpName + ContactType + "/" + str(ExpNo))
+        StartTime, EndTime, ImpulForce = ImpulseInfoReader(SpecificPath)
 
         RobotTrajVisualizer(world, ContactLinkDictionary, PlanStateTraj, CtrlStateTraj, FailureStateTraj, PIPInfoList, StartTime, EndTime, ImpulForce)
 
