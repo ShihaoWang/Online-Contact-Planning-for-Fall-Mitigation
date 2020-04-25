@@ -93,8 +93,8 @@ int main()
   int FileIndex = FileIndexFinder(false);
   int TotalNumber = 100;
 
-  string PlanningType = "RHP";
-  // string PlanningType = "OLP";
+  // string PlanningType = "RHP";
+  string PlanningType = "OLP";
 
   /* 5. Internal Experimentation Loop */
   while(FileIndex<=TotalNumber)

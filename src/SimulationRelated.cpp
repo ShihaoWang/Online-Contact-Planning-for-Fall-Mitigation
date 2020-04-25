@@ -49,6 +49,8 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
 
 std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
+  double AddTouchTol  = 0.05;                             //  5 cm as a Touch Down tolerance.
+  double ModiTouchTol  = 0.025;                           //  2.5 cm as a Touch Down tolerance.
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
@@ -66,6 +68,13 @@ std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & Ini
   SimRobot.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[ControlReference.SwingLimbIndex].LinkIndex, SwingLimbAvgPos);
 
   if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
+  if(ControlReference.PlanStateTraj.times.size()==0)
+  {
+    qDes = SimRobot.q;
+    ControlReference.TouchDownConfigFlag = true;
+    ControlReference.TouchDownConfig = qDes;
+    return qDes;
+  }
   qDes = ControlReference.ConfigReference(InitTime, CurTime);
 
   Vector EndEffectorPos;
@@ -77,6 +86,25 @@ std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & Ini
     std::vector<double> qDesref = EuclideanInterOptFn(SimRobot, ControlReference.SwingLimbIndex, EndEffectorPos3D, SelfLinkGeoObj, RMObject, InterpolationFlag, EndEffectorProj);
     if(InterpolationFlag) qDes = qDesref;
   }
+
+  // // For TouchDown configuration
+  // if(ControlReference.Type){    // Contact Addition
+  //   if(SwingContactDist<=AddTouchTol){
+  //     ControlReference.TouchDownConfigFlag = true;
+  //     ControlReference.TouchDownConfig = qDes;
+  //     InMPCFlag = false;
+  //     DetectionWaitMeasure = 0.0;
+  //     RobotContactInfo = ControlReference.GoalContactInfo;
+  //   }
+  // }else{                        // Contact Modification
+  //   if((ControlReference.RunningTime>=RunningTimeTol)&&(SwingContactDist<=ModiTouchTol)){
+  //     ControlReference.TouchDownConfigFlag = true;
+  //     ControlReference.TouchDownConfig = qDes;
+  //     InMPCFlag = false;
+  //     DetectionWaitMeasure = 0.0;
+  //     RobotContactInfo = ControlReference.GoalContactInfo;
+  //   }
+  // }
   // For TouchDown configuration
   if(InnerTime>=ControlReference.FinalTime){
     ControlReference.TouchDownConfigFlag = true;
@@ -134,7 +162,7 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
   if(ControlReference.Type){    // Contact Addition
     if(SwingContactDist<=AddTouchTol){
       SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, ControlReference.GoalContactPos, SelfLinkGeoObj, RMObject, OptFlag);
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SwingLimbAvgPos, SelfLinkGeoObj, RMObject, OptFlag);
       if(OptFlag) qDes = qDesTouch;
       ControlReference.TouchDownConfigFlag = true;
       ControlReference.TouchDownConfig = qDes;
@@ -168,6 +196,8 @@ void StateLogger(WorldSimulation & Sim, FailureStateInfo & FailureStateObj, Line
 
   CtrlStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
   StateTrajAppender(CtrlStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
+
+  if(qDes.size()==0) qDes = PlanStateTraj.milestones[PlanStateTraj.times.size()-1];
 
   StateTrajAppender(PlanStateTrajStr_Name, Sim.time, qDes);
   PlanStateTraj.Append(Sim.time,    Config(qDes));

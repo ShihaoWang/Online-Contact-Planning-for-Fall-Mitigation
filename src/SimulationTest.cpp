@@ -51,7 +51,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
   ControlReferenceInfo ControlReference;                            // Used for control reference generation.
   FailureStateInfo FailureStateObj;
 
-  Vector3 ImpulseDirection = ImpulseDirectionGene(*Sim.world->robots[0], NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo);
+  Vector3 ImpulseDirection = ImpulseDirectionGene(*Sim.world->robots[0], NonlinearOptimizerInfo::RobotLinkInfo, RobotContactInfo, 1);
   Vector3 ImpulseForceMax = ForceMax * ImpulseDirection;
 
   Robot SimRobot;
@@ -70,7 +70,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     CentroidalState(SimRobot, COMPos, COMVel);
     std::vector<Vector3> ActContactPos = ContactPositionFinder(SimRobot, RobotLinkInfo, RobotContactInfo);    // From ContactInfoActive
     std::vector<PIPInfo> PIPTotal = PIPGenerator(ActContactPos, COMPos, COMVel);
-    ContactPolytopeWriter(PIPTotal, EdgeFileNames);
+    ContactPolytopeWriter(ActContactPos, PIPTotal, EdgeFileNames);
 
     int CPPIPIndex;
     double RefFailureMetric = CapturePointGenerator(PIPTotal, CPPIPIndex);
@@ -94,16 +94,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
         case -1:
         {
           if((MPCCount>=MPCDuration)&&(RHPFlag)&&(!ControlReference.TouchDownConfigFlag)){
-            bool OptFlag;
-            std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, ControlReference.GoalContactPos, SelfLinkGeoObj, RMObject, OptFlag);
-            if(OptFlag) {
-              ControlReference.TouchDownConfigFlag = true;
-              ControlReference.TouchDownConfig = qDesTouch;
-              InMPCFlag = false;
-              MPCCount = 0.0;
-              DetectionWaitMeasure = 0.0;
-              RobotContactInfo = ControlReference.GoalContactInfo;
-            }
+            MPCCount = 0.0;
           }
         }
         break;
@@ -183,9 +174,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     Sim.controlSimulators[0].oderobot->SetVelocities(FailureStateObj.FailureVelocity);
 
     NewControllerPtr->SetConstant(FailureStateObj.FailureConfig);
-
     while(Sim.time <= CtrlStateTraj.EndTime()){
-      CentroidalState(*Sim.world->robots[0], COMPos, COMVel);
       FailureStateTraj.Append(Sim.time,    Sim.world->robots[0]->q);
       StateTrajAppender(FailureStateTrajStr_Name, Sim.time, Sim.world->robots[0]->q);
       Sim.Advance(TimeStep);

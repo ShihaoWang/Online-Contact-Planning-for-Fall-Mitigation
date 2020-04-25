@@ -558,6 +558,7 @@ std::vector<string>  EdgeFileNamesGene(const string & SpecificPath)
   // const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
   string fEdgezTrajFile = SpecificPath + "EdgezTraj.txt";
   // const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
+  string fVertexTrajFile = SpecificPath + "EdgeVertexTraj.txt";
 
   EdgeFileNames.push_back(fEdgeAFile);
   EdgeFileNames.push_back(fEdgeBFile);
@@ -565,32 +566,7 @@ std::vector<string>  EdgeFileNamesGene(const string & SpecificPath)
   EdgeFileNames.push_back(fEdgexTrajFile);
   EdgeFileNames.push_back(fEdgeyTrajFile);
   EdgeFileNames.push_back(fEdgezTrajFile);
-
-  return EdgeFileNames;
-}
-
-std::vector<string>  EdgeFileNamesGene(const string & SpecificPath, const int & FileIndex)
-{
-  std::vector<string> EdgeFileNames;
-  string fEdgeAFile = SpecificPath + std::to_string(FileIndex) + "/EdgeATraj.txt";
-  // const char *fEdgeAFile_Name = fEdgeAFile.c_str();
-  string fEdgeBFile = SpecificPath + std::to_string(FileIndex) + "/EdgeBTraj.txt";
-  // const char *fEdgeBFile_Name = fEdgeBFile.c_str();
-  string fEdgeCOMFile = SpecificPath + std::to_string(FileIndex) + "/EdgeCOMTraj.txt";
-  // const char *fEdgeCOMFile_Name = fEdgeCOMFile.c_str();
-  string fEdgexTrajFile = SpecificPath + std::to_string(FileIndex) + "/EdgexTraj.txt";
-  // const char *fEdgexTrajFile_Name = fEdgexTrajFile.c_str();
-  string fEdgeyTrajFile = SpecificPath + std::to_string(FileIndex) + "/EdgeyTraj.txt";
-  // const char *fEdgeyTrajFile_Name = fEdgeyTrajFile.c_str();
-  string fEdgezTrajFile = SpecificPath + std::to_string(FileIndex) + "/EdgezTraj.txt";
-  // const char *fEdgezTrajFile_Name = fEdgezTrajFile.c_str();
-
-  EdgeFileNames.push_back(fEdgeAFile);
-  EdgeFileNames.push_back(fEdgeBFile);
-  EdgeFileNames.push_back(fEdgeCOMFile);
-  EdgeFileNames.push_back(fEdgexTrajFile);
-  EdgeFileNames.push_back(fEdgeyTrajFile);
-  EdgeFileNames.push_back(fEdgezTrajFile);
+  EdgeFileNames.push_back(fVertexTrajFile);
 
   return EdgeFileNames;
 }
@@ -687,7 +663,7 @@ void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath)
 bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol)
 {
   std::vector<double> LinkTerrDistVec;
-  for (int i = 6; i < SimRobot.q.size(); i++)
+  for (int i = 5; i < SimRobot.q.size(); i++)
   {
     if(!RMObject.EndEffectorIndices.count(i))
     {
@@ -700,54 +676,6 @@ bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, Reac
   return false;
 }
 
-Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo)
-{
-  // This function is used to get the impulsive force direction such that the force can trigger the failure.
-  std::vector<Vector3> SPVertices;
-  for (int i = 0; i < RobotLinkInfo.size(); i++)
-  {
-    int LinkiPNo = RobotLinkInfo[i].LocalContacts.size();
-    for (int j = 0; j < LinkiPNo; j++)
-    {
-      switch (RobotContactInfo[i].LocalContactStatus[j])
-      {
-        case 1:
-        {
-          Vector3 LinkiPjPos;
-          SimRobotObj.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
-          LinkiPjPos.z = 0.0;
-          SPVertices.push_back(LinkiPjPos);
-        }
-        break;
-        default:
-        break;
-      }
-    }
-  }
-
-  Vector3 COM_Pos = SimRobotObj.GetCOM();
-  int FacetFlag = 0;
-  FacetInfo SPObj = FlatContactHullGeneration(SPVertices, FacetFlag);    // This is the support polygon
-  COM_Pos.z = 0.0;
-  std::vector<double> DistVec = SPObj.ProjPoint2EdgeDistVec(COM_Pos);
-  std::vector<int> DistVecIndices(DistVec.size());
-  for (int i = 0; i < DistVec.size(); i++)
-  {
-    DistVec[i] = DistVec[i] * DistVec[i];
-    DistVecIndices[i] = i;
-  }
-
-  int MinIndex = std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
-
-  // // It seems that a little randomness can increase complexity of the game!
-  // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  // std::default_random_engine e(seed);
-  // std::shuffle(std::begin(DistVecIndices), std::end(DistVecIndices), e);
-  // MinIndex = DistVecIndices[0];
-
-  return -SPObj.EdgeNorms[MinIndex];
-}
-
 Vector3 FlatRandomDirection()
 {
   double xDir = RandomValue(1.0);
@@ -755,6 +683,71 @@ Vector3 FlatRandomDirection()
   Vector3 Dir(xDir, yDir, 0.0);
   Dir.setNormalized(Dir);
   return Dir;
+}
+
+Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, const int & Option)
+{
+  Vector3 ImpulseDirection(0.0, 0.0, 0.0);
+  switch (Option)
+  {
+    case 1:
+    {   // Towards the direction where the foot is on air.
+      Vector3 A, B;
+      if(RobotContactInfo[0].LocalContactStatus[0]){
+        SimRobotObj.GetWorldPosition(RobotLinkInfo[0].AvgLocalContact, RobotLinkInfo[0].LinkIndex, A);
+        SimRobotObj.GetWorldPosition(RobotLinkInfo[1].AvgLocalContact, RobotLinkInfo[1].LinkIndex, B);
+        ImpulseDirection = B - A;
+      }else{
+        SimRobotObj.GetWorldPosition(RobotLinkInfo[0].AvgLocalContact, RobotLinkInfo[0].LinkIndex, A);
+        SimRobotObj.GetWorldPosition(RobotLinkInfo[1].AvgLocalContact, RobotLinkInfo[1].LinkIndex, B);
+        ImpulseDirection = A - B;
+      }
+    }
+    break;
+    case 2:
+    {
+      // This function is used to get the impulsive force direction such that the force can trigger the failure.
+      std::vector<Vector3> SPVertices;
+      for (int i = 0; i < RobotLinkInfo.size(); i++)
+      {
+        int LinkiPNo = RobotLinkInfo[i].LocalContacts.size();
+        for (int j = 0; j < LinkiPNo; j++)
+        {
+          switch (RobotContactInfo[i].LocalContactStatus[j])
+          {
+            case 1:
+            {
+              Vector3 LinkiPjPos;
+              SimRobotObj.GetWorldPosition(RobotLinkInfo[i].LocalContacts[j], RobotLinkInfo[i].LinkIndex, LinkiPjPos);
+              LinkiPjPos.z = 0.0;
+              SPVertices.push_back(LinkiPjPos);
+            }
+            break;
+            default:
+            break;
+          }
+        }
+      }
+      Vector3 COM_Pos = SimRobotObj.GetCOM();
+      int FacetFlag = 0;
+      FacetInfo SPObj = FlatContactHullGeneration(SPVertices, FacetFlag);    // This is the support polygon
+      COM_Pos.z = 0.0;
+      std::vector<double> DistVec = SPObj.ProjPoint2EdgeDistVec(COM_Pos);
+      std::vector<int> DistVecIndices(DistVec.size());
+      for (int i = 0; i < DistVec.size(); i++)
+      {
+        DistVec[i] = DistVec[i] * DistVec[i];
+        DistVecIndices[i] = i;
+      }
+      int MinIndex = std::distance(DistVec.begin(), std::min_element(DistVec.begin(), DistVec.end()));
+      ImpulseDirection = -SPObj.EdgeNorms[MinIndex];
+    }
+    break;
+    default: ImpulseDirection = FlatRandomDirection();
+    break;
+  }
+  ImpulseDirection.setNormalized(ImpulseDirection);
+  return ImpulseDirection;
 }
 
 void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name)
@@ -887,14 +880,14 @@ int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<d
     default:
     {
       if(ValidEndEffector.size()>=2){
-        if(std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex)!= ValidContactEndEffector.end())
-        {
-          int PreviousIndex = std::distance(ValidContactEndEffector.begin(), std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex));
-          ValidTimeEffector.erase (ValidTimeEffector.begin() + PreviousIndex);
-          ValidEndEffector.erase(ValidEndEffector.begin() + PreviousIndex);
-          int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
-          return ValidEndEffector[ValidEndEffectorIndex];
-        }
+        // if(std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex)!= ValidContactEndEffector.end())
+        // {
+        //   int PreviousIndex = std::distance(ValidContactEndEffector.begin(), std::find(ValidContactEndEffector.begin(), ValidContactEndEffector.end(), PreviousContactStatusIndex));
+        //   ValidTimeEffector.erase (ValidTimeEffector.begin() + PreviousIndex);
+        //   ValidEndEffector.erase(ValidEndEffector.begin() + PreviousIndex);
+        //   int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
+        //   return ValidEndEffector[ValidEndEffectorIndex];
+        // }
         // Choose the one with the lowest time to be modified.
         int ValidEndEffectorIndex = std::distance(ValidTimeEffector.begin(), std::min_element(ValidTimeEffector.begin(), ValidTimeEffector.end()));
         return ValidEndEffector[ValidEndEffectorIndex];

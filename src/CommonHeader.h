@@ -75,7 +75,7 @@ Vector3 ImpulForceGene(const double & ImpFx, const double & ImpFy, const double 
 Vector3 ImpulForceMaxReader(const string & SpecificPath, const string & IFFileName);
 void PlanTimeRecorder(const double & PlanTimeVal, const string & SpecificPath);
 bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol);
-Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo);
+Vector3 ImpulseDirectionGene(Robot & SimRobotObj, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & RobotContactInfo, const int & Option);
 bool FailureChecker(Robot & SimRobot, AnyCollisionGeometry3D & TerrColGeom, ReachabilityMap & RMObject, const double & DistTol);
 void SDFWriter(const Meshing::VolumeGrid & SDFGrid, const string & Name);
 int EndEffectorSelector(const std::vector<double> & TimeVec, const std::vector<double> & LengthVec, const std::vector<int> & ContactStatusVec, const int & PreviousContactStatusIndex);
@@ -98,7 +98,7 @@ double RBGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex);
 double CapturePointGenerator(const std::vector<PIPInfo> & PIPTotal, int & PIPIndex);
 double ZMPGeneratorAnalysis(const std::vector<PIPInfo> & PIPTotal, const Vector3 & COMPos, const Vector3 & COMAcc, const double & Margin);
 std::vector<Vector3> FullPIPInterCal(const std::vector<FacetInfo> & FacetInfoObj, const Vector3 & COM);
-void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<string> & EdgeFileNames);
+void ContactPolytopeWriter(const std::vector<Vector3> & ActiveContact, const std::vector<PIPInfo> & PIPTotal, const std::vector<string> & EdgeFileNames);
 std::vector<Vector3> ProjActContactPosGene(const std::vector<Vector3> & ActContactPositions);
 int Edge2EndEffector(Robot & SimRobot, const Vector3 & EdgePoint, const std::vector<LinkInfo> & RobotLinkInfo);
 double FailureMetricwithContactChange(Robot & SimRobot, const int & CriticalLink, const std::vector<LinkInfo> & RobotLinkInfo, const std::vector<ContactStatusInfo> & _RobotContactInfo, Vector3 & Edge1, Vector3 & Edge2);

@@ -537,7 +537,7 @@ void ConeUnitGenerator(const std::vector<Vector3> & ActContacts, SignedDistanceF
   }
 }
 
-void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vector<string> & EdgeFileNames)
+void ContactPolytopeWriter(const std::vector<Vector3> & ActiveContact, const std::vector<PIPInfo> & PIPTotal, const std::vector<string> & EdgeFileNames)
 {
   std::ofstream fEdgeA;         fEdgeA.open(EdgeFileNames[0].c_str(), std::ios_base::app);
   std::ofstream fEdgeB;         fEdgeB.open(EdgeFileNames[1].c_str(), std::ios_base::app);
@@ -545,6 +545,7 @@ void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vec
   std::ofstream fEdgex;         fEdgex.open(EdgeFileNames[3].c_str(), std::ios_base::app);
   std::ofstream fEdgey;         fEdgey.open(EdgeFileNames[4].c_str(), std::ios_base::app);
   std::ofstream fEdgez;         fEdgez.open(EdgeFileNames[5].c_str(), std::ios_base::app);
+  std::ofstream fEdgeVetex;     fEdgeVetex.open(EdgeFileNames[6].c_str(), std::ios_base::app);
 
   for (int i = 0; i < PIPTotal.size(); i++)
   {
@@ -555,6 +556,10 @@ void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vec
     fEdgey<<std::to_string(PIPTotal[i].y_prime_unit.x)<<" "<<std::to_string(PIPTotal[i].y_prime_unit.y)<<" "<<std::to_string(PIPTotal[i].y_prime_unit.z)<<" ";
     fEdgez<<std::to_string(PIPTotal[i].z_prime_unit.x)<<" "<<std::to_string(PIPTotal[i].z_prime_unit.y)<<" "<<std::to_string(PIPTotal[i].z_prime_unit.z)<<" ";
   }
+  for (Vector3 ActiveContact_i:ActiveContact)
+  {
+    fEdgeVetex<<std::to_string(ActiveContact_i.x)<<" "<<std::to_string(ActiveContact_i.y)<<" "<<std::to_string(ActiveContact_i.z)<<" ";
+  }
 
   fEdgeA<<"\n";                   fEdgeA.close();
   fEdgeB<<"\n";                   fEdgeB.close();
@@ -562,6 +567,7 @@ void ContactPolytopeWriter(const std::vector<PIPInfo> & PIPTotal, const std::vec
   fEdgex<<"\n";                   fEdgex.close();
   fEdgey<<"\n";                   fEdgey.close();
   fEdgez<<"\n";                   fEdgez.close();
+  fEdgeVetex<<"\n";               fEdgeVetex.close();
   return;
 }
 

@@ -92,9 +92,9 @@ PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector
         Vector3 OriPoint;
 
         if(FirstEdgeADistA<DisTol)  OriPoint = FirstEdgeA;
-        if(FirstEdgeADistB<DisTol)  OriPoint = FirstEdgeB;
-        if(FirstEdgeBDistA<DisTol)  OriPoint = SecondEdgeA;
-        if(FirstEdgeBDistB<DisTol)  OriPoint = SecondEdgeB;
+        if(FirstEdgeADistB<DisTol)  OriPoint = FirstEdgeA;
+        if(FirstEdgeBDistA<DisTol)  OriPoint = FirstEdgeB;
+        if(FirstEdgeBDistB<DisTol)  OriPoint = FirstEdgeB;
 
         Vector3 Normal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(OriPoint);
         Vector3 Axis = cross(Normal, COMVel);
