@@ -345,36 +345,36 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   }
 
   Vector3 COM_Pos = PredictedCOMPos;
-  // std::vector<std::pair<Vector3, double>> ContactPairVec;
-  // ContactPairVec.reserve(OptimalContact.size());
-  // // Here a little modification will be made to ensure a more accurate computation of contact points.
-  // std::vector<Vector3> SwingLimbVertices;
-  // SwingLimbVertices.reserve(RobotLinkInfo[SwingLimbIndex].LocalContacts.size());
-  // for (int i = 0; i < RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
-  // {
-  //   Vector3 LinkiPjPos;
-  //   SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].LocalContacts[i], RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
-  //   SwingLimbVertices.push_back(LinkiPjPos);
-  // }
-  //
-  // Vector3 SwingLimbAvg;
-  // SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, SwingLimbAvg);
-  //
-  // int FacetFlag = 0;
-  // for (int i = 0; i < OptimalContact.size(); i++)
-  // {
-  //   std::vector<Vector3> NewSPVertices = SPVertices;
-  //   Vector3 ShiftVec = OptimalContact[i] - SwingLimbAvg;
-  //   for (int j = 0; j < SwingLimbVertices.size(); j++)
-  //   {
-  //     NewSPVertices.push_back(SwingLimbVertices[j] + ShiftVec);
-  //   }
-  //   FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
-  //   COM_Pos.z = 0.0;
-  //   double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);
-  //   std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], COMDist) ;
-  //   ContactPairVec.push_back(ContactPair_i);
-  // }
+  std::vector<std::pair<Vector3, double>> ContactPairVec;
+  ContactPairVec.reserve(OptimalContact.size());
+  // Here a little modification will be made to ensure a more accurate computation of contact points.
+  std::vector<Vector3> SwingLimbVertices;
+  SwingLimbVertices.reserve(RobotLinkInfo[SwingLimbIndex].LocalContacts.size());
+  for (int i = 0; i < RobotLinkInfo[SwingLimbIndex].LocalContacts.size(); i++)
+  {
+    Vector3 LinkiPjPos;
+    SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].LocalContacts[i], RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
+    SwingLimbVertices.push_back(LinkiPjPos);
+  }
+
+  Vector3 SwingLimbAvg;
+  SimRobot.GetWorldPosition(RobotLinkInfo[SwingLimbIndex].AvgLocalContact, RobotLinkInfo[SwingLimbIndex].LinkIndex, SwingLimbAvg);
+
+  int FacetFlag = 0;
+  for (int i = 0; i < OptimalContact.size(); i++)
+  {
+    std::vector<Vector3> NewSPVertices = SPVertices;
+    Vector3 ShiftVec = OptimalContact[i] - SwingLimbAvg;
+    for (int j = 0; j < SwingLimbVertices.size(); j++)
+    {
+      NewSPVertices.push_back(SwingLimbVertices[j] + ShiftVec);
+    }
+    FacetInfo SPObj = FlatContactHullGeneration(NewSPVertices, FacetFlag);    // This is the support polygon
+    COM_Pos.z = 0.0;
+    double COMDist = SPObj.ProjPoint2EdgeDist(COM_Pos);
+    std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], COMDist) ;
+    ContactPairVec.push_back(ContactPair_i);
+  }
 
   /*    Method 2:  Random Selection */
   // std::vector<int> OptimalContactIndices(OptimalContact.size());
@@ -413,15 +413,15 @@ static std::vector<Vector3> OptimalContactSearcher(const Robot & SimRobot, const
   //   ContactPairVec.push_back(ContactPair_i);
   // }
 
-  /*    Method 4:  Centroidal Direction */
-  std::vector<std::pair<Vector3, double>> ContactPairVec;
-  ContactPairVec.reserve(OptimalContact.size());
-  for (int i = 0; i < OptimalContact.size(); i++)
-  {
-    double SupportMomentumProj = COMVel.dot(OptimalContact[i] - COM_Pos);
-    std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], SupportMomentumProj) ;
-    ContactPairVec.push_back(ContactPair_i);
-  }
+  // /*    Method 4:  Centroidal Direction */
+  // std::vector<std::pair<Vector3, double>> ContactPairVec;
+  // ContactPairVec.reserve(OptimalContact.size());
+  // for (int i = 0; i < OptimalContact.size(); i++)
+  // {
+  //   double SupportMomentumProj = COMVel.dot(OptimalContact[i] - COM_Pos);
+  //   std::pair<Vector3, double> ContactPair_i = std::make_pair(OptimalContact[i], SupportMomentumProj) ;
+  //   ContactPairVec.push_back(ContactPair_i);
+  // }
   sort(ContactPairVec.begin(), ContactPairVec.end(), ContactPairCMP);
   std::vector<Vector3> ReducedOptimalContact;
 

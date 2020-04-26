@@ -187,9 +187,9 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   SimRobotObj.UpdateConfig(Config(OptConfig));
   SimRobotObj.UpdateGeometry();
 
-  std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  string _OptConfigFile = "TouchDownConfig.config";
-  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+  // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  // string _OptConfigFile = "TouchDownConfig.config";
+  // RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   // Self-collision constraint numerical checker
   std::vector<double> SelfCollisionDistVec(SwingLimbChain.size()-3);

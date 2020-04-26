@@ -1,8 +1,9 @@
 import os
 import ipdb
 
-PlanType = "RHP"
-
+# PlanType = "RHP"
+PlanType = "OLP"
+#
 CWD = os.getcwd()
 # FolderList = next(os.walk(CWD))[1]
 # FolderList.sort()

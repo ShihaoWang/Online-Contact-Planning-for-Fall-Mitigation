@@ -162,9 +162,9 @@ std::vector<double> EndEffectorOriOptFn(const Robot & SimRobot, const std::vecto
   SimRobotObj.UpdateConfig(Config(OptConfig));
   SimRobotObj.UpdateGeometry();
 
-  std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  string _OptConfigFile = "EndEffectorOri.config";
-  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+  // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  // string _OptConfigFile = "EndEffectorOri.config";
+  // RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   RobotLink3D Link_i = SimRobotObj.links[NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex];
   Vector3 AlignDirection;
