@@ -199,7 +199,7 @@ std::vector<double> EuclideanInterOptFn(const Robot & SimRobot, const int & _Swi
   {
     Box3D Box3DObj = SimRobotObj.geometry[SwingLimbChain[i]]->GetBB();
     std::vector<Vector3> BoxVerticesVec = BoxVertices(Box3DObj);
-    Vector3Writer(BoxVerticesVec, "BoxPoints");
+    // Vector3Writer(BoxVerticesVec, "BoxPoints");
     std::vector<double> DistVec(BoxVerticesVec.size());
     for (int j = 0; j < BoxVerticesVec.size(); j++)
     {
