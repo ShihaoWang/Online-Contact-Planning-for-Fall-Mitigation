@@ -13,7 +13,7 @@ import math
 import numpy as np
 import random
 
-ExpName = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/result/flat"
+ExpType = "flat"
 ContactType = "/1Contact"
 ExpNo = 0
 # PlanningType = "RHP"
@@ -23,9 +23,9 @@ EnviName = "Envi1"
 
 # ContactName = "ActiveReachableContact"
 # ContactName = "ContactFreeContact"
-ContactName = "SupportContact"
+# ContactName = "SupportContact"
 # ContactName = "OptimalContact"
-# ContactName = "ReducedOptimalContact"
+ContactName = "ReducedOptimalContact"
 
 class MyGLPlugin(vis.GLPluginInterface):
     def __init__(self, world):
@@ -654,6 +654,10 @@ def main():
 
     Robot_Option = "../user/hrp2/"
     world = WorldModel()                    	# WorldModel is a pre-defined class
+
+    curDir = os.getcwd()
+    ExpName = curDir + "/../result/" + ExpType
+
     XML_path = ExpName + "/../../" + EnviName + ".xml"
     result = world.readFile(XML_path)         	# Here result is a boolean variable indicating the result of this loading operation
     if not result:

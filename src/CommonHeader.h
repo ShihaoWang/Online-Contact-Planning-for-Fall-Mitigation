@@ -135,14 +135,14 @@ Config WholeBodyDynamicsIntegrator(Robot & SimRobot, const std::vector<double> &
 PIPInfo TipOverPIPGene(const std::vector<Vector3> & ActiveContacts, const Vector3 & COMPos, const Vector3 & COMVel, Vector3 & CPPos);
 
 /* 15. Touch Down Contact Optimization*/
-std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, const double & SwingContactDist, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag);
+std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, const double & SwingContactDist, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag, const int & Type);
 ControlReferenceInfo TouchDownControlReferenceGeneration(Robot & SimRobot, const Vector3 & COMPos, const Vector3 & COMVel, const std::vector<ContactStatusInfo> & RobotContactInfo, const int & SwingLimbIndex, const int & Type, ReachabilityMap & RMObject, SelfLinkGeoInfo & SelfLinkGeoObj, double & PlanTime, const string & SpecificPath, int & PlanningSteps, const int & ContactStatusOptionRef, const double & CurTime);
 
 /* 16. Simulation Related */
 void InitialSimulation(WorldSimulation & Sim, LinearPath & FailureStateTraj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, const double & InitDuration, const double & TimeStep, const string & SpecificPath);
 void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const double & InitTime, const double & PushDuration, const int & FailureFlag, const string & SpecificPath);
 std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject);
-std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, int & PlanningSteps, const string & SpecificPath, double & MPCCount);
+std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, double & MPCCount);
 void StateLogger(WorldSimulation & Sim, FailureStateInfo & FailureStateObj, LinearPath & CtrlStateTraj, LinearPath & PlanStateTraj, LinearPath & FailureStateTraj, std::vector<double> & qDes, const string & SpecificPath);
 
 /*  17. Euclidean Interpolation */

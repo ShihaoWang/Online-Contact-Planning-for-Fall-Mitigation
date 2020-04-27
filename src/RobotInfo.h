@@ -1324,8 +1324,8 @@ struct ControlReferenceInfo
     GoalContactPos = _GoalContactPos;
     GoalContactGrad = _GoalContactGrad;
     ControlReferenceFlag = true;
-    TouchDownConfigFlag = false;
-    TouchDownPlanningFlag = false;
+    TouchDownPhaseFlag = false;
+    TouchDownTerminalFlag = false;
     FinalTime = PlanStateTraj.times[PlanStateTraj.times.size()-1];
     SwitchTime = FinalTime/2.0;       // The switch time is after robot's mid time.
     PathLength = _PathLength;
@@ -1366,9 +1366,9 @@ struct ControlReferenceInfo
   bool ControlReferenceFlag;
   Vector3 GoalContactPos;
   Vector3 GoalContactGrad;
-  bool TouchDownConfigFlag;
-  bool TouchDownPlanningFlag;
-  std::vector<double> TouchDownConfig;
+  bool TouchDownPhaseFlag;
+  bool TouchDownTerminalFlag;
+  std::vector<double> TouchDownTerminalConfig;
   std::vector<ContactStatusInfo> InitContactInfo;
   std::vector<ContactStatusInfo> GoalContactInfo;
   double PathLength;
