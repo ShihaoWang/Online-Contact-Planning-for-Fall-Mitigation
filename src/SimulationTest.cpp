@@ -82,7 +82,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
     }
 
     if((InMPCFlag)&&(MPCCount<MPCDuration)&&(RHPFlag)){
-      qDes = OnlineConfigReference(Sim, InitTime, ControlReference, TerrColGeom, SelfLinkGeoObj, DetectionWaitMeasure, InMPCFlag, RobotContactInfo, RMObject);
+      qDes = OnlineConfigReference(Sim, InitTime, ControlReference, TerrColGeom, SelfLinkGeoObj, DetectionWaitMeasure, InMPCFlag, RobotContactInfo, RMObject, PlanningSteps, SpecificPath, MPCCount);
       ControlReference.RunningTime+=TimeStep;
       TouchDownFlag = ControlReference.TouchDownConfigFlag;
       MPCCount+=TimeStep;
@@ -121,7 +121,7 @@ void SimulationTest(WorldSimulation & Sim, std::vector<LinkInfo> & RobotLinkInfo
             }
             else DetectionWaitMeasure+=TimeStep;
           }else{  // Then this is the MPC planning
-            if(RHPFlag){
+            if(RHPFlag&&!ControlReference.TouchDownPlanningFlag){
               double PlanTime;
               SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
               ControlReferenceInfo ControlReferenceMPC = ControlReferenceGeneration(SimRobot, COMPos, COMVel, RefFailureMetric, RobotContactInfo, RMObject, SelfLinkGeoObj, TimeStep, PlanTime, SpecificPath, PlanningSteps, DisTol, ContactStatusOptionRef, PreviousContactStatusIndex, Sim.time);

@@ -23,9 +23,9 @@ EnviName = "Envi1"
 
 # ContactName = "ActiveReachableContact"
 # ContactName = "ContactFreeContact"
-# ContactName = "SupportContact"
+ContactName = "SupportContact"
 # ContactName = "OptimalContact"
-ContactName = "ReducedOptimalContact"
+# ContactName = "ReducedOptimalContact"
 
 class MyGLPlugin(vis.GLPluginInterface):
     def __init__(self, world):
@@ -481,7 +481,7 @@ def PlanningInterval(SimulationTime, PlanningTimeList, TimeStep):
         return len(PlanningTimeList)-1
     else:
         for i in range(0, len(PlanningTimeList)):
-            if (SimulationTime<PlanningTimeList[i]+TimeStep):
+            if (SimulationTime<(PlanningTimeList[i]+TimeStep)):
                 if(i>0):
                     return i-1
                 else:
@@ -634,6 +634,7 @@ def ExperimentVisualizer(world, ContactLinkDictionary, ExpTraj, PIPInfoList, Imp
             vis.hide("ContactPolytope", True)
 
 def main():
+    ipdb.set_trace()
     ExpNo = int(sys.argv[1:][0])
     StateType = str(sys.argv[1:][1])
     SwitchType = str(sys.argv[1:][2])

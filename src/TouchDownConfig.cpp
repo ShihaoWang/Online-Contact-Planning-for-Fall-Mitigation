@@ -10,6 +10,7 @@ static int SwingLimbIndex;
 static std::vector<int> SwingLimbChain;
 static Vector3 PosGoal;
 static Vector3 GradGoal;
+static double EndEffectorDist;
 static std::vector<double> RefConfig;
 static std::vector<double> InitConfig;
 static SelfLinkGeoInfo SelfLinkGeoObj;
@@ -71,8 +72,6 @@ struct TouchDownConfigOpt: public NonlinearOptimizerInfo
     SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].AvgLocalContact, NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiCenterPos);
     Vector3 AvgDiff = LinkiCenterPos - PosGoal;
     F[0] = AvgDiff.normSquared();
-    // F[0] = ConfigDiff;
-    // F[0] = 0.0;
 
     int ConstraintIndex = 1;
     // Self-collision constraint
@@ -96,20 +95,32 @@ struct TouchDownConfigOpt: public NonlinearOptimizerInfo
     {
       Vector3 LinkiPjPos;
       SimRobotObj.GetWorldPosition(NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LocalContacts[i], NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex, LinkiPjPos);
-      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos);
+      F[ConstraintIndex] = SDFInfo.SignedDistance(LinkiPjPos) - EndEffectorDist;
       ConstraintIndex+=1;
     }
+
+    RobotLink3D Link_i = SimRobotObj.links[NonlinearOptimizerInfo::RobotLinkInfo[SwingLimbIndex].LinkIndex];
+    Vector3 AlignDirection;
+    AlignDirection.x = Link_i.T_World.R.data[2][0];
+    AlignDirection.y = Link_i.T_World.R.data[2][1];
+    AlignDirection.z = Link_i.T_World.R.data[2][2];
+    double Proj = AlignDirection.dot(GradGoal);
+    F[ConstraintIndex] = Proj - 1.0;
+    ConstraintIndex+=1;
+
     return F;
   }
 };
 
-std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag)
+std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _SwingLimbIndex, const Vector3 & _PosGoal, const double & SwingContactDist, SelfLinkGeoInfo & _SelfLinkGeoObj, ReachabilityMap & RMObject, bool & OptFlag)
 {
   // This function is used to optimize robot's touch down configuration such that the end effector touches the environment without self-collision.
   SimRobotObj = SimRobot;
   SwingLimbIndex = _SwingLimbIndex;
   SwingLimbChain = RMObject.EndEffectorLink2Pivotal[_SwingLimbIndex];
   PosGoal = _PosGoal;
+  GradGoal = NonlinearOptimizerInfo::SDFInfo.SignedDistanceNormal(PosGoal);
+  EndEffectorDist = max(0.0, SwingContactDist);
   RefConfig = SimRobot.q;
   InitConfig = SimRobot.q;;
   SelfLinkGeoObj = _SelfLinkGeoObj;
@@ -125,6 +136,7 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   int neF = 1;
   neF += 1;                                                                                       // Self-Collision
   neF = neF + NonlinearOptimizerInfo::RobotLinkInfo[_SwingLimbIndex].LocalContacts.size();        // Touch-down constraint
+  neF = neF + 1;                                                                                  // End Effector Alignment
   TouchDownConfigOptProblem.InnerVariableInitialize(n, neF);
 
   /*
@@ -144,16 +156,13 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
     Initialize the bounds of variables
   */
   std::vector<double> Flow_vec(neF), Fupp_vec(neF);
-  for (int i = 0; i < 2; i++)
+  for (int i = 0; i < neF-1; i++)
   {
     Flow_vec[i] = 0;
     Fupp_vec[i] = 1e10;
   }
-  for (int i = 2; i < neF; i++)
-  {
-    Flow_vec[i] = 0;
-    Fupp_vec[i] = 0;
-  }
+  Flow_vec[neF-1] = 0;
+  Fupp_vec[neF-1] = 0;
   TouchDownConfigOptProblem.ConstraintBoundsUpdate(Flow_vec, Fupp_vec);
 
   /*
@@ -187,9 +196,9 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   SimRobotObj.UpdateConfig(Config(OptConfig));
   SimRobotObj.UpdateGeometry();
 
-  // std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
-  // string _OptConfigFile = "TouchDownConfig.config";
-  // RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
+  std::string ConfigPath = "/home/motion/Desktop/Online-Contact-Planning-for-Fall-Mitigation/user/hrp2/";
+  string _OptConfigFile = "TouchDownConfig.config";
+  RobotConfigWriter(OptConfig, ConfigPath, _OptConfigFile);
 
   // Self-collision constraint numerical checker
   std::vector<double> SelfCollisionDistVec(SwingLimbChain.size()-3);
@@ -197,7 +206,6 @@ std::vector<double> TouchDownConfigOptFn(const Robot & SimRobot, const int & _Sw
   {
     Box3D Box3DObj = SimRobotObj.geometry[SwingLimbChain[i]]->GetBB();
     std::vector<Vector3> BoxVerticesVec = BoxVertices(Box3DObj);
-    // Vector3Writer(BoxVerticesVec, "BoxPoints");
     std::vector<double> DistVec(BoxVerticesVec.size());
     for (int j = 0; j < BoxVerticesVec.size(); j++)
     {

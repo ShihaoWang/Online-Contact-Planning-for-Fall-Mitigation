@@ -49,8 +49,6 @@ void PushImposer(WorldSimulation & Sim, const Vector3 & ImpulseForceMax, const d
 
 std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
 {
-  double AddTouchTol  = 0.05;                             //  5 cm as a Touch Down tolerance.
-  double ModiTouchTol  = 0.025;                           //  2.5 cm as a Touch Down tolerance.
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
@@ -87,24 +85,6 @@ std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & Ini
     if(InterpolationFlag) qDes = qDesref;
   }
 
-  // // For TouchDown configuration
-  // if(ControlReference.Type){    // Contact Addition
-  //   if(SwingContactDist<=AddTouchTol){
-  //     ControlReference.TouchDownConfigFlag = true;
-  //     ControlReference.TouchDownConfig = qDes;
-  //     InMPCFlag = false;
-  //     DetectionWaitMeasure = 0.0;
-  //     RobotContactInfo = ControlReference.GoalContactInfo;
-  //   }
-  // }else{                        // Contact Modification
-  //   if((ControlReference.RunningTime>=RunningTimeTol)&&(SwingContactDist<=ModiTouchTol)){
-  //     ControlReference.TouchDownConfigFlag = true;
-  //     ControlReference.TouchDownConfig = qDes;
-  //     InMPCFlag = false;
-  //     DetectionWaitMeasure = 0.0;
-  //     RobotContactInfo = ControlReference.GoalContactInfo;
-  //   }
-  // }
   // For TouchDown configuration
   if(InnerTime>=ControlReference.FinalTime){
     ControlReference.TouchDownConfigFlag = true;
@@ -116,11 +96,12 @@ std::vector<double> RawOnlineConfigReference(WorldSimulation & Sim, double & Ini
   return qDes;
 }
 
-std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject)
+std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTime, ControlReferenceInfo & ControlReference, AnyCollisionGeometry3D & TerrColGeom, SelfLinkGeoInfo & SelfLinkGeoObj, double & DetectionWaitMeasure, bool & InMPCFlag, std::vector<ContactStatusInfo> & RobotContactInfo, ReachabilityMap & RMObject, int & PlanningSteps, const string & SpecificPath, double & MPCCount)
 {
-  double AddTouchTol  = 0.05;                             //  5 cm as a Touch Down tolerance.
-  double ModiTouchTol  = 0.025;                           //  2.5 cm as a Touch Down tolerance.
-  double RunningTimeTol = 0.15;                           //  After this time of period, we all consider to be landing phase!
+  double AddTouchTol  = 0.1;                                //  10 cm as an Addition Contact Landing Tolerance.
+  double ModiTouchTol  = 0.1;                               //  10 cm as a Contact Modification Landing Tolerance.
+  double TouchDownTol  = 0.01;                             //  2.5 cm as a Touch Down Tolerance.
+  double RunningTimeTol = 0.15;                             //  After this time of period, we all consider to be landing phase!
   Robot SimRobot = *Sim.world->robots[0];
   std::vector<double> qDes;
   double CurTime = Sim.time;
@@ -139,6 +120,7 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
   bool OptFlag;
   if(ControlReference.TouchDownConfigFlag) return ControlReference.TouchDownConfig;
   qDes = ControlReference.ConfigReference(InitTime, CurTime);
+  if(ControlReference.TouchDownPlanningFlag) MPCCount = 0.0;
 
   Vector EndEffectorPos;
   double EndEffectorProj;
@@ -153,34 +135,61 @@ std::vector<double> OnlineConfigReference(WorldSimulation & Sim, double & InitTi
         std::vector<double> qDesEndRef = EndEffectorOriOptFn(SimRobot, SimRobot.q, ControlReference.SwingLimbIndex, ControlReference.GoalContactGrad, RMObject, OptFlag, EndEffectorProjTol);
         if(OptFlag) qDes = qDesEndRef;
       }
-    }else{ // End Effector Orientation has to be optimized
+    }else{  // End Effector Orientation has to be optimized
       std::vector<double> qDesEndRef = EndEffectorOriOptFn(SimRobot, SimRobot.q, ControlReference.SwingLimbIndex, ControlReference.GoalContactGrad, RMObject, OptFlag, EndEffectorProjTol);
       if(OptFlag) qDes = qDesEndRef;
     }
   }
+
+  SimRobot = *Sim.world->robots[0];
+  bool TouchDownPhaseFlag = false;
+  Vector3 COMPos, COMVel;
+  CentroidalState(SimRobot, COMPos, COMVel);
+  double PlanTime;
+  SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
+
   // For TouchDown configuration
   if(ControlReference.Type){    // Contact Addition
-    if(SwingContactDist<=AddTouchTol){
-      SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SwingLimbAvgPos, SelfLinkGeoObj, RMObject, OptFlag);
+    if((SwingContactDist<=AddTouchTol)&&(!ControlReference.TouchDownPlanningFlag)){
+      ControlReferenceInfo TouchDownControlReference = TouchDownControlReferenceGeneration(SimRobot, COMPos, COMVel, RobotContactInfo, ControlReference.SwingLimbIndex, 1, RMObject, SelfLinkGeoObj, PlanTime, SpecificPath, PlanningSteps, ControlReference.ContactStatusOptionIndex, CurTime);
+      if(TouchDownControlReference.ControlReferenceFlag){
+        PlanTimeRecorder(PlanTime, SpecificPath);
+        ControlReference = TouchDownControlReference;
+        ControlReference.TouchDownPlanningFlag = true;
+        MPCCount = 0.0;
+      }
+    }
+    if(SwingContactDist<=TouchDownTol){
+      TouchDownPhaseFlag = true;
+      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SwingLimbAvgPos, SwingContactDist, SelfLinkGeoObj, RMObject, OptFlag);
       if(OptFlag) qDes = qDesTouch;
-      ControlReference.TouchDownConfigFlag = true;
-      ControlReference.TouchDownConfig = qDes;
-      InMPCFlag = false;
-      DetectionWaitMeasure = 0.0;
-      RobotContactInfo = ControlReference.GoalContactInfo;
     }
   }else{                        // Contact Modification
-    if((ControlReference.RunningTime>=RunningTimeTol)&&(SwingContactDist<=ModiTouchTol)){
-      SelfLinkGeoObj.LinkBBsUpdate(SimRobot);
-      std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SwingLimbAvgPos, SelfLinkGeoObj, RMObject, OptFlag);
-      if(OptFlag) qDes = qDesTouch;
-      ControlReference.TouchDownConfigFlag = true;
-      ControlReference.TouchDownConfig = qDes;
-      InMPCFlag = false;
-      DetectionWaitMeasure = 0.0;
-      RobotContactInfo = ControlReference.GoalContactInfo;
+    if(ControlReference.RunningTime>=RunningTimeTol){
+      if((SwingContactDist<=ModiTouchTol)&&(!ControlReference.TouchDownPlanningFlag)){
+        ControlReferenceInfo TouchDownControlReference = TouchDownControlReferenceGeneration(SimRobot, COMPos, COMVel, RobotContactInfo, ControlReference.SwingLimbIndex, 0, RMObject, SelfLinkGeoObj, PlanTime, SpecificPath, PlanningSteps, ControlReference.ContactStatusOptionIndex, CurTime);
+        if(TouchDownControlReference.ControlReferenceFlag){
+          PlanTimeRecorder(PlanTime, SpecificPath);
+          ControlReference = TouchDownControlReference;
+          ControlReference.TouchDownPlanningFlag = true;
+          MPCCount = 0.0;
+        }
+      }
+      if(SwingContactDist<=TouchDownTol){
+        TouchDownPhaseFlag = true;
+        std::vector<double> qDesTouch = TouchDownConfigOptFn(SimRobot, ControlReference.SwingLimbIndex, SwingLimbAvgPos, SwingContactDist, SelfLinkGeoObj, RMObject, OptFlag);
+        if(OptFlag) qDes = qDesTouch;
+      }
     }
+  }
+
+  if(TouchDownPhaseFlag){
+    ControlReference.TouchDownPlanningFlag = false;
+    ControlReference.TouchDownConfigFlag = true;
+    ControlReference.TouchDownConfig = qDes;
+    InMPCFlag = false;
+    DetectionWaitMeasure = 0.0;
+    RobotContactInfo = ControlReference.GoalContactInfo;
   }
   return qDes;
 }

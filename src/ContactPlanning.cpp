@@ -501,7 +501,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
             4. Based on that time, robot's whole-body configuration is updated with inverted pendulum model.
             5. The whole algorithm terminates when robot's self-collision has been triggered or no feasible IK solution can be found.
           */
-          const int sNumber = 6;                 // 6 sampled points will be extracted from EndPathObj.
+          const int sNumber = 5;                 // 6 sampled points will be extracted from EndPathObj.
           int sIndex = 1;
           double sDiff = 1.0/(1.0 * sNumber - 1.0);
           double sVal = 0.0;
@@ -530,7 +530,7 @@ static ControlReferenceInfo ControlReferenceGenerationInner(const Robot & SimRob
             bool LastFlag;
             switch (sIndex)
             {
-              case 5:   LastFlag = true;
+              case 4:   LastFlag = true;
               break;
               default:  LastFlag = false;
               break;
